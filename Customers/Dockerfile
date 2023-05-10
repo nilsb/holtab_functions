@@ -6,6 +6,7 @@ EXPOSE 80
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
+COPY ["Shared/Shared.csproj", "Shared/"]
 COPY ["Customers/Customers.csproj", "Customers/"]
 RUN dotnet restore "Customers/Customers.csproj"
 COPY . .
