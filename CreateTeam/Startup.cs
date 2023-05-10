@@ -14,6 +14,8 @@ namespace CreateTeam
     {
         public override void ConfigureAppConfiguration(IFunctionsConfigurationBuilder builder)
         {
+            var configBuilder = new ConfigurationBuilder();
+
             string cs = Environment.GetEnvironmentVariable("ConfigConnectionString");
         }
 
