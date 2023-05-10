@@ -15,4 +15,4 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag holtabprodsec.azurecr.io/customerfunctions:latest
+      run: docker build . --file ./Customers/Dockerfile --tag holtabprodsec.azurecr.io/customerfunctions:latest
