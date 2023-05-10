@@ -1,0 +1,197 @@
+[
+  {
+    "name": "Admins",
+    "value": "nils.blomgren@holtab.se,peter.thorin@holtab.se,cdn_sharepoint_account@holtab.se,carl.moberg@holtab.se,erik.ekstrom@holtab.se",
+    "slotSetting": false
+  },
+  {
+    "name": "APPINSIGHTS_CONNECTIONSTRING",
+    "value": "InstrumentationKey=c144ffa3-43cd-4100-8a03-e6e135d10c1a;IngestionEndpoint=https://westeurope-5.in.applicationinsights.azure.com/",
+    "slotSetting": false
+  },
+  {
+    "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+    "value": "c144ffa3-43cd-4100-8a03-e6e135d10c1a",
+    "slotSetting": true
+  },
+  {
+    "name": "APPINSIGHTS_PROFILERFEATURE_VERSION",
+    "value": "1.0.0",
+    "slotSetting": true
+  },
+  {
+    "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+    "value": "InstrumentationKey=c144ffa3-43cd-4100-8a03-e6e135d10c1a;IngestionEndpoint=https://westeurope-5.in.applicationinsights.azure.com/",
+    "slotSetting": false
+  },
+  {
+    "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+    "value": "~2",
+    "slotSetting": true
+  },
+  {
+    "name": "AzureWebJobs.CreateOrder.Disabled",
+    "value": "0",
+    "slotSetting": false
+  },
+  {
+    "name": "AzureWebJobs.CreateTeam.Disabled",
+    "value": "0",
+    "slotSetting": false
+  },
+  {
+    "name": "AzureWebJobs.GetCustomerTeam.Disabled",
+    "value": "1",
+    "slotSetting": false
+  },
+  {
+    "name": "AzureWebJobs.HandleEmail.Disabled",
+    "value": "0",
+    "slotSetting": false
+  },
+  {
+    "name": "AzureWebJobs.PostProcessEmails.Disabled",
+    "value": "0",
+    "slotSetting": false
+  },
+  {
+    "name": "AzureWebJobs.PostProcessOrders.Disabled",
+    "value": "0",
+    "slotSetting": false
+  },
+  {
+    "name": "AzureWebJobs.ReceiveOrder.Disabled",
+    "value": "1",
+    "slotSetting": false
+  },
+  {
+    "name": "AzureWebJobsStorage",
+    "value": "DefaultEndpointsProtocol=https;AccountName=storageaccounto365la013;AccountKey=ISGXhNultMMamUu+ZefUE71Klmi4M2avNLQhHmZrNVU/OpQPnevy9+xptBeW+UZhnWA7bHf+XDY4GTYqGmGsqw==;BlobEndpoint=https://storageaccounto365la013.blob.core.windows.net/;TableEndpoint=https://storageaccounto365la013.table.core.windows.net/;QueueEndpoint=https://storageaccounto365la013.queue.core.windows.net/;FileEndpoint=https://storageaccounto365la013.file.core.windows.net/",
+    "slotSetting": false
+  },
+  {
+    "name": "cdnSiteId",
+    "value": "b54f0b6b-1ccc-4fe2-9537-d6225d87355a",
+    "slotSetting": false
+  },
+  {
+    "name": "CDNTeamID",
+    "value": "23ee624d-53ed-425e-bd75-a7c6d340ef3f",
+    "slotSetting": false
+  },
+  {
+    "name": "CertificateThumbPrint",
+    "value": "369E59CA1C3637496E46FB9B5EDC9DE179210338",
+    "slotSetting": false
+  },
+  {
+    "name": "ClientID",
+    "value": "10817a97-cf12-4a01-9105-84a03b9d4e4f",
+    "slotSetting": false
+  },
+  {
+    "name": "ClientSecret",
+    "value": "0UC_.LXOZ4fYRB0o9XYzB-fvxn4B1j9RE.",
+    "slotSetting": false
+  },
+  {
+    "name": "CustomerListID",
+    "value": "86aabd2d-cb38-4da1-9a19-743190cda9e3",
+    "slotSetting": false
+  },
+  {
+    "name": "CustomerQueueUri",
+    "value": "https://storageaccounto365la013.queue.core.windows.net/createcustomer",
+    "slotSetting": false
+  },
+  {
+    "name": "DefaultEndpointsProtocol=https;AccountName=storageaccounto365la013;AccountKey=ISGXhNultMMamUu+ZefUE71Klmi4M2avNLQhHmZrNVU__OpQPnevy9+xptBeW+UZhnWA7bHf+XDY4GTYqGmGsqw==;EndpointSuffix=core.windows.net",
+    "value": "DefaultEndpointsProtocol=https;AccountName=storageaccounto365la013;AccountKey=ISGXhNultMMamUu+ZefUE71Klmi4M2avNLQhHmZrNVU/OpQPnevy9+xptBeW+UZhnWA7bHf+XDY4GTYqGmGsqw==;BlobEndpoint=https://storageaccounto365la013.blob.core.windows.net/;TableEndpoint=https://storageaccounto365la013.table.core.windows.net/;QueueEndpoint=https://storageaccounto365la013.queue.core.windows.net/;FileEndpoint=https://storageaccounto365la013.file.core.windows.net/",
+    "slotSetting": false
+  },
+  {
+    "name": "DiagnosticServices_EXTENSION_VERSION",
+    "value": "~4",
+    "slotSetting": true
+  },
+  {
+    "name": "FUNCTIONS_EXTENSION_VERSION",
+    "value": "~4",
+    "slotSetting": false
+  },
+  {
+    "name": "FUNCTIONS_WORKER_RUNTIME",
+    "value": "dotnet",
+    "slotSetting": false
+  },
+  {
+    "name": "MailQueueUri",
+    "value": "https://storageaccounto365la013.queue.core.windows.net/receive",
+    "slotSetting": false
+  },
+  {
+    "name": "MICROSOFT_PROVIDER_AUTHENTICATION_SECRET",
+    "value": "QVK7Q~pwavcu~D3qTJ8KL6KNepEoXY6e8novg",
+    "slotSetting": true
+  },
+  {
+    "name": "OrderListID",
+    "value": "093d1d98-888b-4a6b-9bd1-89f62094f354",
+    "slotSetting": false
+  },
+  {
+    "name": "OrderQueueUri",
+    "value": "https://storageaccounto365la013.queue.core.windows.net/createorder",
+    "slotSetting": false
+  },
+  {
+    "name": "ProductionChoicesID",
+    "value": "5a25c9fc-6f4e-4e71-bdb0-e3b9402f62f8",
+    "slotSetting": false
+  },
+  {
+    "name": "SqlConnectionString",
+    "value": "Server=tcp:holtab.database.windows.net,1433;Initial Catalog=holtab_integration_db;Persist Security Info=False;User ID=holtabdbadmin;Password=DVKvXWmS#LJp&EvE!!6yXRDWL&JX$3##wMNio9DXd9jxkA^h9w$pBBKvQidu3rSjyA83%SNk9EWTjZAojW%YE^WJHzgwJQfJ*ALH!8dt%zyvWyGE8MMucthByU$uVJk5;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;",
+    "slotSetting": false
+  },
+  {
+    "name": "StorageAccountKey",
+    "value": "ISGXhNultMMamUu+ZefUE71Klmi4M2avNLQhHmZrNVU/OpQPnevy9+xptBeW+UZhnWA7bHf+XDY4GTYqGmGsqw==",
+    "slotSetting": false
+  },
+  {
+    "name": "StorageAccountName",
+    "value": "storageaccounto365la013",
+    "slotSetting": false
+  },
+  {
+    "name": "TenantID",
+    "value": "b92af8fa-fba0-4e75-b132-1a903207cd98",
+    "slotSetting": false
+  },
+  {
+    "name": "VaultUri",
+    "value": "https://holtabappkeys.vault.azure.net/",
+    "slotSetting": false
+  },
+  {
+    "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+    "value": "DefaultEndpointsProtocol=https;AccountName=storageaccounto365la013;AccountKey=ISGXhNultMMamUu+ZefUE71Klmi4M2avNLQhHmZrNVU/OpQPnevy9+xptBeW+UZhnWA7bHf+XDY4GTYqGmGsqw==;EndpointSuffix=core.windows.net",
+    "slotSetting": false
+  },
+  {
+    "name": "WEBSITE_CONTENTSHARE",
+    "value": "holtabcustomerfunctions8c3f",
+    "slotSetting": false
+  },
+  {
+    "name": "WEBSITE_LOAD_CERTIFICATES",
+    "value": "369E59CA1C3637496E46FB9B5EDC9DE179210338",
+    "slotSetting": false
+  },
+  {
+    "name": "WEBSITE_RUN_FROM_PACKAGE",
+    "value": "1",
+    "slotSetting": false
+  }
+]
