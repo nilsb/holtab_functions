@@ -98,8 +98,28 @@ namespace CreateTeam
                 return;
             }
 
+            var site = await msGraph.GetGroupSite(group.Id);
+
+            if(site == null)
+            {
+                return;
+            }
+
             var root = await settings.GraphClient.Drives[drive.Id].Root.GetAsync();
-            var list = await settings.GraphClient.Drives[drive.Id].List.GetAsync();
+            var lists = await settings.GraphClient.Sites[site.Id].Lists.GetAsync();
+
+            if(root == null || lists == null)
+            {
+                return;
+            }
+
+            var list = lists.Value.FirstOrDefault(l => l.DisplayName == drive.Name);
+
+            if(list == null)
+            {
+                return;
+            }
+
             string siteUrl = drive.WebUrl.Substring(0, drive.WebUrl.LastIndexOf("/"));
             var groupsite = group.Sites.FirstOrDefault();
 
