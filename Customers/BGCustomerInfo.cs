@@ -20,7 +20,8 @@ namespace CreateTeam
         [FunctionName("BGCustomerInfo")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context,
-            ILogger log)
+            ILogger log,
+            IConfiguration config)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
             log.LogInformation($"Customer Information trigger function processed message: {Message}");

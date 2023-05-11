@@ -15,7 +15,13 @@ namespace Customers
     {
         public override void ConfigureAppConfiguration(IFunctionsConfigurationBuilder builder)
         {
-            var keyVaultName = Environment.GetEnvironmentVariable("KeyVaultName");
+            var config = builder.ConfigurationBuilder
+                .SetBasePath(builder.GetContext().ApplicationRootPath)
+                .AddJsonFile("local.settings.json", optional: true, reloadOnChange: true)
+                .AddEnvironmentVariables()
+                .Build();
+
+            var keyVaultName = config["KeyVaultName"];
             var keyVaultUri = $"https://{keyVaultName}.vault.azure.net";
             var manager = new KeyVaultSecretManager();
 
@@ -24,7 +30,7 @@ namespace Customers
                 new DefaultAzureCredential(),
                 manager);
             
-            var config = builder.ConfigurationBuilder.Build();
+            config = builder.ConfigurationBuilder.Build();
 
             var secrets = typeof(KeyVaultSecrets).GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                 .Where(f => f.FieldType == typeof(string))
@@ -51,6 +57,9 @@ namespace Customers
 
         public override void Configure(IFunctionsHostBuilder builder)
         {
+            var config = builder.GetContext().Configuration;
+            builder.Services.AddSingleton(config);
+
         }
     }
 }
