@@ -22,13 +22,9 @@ namespace CreateTeam
     {
         private readonly IConfiguration config;
 
-        public BGCreateColumns(IConfiguration config, ILogger log)
+        public BGCreateColumns(IConfiguration config)
         {
             this.config = config;
-            foreach (var child in config.GetChildren())
-            {
-                log.LogInformation(child.Key + ": " + child.Value);
-            }
         }
 
         [FunctionName("BGCreateColumns")]

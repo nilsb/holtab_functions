@@ -18,13 +18,9 @@ namespace CreateTeam
     {
         private readonly IConfiguration config;
 
-        public BGCopyRootStructure(IConfiguration config, ILogger log)
+        public BGCopyRootStructure(IConfiguration config)
         {
             this.config = config;
-            foreach (var child in config.GetChildren())
-            {
-                log.LogInformation(child.Key + ": " + child.Value);
-            }
         }
 
         [FunctionName("BGCopyRootStructure")]

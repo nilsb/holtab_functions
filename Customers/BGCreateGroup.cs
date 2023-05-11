@@ -21,13 +21,9 @@ namespace CreateTeam
     {
         private readonly IConfiguration config;
 
-        public BGCreateGroup(IConfiguration config, ILogger log)
+        public BGCreateGroup(IConfiguration config)
         {
             this.config = config;
-            foreach (var child in config.GetChildren())
-            {
-                log.LogInformation(child.Key + ": " + child.Value);
-            }
         }
 
         [FunctionName("BGCreateGroup")]

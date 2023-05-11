@@ -19,13 +19,9 @@ namespace Customers
     {
         private readonly IConfiguration config;
 
-        public BGAssignPermissions(IConfiguration config, ILogger log)
+        public BGAssignPermissions(IConfiguration config)
         {
             this.config = config;
-            foreach (var child in config.GetChildren())
-            {
-                log.LogInformation(child.Key + ": " + child.Value);
-            }
         }
 
         [FunctionName("BGAssignPermissions")]
