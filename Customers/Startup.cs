@@ -59,7 +59,6 @@ namespace Customers
         {
             var config = builder.GetContext().Configuration;
             builder.Services.AddSingleton(config);
-
         }
     }
 }
