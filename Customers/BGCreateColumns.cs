@@ -20,16 +20,26 @@ namespace CreateTeam
 {
     public class BGCreateColumns
     {
+        private readonly IConfiguration config;
+
+        public BGCreateColumns(IConfiguration config, ILogger log)
+        {
+            this.config = config;
+            foreach (var child in config.GetChildren())
+            {
+                log.LogInformation(child.Key + ": " + child.Value);
+            }
+        }
+
         [FunctionName("BGCreateColumns")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context,
-            ILogger log,
-            IConfiguration config)
+            ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
 
             log.LogInformation($"Create columns queue trigger function processed message: {Message}");
-            Settings settings = new Settings(context, log);
+            Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(ref settings);
             Common common = new Common(ref settings, ref msGraph);
             log.LogTrace($"Got copy root structure request with message: {Message}");

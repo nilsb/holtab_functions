@@ -19,16 +19,26 @@ namespace CreateTeam
 {
     public class BGCreateGroup
     {
+        private readonly IConfiguration config;
+
+        public BGCreateGroup(IConfiguration config, ILogger log)
+        {
+            this.config = config;
+            foreach (var child in config.GetChildren())
+            {
+                log.LogInformation(child.Key + ": " + child.Value);
+            }
+        }
+
         [FunctionName("BGCreateGroup")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context,
-            ILogger log,
-            IConfiguration config)
+            ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
 
             log.LogInformation($"Create group queue trigger function processed message: {Message}");
-            Settings settings = new Settings(context, log);
+            Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(ref settings);
             Common common = new Common(ref settings, ref msGraph);
             log.LogTrace($"Got create group request with message: {Message}");

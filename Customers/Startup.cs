@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
@@ -29,9 +30,14 @@ namespace Customers
 
             if (!string.IsNullOrEmpty(env) && env == "Development")
             {
+                var clientsecretcredentialoptions = new ClientSecretCredentialOptions();
+                
                 builder.ConfigurationBuilder.AddAzureKeyVault(
                     new Uri(keyVaultUri),
-                    new DefaultAzureCredential(),
+                    new ClientSecretCredential(
+                        "b92af8fa-fba0-4e75-b132-1a903207cd98",
+                        "10817a97-cf12-4a01-9105-84a03b9d4e4f",
+                        "Hh48Q~QlqHoTEEh~OR6syndl1Iacbpau.VcIqbyk"),
                     manager);
             }
 
@@ -53,7 +59,7 @@ namespace Customers
 
             foreach (var secret in secrets)
             {
-                var secretValue = config[$"secrets:{secret}"];
+                var secretValue = config[$"{secret}"];
                 builder.ConfigurationBuilder.AddInMemoryCollection(new Dictionary<string, string>
                 {
                     { secret, secretValue }
@@ -61,7 +67,10 @@ namespace Customers
 
                 if(secret == "AzureAppConfigConnection")
                 {
-                    builder.ConfigurationBuilder.AddAzureAppConfiguration(secretValue, true);
+                    if(secretValue != null)
+                    {
+                        builder.ConfigurationBuilder.AddAzureAppConfiguration(secretValue, true);
+                    }
                 }
             }
 

@@ -8,16 +8,12 @@ namespace Shared.Models
 {
     public class Settings
     {
-        public Settings(ExecutionContext? context, ILogger? log)
+        public Settings(IConfiguration config, ExecutionContext? context, ILogger? log)
         {
+            this.config = config;
+
             if(context != null)
             {
-                var config = new ConfigurationBuilder()
-                  .SetBasePath(context.FunctionAppDirectory)
-                  .AddJsonFile("local.settings.json", optional: true, reloadOnChange: true)
-                  .AddEnvironmentVariables()
-                  .Build();
-
                 this.context = context;
 
                 if(config != null)
@@ -68,6 +64,7 @@ namespace Shared.Models
         public string? SqlConnectionString { get; set; }
         public string? Admins { get; set; }
         public string? ProductionChoicesListID { get; set; }
+        public IConfiguration config { get; set; }
         public ExecutionContext? context { get; set; }
         public ILogger? log { get; set; }
     }

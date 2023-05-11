@@ -17,16 +17,26 @@ namespace Customers
 {
     public class BGAssignPermissions
     {
+        private readonly IConfiguration config;
+
+        public BGAssignPermissions(IConfiguration config, ILogger log)
+        {
+            this.config = config;
+            foreach (var child in config.GetChildren())
+            {
+                log.LogInformation(child.Key + ": " + child.Value);
+            }
+        }
+
         [FunctionName("BGAssignPermissions")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context,
-            ILogger log,
-            IConfiguration config)
+            ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
 
             log.LogInformation($"Assign permissions queue trigger function processed message: {Message}");
-            Settings settings = new Settings(context, log);
+            Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(ref settings);
             Common common = new Common(ref settings, ref msGraph);
             log.LogTrace($"Got assign permissions request with message: {Message}");

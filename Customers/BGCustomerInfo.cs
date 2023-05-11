@@ -16,16 +16,21 @@ namespace CreateTeam
     public class BGCustomerInfo
     {
         public readonly HttpClient client;
+        private readonly IConfiguration config;
+
+        public BGCustomerInfo(IConfiguration config)
+        {
+            this.config = config;
+        }
 
         [FunctionName("BGCustomerInfo")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context,
-            ILogger log,
-            IConfiguration config)
+            ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
             log.LogInformation($"Customer Information trigger function processed message: {Message}");
-            Settings settings = new Settings(context, log);
+            Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(ref settings);
             Common common = new Common(ref settings, ref msGraph);
 

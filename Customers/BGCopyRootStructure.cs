@@ -16,13 +16,23 @@ namespace CreateTeam
 {
     public class BGCopyRootStructure
     {
+        private readonly IConfiguration config;
+
+        public BGCopyRootStructure(IConfiguration config, ILogger log)
+        {
+            this.config = config;
+            foreach (var child in config.GetChildren())
+            {
+                log.LogInformation(child.Key + ": " + child.Value);
+            }
+        }
+
         [FunctionName("BGCopyRootStructure")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context,
-            ILogger log,
-            IConfiguration config)
+            ILogger log)
         {
-            Settings settings = new Settings(context, log);
+            Settings settings = new Settings(config, context, log);
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
 
             log.LogInformation($"Copy root structure queue trigger function processed message: {Message}");
