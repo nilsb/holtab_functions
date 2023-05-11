@@ -25,12 +25,13 @@ namespace Customers
             var keyVaultUri = $"https://{keyVaultName}.vault.azure.net";
             var manager = new KeyVaultSecretManager();
             var env = config["env"];
+            var managedIdentityId = config["managedIdentityId"];
 
             if (!string.IsNullOrEmpty(env) && env == "Development")
             {
                 builder.ConfigurationBuilder.AddAzureKeyVault(
                     new Uri(keyVaultUri),
-                    new DefaultAzureCredential(new DefaultAzureCredentialOptions() { ManagedIdentityClientId = "3ee5194f-e1f4-4623-b9d7-5752f0fb6e3f" }),
+                    new DefaultAzureCredential(),
                     manager);
             }
 
@@ -38,7 +39,7 @@ namespace Customers
             {
                 builder.ConfigurationBuilder.AddAzureKeyVault(
                     new Uri(keyVaultUri),
-                    new DefaultAzureCredential(new DefaultAzureCredentialOptions() { ManagedIdentityClientId = "3ee5194f-e1f4-4623-b9d7-5752f0fb6e3f" }),
+                    new DefaultAzureCredential(),
                     manager);
             }
 
