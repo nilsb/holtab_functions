@@ -24,12 +24,24 @@ namespace Customers
             var keyVaultName = config["KeyVaultName"];
             var keyVaultUri = $"https://{keyVaultName}.vault.azure.net";
             var manager = new KeyVaultSecretManager();
+            var env = config["env"];
 
-            builder.ConfigurationBuilder.AddAzureKeyVault(
-                new Uri(keyVaultUri),
-                new DefaultAzureCredential(new DefaultAzureCredentialOptions() { ManagedIdentityClientId = "3ee5194f-e1f4-4623-b9d7-5752f0fb6e3f" }),
-                manager) ;
-            
+            if (!string.IsNullOrEmpty(env) && env == "Development")
+            {
+                builder.ConfigurationBuilder.AddAzureKeyVault(
+                    new Uri(keyVaultUri),
+                    new DefaultAzureCredential(new DefaultAzureCredentialOptions() { ManagedIdentityClientId = "3ee5194f-e1f4-4623-b9d7-5752f0fb6e3f" }),
+                    manager);
+            }
+
+            if (!string.IsNullOrEmpty(env) && env == "Production")
+            {
+                builder.ConfigurationBuilder.AddAzureKeyVault(
+                    new Uri(keyVaultUri),
+                    new DefaultAzureCredential(new DefaultAzureCredentialOptions() { ManagedIdentityClientId = "3ee5194f-e1f4-4623-b9d7-5752f0fb6e3f" }),
+                    manager);
+            }
+
             config = builder.ConfigurationBuilder.Build();
 
             var secrets = typeof(KeyVaultSecrets).GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
