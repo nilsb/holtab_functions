@@ -21,5 +21,5 @@ WORKDIR /home/site/wwwroot
 COPY --from=publish /app/publish .
 ENV AzureWebJobsScriptRoot="/home/site/wwwroot" \
     AzureFunctionsJobHost__Logging__Console__IsEnabled=true \
-    AzureServicesAuthConnectionString="RunAs=App;AppId=3ee5194f-e1f4-4623-b9d7-5752f0fb6e3f;TenantId=b92af8fa-fba0-4e75-b132-1a903207cd98"
+    AzureServicesAuthConnectionString="RunAs=App;AppId=b3abef0b-b83e-47f3-9d64-e41b0af9c6a9;TenantId=b92af8fa-fba0-4e75-b132-1a903207cd98"
 
