@@ -19,6 +19,7 @@ RUN dotnet publish "Customers.csproj" -c Release -o /app/publish /p:UseAppHost=f
 FROM base AS final
 WORKDIR /home/site/wwwroot
 COPY --from=publish /app/publish .
-ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
-    AzureFunctionsJobHost__Logging__Console__IsEnabled=true
+ENV AzureWebJobsScriptRoot="/home/site/wwwroot" \
+    AzureFunctionsJobHost__Logging__Console__IsEnabled=true \
+    AzureServicesAuthConnectionString="RunAs=App;AppId=3ee5194f-e1f4-4623-b9d7-5752f0fb6e3f;TenantId=b92af8fa-fba0-4e75-b132-1a903207cd98"
 
