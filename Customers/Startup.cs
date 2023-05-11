@@ -26,9 +26,10 @@ namespace Customers
             var manager = new KeyVaultSecretManager();
 
             builder.ConfigurationBuilder.AddAzureKeyVault(
-                new Uri(keyVaultUri), 
-                new DefaultAzureCredential(),
-                manager);
+                new Uri(keyVaultUri),
+                new ManagedIdentityCredential("3ee5194f-e1f4-4623-b9d7-5752f0fb6e3f"),
+                //new DefaultAzureCredential(new DefaultAzureCredentialOptions() { ManagedIdentityClientId = "3ee5194f-e1f4-4623-b9d7-5752f0fb6e3f" }),
+                manager) ;
             
             config = builder.ConfigurationBuilder.Build();
 
