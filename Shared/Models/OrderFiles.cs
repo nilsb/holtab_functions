@@ -8,7 +8,7 @@ namespace Shared.Models
 {
     public class OrderFiles
     {
-        public DriveItem file { get; set; }
-        public List<DriveItem> associated { get; set; }
+        public DriveItem? file { get; set; }
+        public List<DriveItem>? associated { get; set; }
     }
 }

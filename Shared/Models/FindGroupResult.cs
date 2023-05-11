@@ -10,7 +10,7 @@ namespace Shared.Models
     {
         public bool Success { get; set; }
         public int Count { get; set; }
-        public Group group { get; set; }
-        public List<Group> groups { get; set; }
+        public Group? group { get; set; }
+        public List<Group>? groups { get; set; }
     }
 }

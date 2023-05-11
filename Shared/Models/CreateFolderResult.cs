@@ -8,7 +8,7 @@ namespace Shared.Models
 {
     public class CreateFolderResult
     {
-        public DriveItem folder { get; set; }
+        public DriveItem? folder { get; set; }
         public bool Success { get; set; }
     }
 }

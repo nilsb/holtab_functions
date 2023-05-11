@@ -62,7 +62,7 @@ namespace Customers
 
                         return new OkObjectResult(JsonConvert.SerializeObject(Message));
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                         //Failed to add owner, dead-letter
                         return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(Message));

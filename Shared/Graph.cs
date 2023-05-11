@@ -32,19 +32,24 @@ namespace Shared
         }
 
         #region Users
-        public async Task<User> GetUser(string userEmail)
+        public async Task<User?> GetUser(string userEmail)
         {
-            User returnValue = null;
+            User? returnValue = null;
+
+            if(graphClient == null)
+            {
+                return returnValue;
+            }
 
             try
             {
-                log.LogInformation($"Trying to find member {userEmail}");
+                log?.LogInformation($"Trying to find member {userEmail}");
 
                 returnValue = await graphClient.Users[userEmail].GetAsync();
             }
             catch (Exception)
             {
-                log.LogInformation($"Unable to find member {userEmail}");
+                log?.LogInformation($"Unable to find member {userEmail}");
             }
 
             return returnValue;
@@ -53,9 +58,9 @@ namespace Shared
         #endregion
 
         #region Teams
-        public async Task<Chat> CreateOneOnOneChat(List<string> members)
+        public async Task<Chat?> CreateOneOnOneChat(List<string> members)
         {
-            Chat returnValue = null;
+            Chat? returnValue = null;
 
             try
             {
@@ -63,19 +68,22 @@ namespace Shared
 
                 foreach (string member in members)
                 {
-                    User memberUser = await GetUser(member);
+                    User? memberUser = await GetUser(member);
 
-                    chatMembers.Add(new AadUserConversationMember
+                    if(memberUser != null)
                     {
-                        Roles = new List<string>
+                        chatMembers.Add(new AadUserConversationMember
+                        {
+                            Roles = new List<string>
                         {
                             "owner"
                         },
-                        AdditionalData = new Dictionary<string, object>
+                            AdditionalData = new Dictionary<string, object>
                         {
                             { "user@odata.bind", "https://graph.microsoft.com/v1.0/users('" + memberUser.Id + "')" }
                         }
-                    });
+                        });
+                    }
                 }
 
                 var chat = new Chat()
@@ -84,7 +92,10 @@ namespace Shared
                     Members = chatMembers
                 };
 
-                returnValue = await graphClient.Chats.PostAsync(chat);
+                if(graphClient != null)
+                {
+                    returnValue = await graphClient.Chats.PostAsync(chat);
+                }
             }
             catch (Exception)
             {
@@ -93,9 +104,9 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<ChatMessage> SendOneOnOneMessage(Chat existingChat, string content)
+        public async Task<ChatMessage?> SendOneOnOneMessage(Chat existingChat, string content)
         {
-            ChatMessage returnValue = null;
+            ChatMessage? returnValue = null;
 
             try
             {
@@ -107,7 +118,10 @@ namespace Shared
                     }
                 };
 
-                returnValue = await graphClient.Chats[existingChat.Id].Messages.PostAsync(chatMessage);
+                if(graphClient != null)
+                {
+                    returnValue = await graphClient.Chats[existingChat.Id].Messages.PostAsync(chatMessage);
+                }
             }
             catch (Exception)
             {
@@ -118,26 +132,26 @@ namespace Shared
 
         public async Task<bool> AddTeamMember(string userEmail, string TeamId, string role)
         {
-            User memberToAdd = default(User);
+            User? memberToAdd = default(User);
             bool returnValue = false;
 
-            if (!string.IsNullOrEmpty(userEmail))
+            if (!string.IsNullOrEmpty(userEmail) && graphClient != null)
             {
                 try
                 {
-                    log.LogInformation($"Trying to find member {userEmail}");
+                    log?.LogInformation($"Trying to find member {userEmail}");
 
                     memberToAdd = await graphClient.Users[userEmail].GetAsync();
                 }
                 catch (Exception)
                 {
-                    log.LogInformation($"Unable to find member {userEmail}");
+                    log?.LogInformation($"Unable to find member {userEmail}");
                 }
 
 
                 if (memberToAdd != default(User))
                 {
-                    log.LogInformation($"Adding member {userEmail} to team");
+                    log?.LogInformation($"Adding member {userEmail} to team");
 
                     var conversationMember = new AadUserConversationMember
                     {
@@ -158,7 +172,7 @@ namespace Shared
                     }
                     catch (Exception ex)
                     {
-                        log.LogError(ex.Message);
+                        log?.LogError(ex.Message);
                     }
                 }
             }
@@ -166,9 +180,14 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<Team> CreateTeamFromGroup(Group group)
+        public async Task<Team?> CreateTeamFromGroup(Group group)
         {
-            Team createdTeam = null;
+            Team? createdTeam = null;
+
+            if(graphClient == null)
+            {
+                return createdTeam;
+            }
 
             try
             {
@@ -180,7 +199,7 @@ namespace Shared
 
             if (createdTeam == null)
             {
-                log.LogInformation("Creating team for group " + group.DisplayName);
+                log?.LogInformation("Creating team for group " + group.DisplayName);
 
                 try
                 {
@@ -206,26 +225,31 @@ namespace Shared
                     //create a team from newly created group
                     createdTeam = await graphClient.Groups[group.Id].Team.PutAsync(teamSettings);
 
-                    log.LogInformation("Waiting 60s for team to be created");
+                    log?.LogInformation("Waiting 60s for team to be created");
                     //wait for team to be created
                     Thread.Sleep(60000);
                 }
                 catch (Exception ex)
                 {
-                    log.LogError(ex.Message);
+                    log?.LogError(ex.Message);
                 }
             }
 
             return createdTeam;
         }
 
-        public async Task<TeamsApp> AddTeamApp(Team team, string appId)
+        public async Task<TeamsApp?> AddTeamApp(Team team, string appId)
         {
-            TeamsApp returnValue = null;
+            TeamsApp? returnValue = null;
+
+            if(graphClient == null)
+            {
+                return returnValue;
+            }
 
             try
             {
-                log.LogInformation("Add app to team " + team.DisplayName);
+                log?.LogInformation("Add app to team " + team.DisplayName);
                 var teamsAppInstallation = new TeamsAppInstallation
                 {
                     AdditionalData = new Dictionary<string, object>()
@@ -244,15 +268,20 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log.LogError(ex.Message);
+                log?.LogError(ex.Message);
             }
 
             return returnValue;
         }
 
-        public async Task<TeamsApp> GetTeamApp(string appName, string appId)
+        public async Task<TeamsApp?> GetTeamApp(string appName, string appId)
         {
-            TeamsApp returnValue = null;
+            TeamsApp? returnValue = null;
+
+            if(graphClient == null)
+            {
+                return returnValue;
+            }
 
             var apps = await graphClient.AppCatalogs.TeamsApps.GetAsync();
 
@@ -276,18 +305,23 @@ namespace Shared
         {
             bool returnValue = false;
 
+            if(graphClient == null)
+            {
+                return false;
+            }
+
             try
             {
                 var tabs = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.GetAsync();
 
-                if(tabs.Value?.Count > 0)
+                if(tabs?.Value?.Count > 0)
                 {
                     returnValue = tabs.Value.Any(t => t.DisplayName == tabName);
                 }
             }
             catch (Exception ex)
             {
-                log.LogError(ex.Message);
+                log?.LogError(ex.Message);
             }
 
             return returnValue;
@@ -301,7 +335,7 @@ namespace Shared
             {
                 try
                 {
-                    log.LogInformation("Adding app tab");
+                    log?.LogInformation("Adding app tab");
 
                     TeamsTab infotab = new TeamsTab()
                     {
@@ -323,48 +357,61 @@ namespace Shared
                         infotab.WebUrl = webUrl;
                     }
 
-                    var tab = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.PostAsync(infotab);
-                    returnValue = true;
+                    if(graphClient != null)
+                    {
+                        var tab = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.PostAsync(infotab);
+                        returnValue = true;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    log.LogError(ex.Message);
+                    log?.LogError(ex.Message);
                 }
             }
 
             return returnValue;
         }
 
-        public async Task<Channel> FindChannel(Team team, string channelName)
+        public async Task<Channel?> FindChannel(Team team, string channelName)
         {
-            Channel returnValue = null;
+            Channel? returnValue = null;
+
+            if(graphClient == null)
+            {
+                return returnValue;
+            }
 
             try
             {
-                log.LogInformation("Find channel " + channelName + " in team " + team.DisplayName);
+                log?.LogInformation("Find channel " + channelName + " in team " + team.DisplayName);
 
                 var channels = await graphClient.Teams[team.Id].Channels.GetAsync();
 
-                if(channels.Value?.Count() > 0)
+                if(channels?.Value?.Count() > 0)
                 {
                     returnValue = channels.Value.FirstOrDefault(c => c.DisplayName == channelName);
                 }
             }
             catch (Exception ex)
             {
-                log.LogError(ex.Message);
+                log?.LogError(ex.Message);
             }
 
             return returnValue;
         }
 
-        public async Task<Channel> AddChannel(Team team, string channelName, string channelDescription, ChannelMembershipType type)
+        public async Task<Channel?> AddChannel(Team team, string channelName, string channelDescription, ChannelMembershipType type)
         {
-            Channel returnValue = null;
+            Channel? returnValue = null;
+
+            if(graphClient == null)
+            {
+                return returnValue;
+            }
 
             try
             {
-                log.LogInformation("Add channel " + channelName + " to team " + team.DisplayName);
+                log?.LogInformation("Add channel " + channelName + " to team " + team.DisplayName);
                 var channel = new Channel
                 {
                     DisplayName = channelName,
@@ -376,7 +423,7 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log.LogError(ex.Message);
+                log?.LogError(ex.Message);
             }
 
             return returnValue;
@@ -405,7 +452,10 @@ namespace Shared
             {
                 var createdTab = await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab);
 
-                Console.WriteLine($"Planner tab created with ID: {createdTab.Id}");
+                if(createdTab != null)
+                {
+                    Console.WriteLine($"Planner tab created with ID: {createdTab.Id}");
+                }
             }
             catch (ServiceException ex)
             {
@@ -417,26 +467,26 @@ namespace Shared
         #region Groups
         public async Task<bool> AddGroupMember(string userEmail, string GroupId)
         {
-            User memberToAdd = default(User);
+            User? memberToAdd = default(User);
             bool returnValue = false;
 
-            if (!string.IsNullOrEmpty(userEmail))
+            if (!string.IsNullOrEmpty(userEmail) && graphClient != null)
             {
                 try
                 {
-                    log.LogInformation($"Trying to find member {userEmail}");
+                    log?.LogInformation($"Trying to find member {userEmail}");
 
                     memberToAdd = await graphClient.Users[userEmail].GetAsync();
                 }
                 catch (Exception)
                 {
-                    log.LogInformation($"Unable to find member {userEmail}");
+                    log?.LogInformation($"Unable to find member {userEmail}");
                 }
 
 
                 if (memberToAdd != default(User))
                 {
-                    log.LogInformation($"Adding member {userEmail} to group");
+                    log?.LogInformation($"Adding member {userEmail} to group");
 
                     var directoryObject = new ReferenceCreate
                     {
@@ -453,7 +503,7 @@ namespace Shared
                     }
                     catch (Exception ex)
                     {
-                        log.LogError(ex.Message);
+                        log?.LogError(ex.Message);
                     }
                 }
             }
@@ -461,27 +511,31 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<Group> CreateGroup(string description, string mailNickname, List<string> owners)
+        public async Task<Group?> CreateGroup(string description, string mailNickname, List<string> owners)
         {
-            Group createdGroup = default(Group);
+            Group? createdGroup = default(Group);
 
-            if (!string.IsNullOrEmpty(description) && !string.IsNullOrEmpty(mailNickname))
+            if (!string.IsNullOrEmpty(description) && !string.IsNullOrEmpty(mailNickname) && graphClient != null)
             {
-                log.LogInformation("Creating group " + description);
-                log.LogInformation("With owners: " + String.Join(",", owners));
+                log?.LogInformation("Creating group " + description);
+                log?.LogInformation("With owners: " + String.Join(",", owners));
 
                 try
                 {
-                    Group createGroupBody = GetCreateGroupBody(description, mailNickname, owners);
-                    createdGroup = await graphClient.Groups.PostAsync(createGroupBody);
+                    Group? createGroupBody = GetCreateGroupBody(description, mailNickname, owners);
+
+                    if(createGroupBody != null)
+                    {
+                        createdGroup = await graphClient.Groups.PostAsync(createGroupBody);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    log.LogInformation("Error creating group.");
-                    log.LogError(ex.Message);
+                    log?.LogInformation("Error creating group.");
+                    log?.LogError(ex.Message);
                 }
 
-                log.LogInformation("Waiting 60s for group to be created.");
+                log?.LogInformation("Waiting 60s for group to be created.");
 
                 //wait for group to be created
                 Thread.Sleep(90000);
@@ -490,33 +544,37 @@ namespace Shared
             return createdGroup;
         }
 
-        public async Task<Group> CreateGroupNoWait(string description, string mailNickname, List<string> owners)
+        public async Task<Group?> CreateGroupNoWait(string description, string mailNickname, List<string> owners)
         {
-            Group createdGroup = default(Group);
+            Group? createdGroup = default(Group);
 
-            if (!string.IsNullOrEmpty(description) && !string.IsNullOrEmpty(mailNickname))
+            if (!string.IsNullOrEmpty(description) && !string.IsNullOrEmpty(mailNickname) && graphClient != null)
             {
-                log.LogInformation("Creating group " + description);
-                log.LogInformation("With owners: " + String.Join(",", owners));
+                log?.LogInformation("Creating group " + description);
+                log?.LogInformation("With owners: " + String.Join(",", owners));
 
                 try
                 {
-                    Group createGroupBody = GetCreateGroupBody(description, mailNickname, owners);
-                    createdGroup = await graphClient.Groups.PostAsync(createGroupBody);
+                    Group? createGroupBody = GetCreateGroupBody(description, mailNickname, owners);
+
+                    if(createGroupBody != null)
+                    {
+                        createdGroup = await graphClient.Groups.PostAsync(createGroupBody);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    log.LogInformation("Error creating group.");
-                    log.LogError(ex.Message);
+                    log?.LogInformation("Error creating group.");
+                    log?.LogError(ex.Message);
                 }
             }
 
             return createdGroup;
         }
 
-        public Group GetCreateGroupBody(string description, string mailNickname, List<string> owners)
+        public Group? GetCreateGroupBody(string description, string mailNickname, List<string> owners)
         {
-            Group createGroupBody = default(Group);
+            Group? createGroupBody = default(Group);
 
             if (!string.IsNullOrEmpty(description) && !string.IsNullOrEmpty(mailNickname) && owners.Count > 0)
             {
@@ -553,14 +611,18 @@ namespace Shared
 
         public async Task<bool> GroupExists(string mailNickname)
         {
-            var existingGroup = await graphClient.Groups.GetAsync(config =>
+            if(graphClient == null)
             {
-                config.QueryParameters.Filter = "mailNickname eq '" + mailNickname + "'";
-                config.QueryParameters.Select = new string[] { "id, displayName" };
+                return false;
             }
-                );
 
-            if (existingGroup.Value?.Count <= 0)
+            var existingGroup = await graphClient.Groups.GetAsync(config =>
+                {
+                    config.QueryParameters.Filter = "mailNickname eq '" + mailNickname + "'";
+                    config.QueryParameters.Select = new string[] { "id, displayName" };
+                });
+
+            if (existingGroup?.Value?.Count <= 0)
             {
                 return false;
             }
@@ -573,9 +635,14 @@ namespace Shared
             FindGroupResult returnValue = new FindGroupResult();
             returnValue.Success = false;
 
+            if(graphClient == null)
+            {
+                return returnValue;
+            }
+
             try
             {
-                Group group = await graphClient.Groups[id].GetAsync();
+                Group? group = await graphClient.Groups[id].GetAsync();
 
                 if (group != null)
                 {
@@ -586,7 +653,7 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log.LogInformation($"Group not found. {ex}");
+                log?.LogInformation($"Group not found. {ex}");
             }
 
             return returnValue;
@@ -598,7 +665,12 @@ namespace Shared
             returnValue.Success = false;
             int maxcnt = 2;
             int cnt = 0;
-            GroupCollectionResponse foundGroups = null;
+            GroupCollectionResponse? foundGroups = null;
+
+            if(graphClient == null)
+            {
+                return returnValue;
+            }
 
             //try to find the group (might fail if the group has not been created yet)
             try
@@ -614,7 +686,7 @@ namespace Shared
             while (foundGroups?.Value?.Count <= 0 && withRetry)
             {
                 lock (returnValue) {
-                    log.LogInformation($"Group not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+                    log?.LogInformation($"Group not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
                     Thread.Sleep(10000);
                     cnt+=1;
                 }
@@ -708,7 +780,7 @@ namespace Shared
 
             FindGroupResult? findGroup = await GetGroupById(GroupId);
 
-            if(findGroup?.Success == true)
+            if(findGroup?.Success == true && findGroup?.group != null)
             {
                 var sites = await graphClient.Groups[findGroup.group.Id].Sites.GetAsync();
 
@@ -855,11 +927,14 @@ namespace Shared
 
             while (returnValue == null && withRetry)
             {
-                lock (returnValue)
+                if(returnValue != null)
                 {
-                    log.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
-                    cnt += 1;
-                    Thread.Sleep(10000);
+                    lock (returnValue)
+                    {
+                        log?.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+                        cnt += 1;
+                        Thread.Sleep(10000);
+                    }
                 }
 
                 try
@@ -899,11 +974,14 @@ namespace Shared
 
             while (returnValue == null && withRetry)
             {
-                lock (returnValue)
+                if(returnValue != null)
                 {
-                    log.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
-                    cnt += 1;
-                    Thread.Sleep(10000);
+                    lock (returnValue)
+                    {
+                        log?.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+                        cnt += 1;
+                        Thread.Sleep(10000);
+                    }
                 }
 
                 try
@@ -1168,7 +1246,7 @@ namespace Shared
 
                 createdFolder = result.folder;
 
-                if (recursive)
+                if (recursive && createdFolder != null)
                 {
                     createdFolder.Children = new List<DriveItem>();
 
@@ -1179,14 +1257,14 @@ namespace Shared
 
                         var createdChild = await this.CopyFolder(GroupId, createdFolder.Id, childFolder, recursive, includeFiles);
 
-                        if (createdChild.Success)
+                        if (createdChild?.Success == true && createdChild.folder != null)
                         {
                             createdFolder.Children.Add(createdChild.folder);
                         }
                     }
                 }
 
-                if (includeFiles)
+                if (includeFiles && createdFolder != null)
                 {
                     foreach (var childFile in Folder.Children)
                     {
@@ -1210,11 +1288,17 @@ namespace Shared
         {
             CreateFolderResult returnValue = new CreateFolderResult();
             returnValue.Success = false;
-            log.LogInformation("Creating " + Folder.Name + " folder.");
-            DriveItem createdFolder = null;
-            CreateFolderResult result = this.CreateFolder(GroupId, Folder.Name).Result;
-            
-            if (result.Success && Folder.Children != null)
+            log?.LogInformation("Creating " + Folder.Name + " folder.");
+            DriveItem? createdFolder = null;
+            CreateFolderResult result = new CreateFolderResult();
+            result.Success = false;
+
+            if (!string.IsNullOrEmpty(Folder.Name))
+            {
+                result = this.CreateFolder(GroupId, Folder.Name).Result;
+            }
+
+            if (result.Success && Folder.Children != null && result.folder != null)
             {
                 createdFolder = result.folder;
 
@@ -1229,7 +1313,7 @@ namespace Shared
 
                         var createdChild = await this.CopyFolder(GroupId, childFolder, recursive, includeFiles);
 
-                        if (createdChild.Success)
+                        if (createdChild.Success && createdChild.folder != null)
                         {
                             createdFolder.Children.Add(createdChild.folder);
                         }
@@ -1260,13 +1344,13 @@ namespace Shared
         {
             CreateFolderResult returnValue = new CreateFolderResult();
             returnValue.Success = false;
-            DriveItem createdFolder = null;
+            DriveItem? createdFolder = null;
 
             //first check if folder exists
             var drive = this.GetGroupDrive(GroupId).Result;
             var existingFolder = this.FindItem(drive, ParentId, FolderName, false).Result;
 
-            if(existingFolder == null)
+            if(existingFolder == null && graphClient != null && drive != null)
             {
                 //if not, create it. fail operation if folder does exist
                 try
@@ -1289,12 +1373,12 @@ namespace Shared
                     {
                         returnValue.folder = createdFolder;
                         returnValue.Success = true;
-                        log.LogInformation("Created " + FolderName + " folder.");
+                        log?.LogInformation("Created " + FolderName + " folder.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    log.LogError(ex.ToString());
+                    log?.LogError(ex.ToString());
                 }
             }
             else
@@ -1310,13 +1394,13 @@ namespace Shared
         {
             CreateFolderResult returnValue = new CreateFolderResult();
             returnValue.Success = false;
-            DriveItem createdFolder = null;
+            DriveItem? createdFolder = null;
 
             //first check if folder exists
             var drive = this.GetGroupDrive(GroupId).Result;
             var existingFolder = this.FindItem(drive, FolderName, false).Result;
 
-            if (existingFolder == null)
+            if (existingFolder == null && drive != null && graphClient != null)
             {
                 //if not, create it. fail operation if folder does exist
                 try
@@ -1334,18 +1418,22 @@ namespace Shared
                     };
 
                     var rootItem = await graphClient.Drives[drive.Id].Root.GetAsync();
-                    createdFolder = await graphClient.Drives[drive.Id].Items[rootItem.Id].Children.PostAsync(driveItemFolder);
-
-                    if (createdFolder != null)
+                    
+                    if(rootItem != null)
                     {
-                        returnValue.folder = createdFolder;
-                        returnValue.Success = true;
-                        log.LogInformation("Created " + FolderName + " folder.");
+                        createdFolder = await graphClient.Drives[drive.Id].Items[rootItem.Id].Children.PostAsync(driveItemFolder);
+
+                        if (createdFolder != null)
+                        {
+                            returnValue.folder = createdFolder;
+                            returnValue.Success = true;
+                            log?.LogInformation("Created " + FolderName + " folder.");
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    log.LogError(ex.ToString());
+                    log?.LogError(ex.ToString());
                 }
             }
             else
@@ -1362,6 +1450,12 @@ namespace Shared
         public async Task<List<ListItem>> GetListItems(string SiteId, string ListId, string Filter)
         {
             List<ListItem> returnValue = new List<ListItem>();
+
+            if(graphClient == null)
+            {
+                return returnValue;
+            }
+
             var items = await graphClient.Sites[SiteId].Lists[ListId].Items.GetAsync(config =>
             {
                 config.QueryParameters.Expand = new string[] { "Fields" };
@@ -1378,6 +1472,11 @@ namespace Shared
 
         public async Task CreateDriveColumn(string groupId, ColumnDefinition def)
         {
+            if(graphClient == null)
+            {
+                return;
+            }
+
             try
             {
                 var group = await GetGroupById(groupId);
@@ -1385,35 +1484,47 @@ namespace Shared
                 if(group.Success)
                 {
                     var drive = await GetGroupDrive(groupId);
-                    var list = await graphClient.Drives[drive.Id].List.GetAsync();
-                    var site = await GetGroupSite(groupId);
 
-                    log.LogInformation($"Adding column: {def.Description}");
-                    var col = await graphClient.Sites[site.Id].Lists[list.Id].Columns.PostAsync(def);
+                    if(drive != null)
+                    {
+                        var list = await graphClient.Drives[drive.Id].List.GetAsync();
+                        var site = await GetGroupSite(groupId);
+
+                        if(list != null && site != null)
+                        {
+                            log?.LogInformation($"Adding column: {def.Description}");
+                            var col = await graphClient.Sites[site.Id].Lists[list.Id].Columns.PostAsync(def);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
-                log.LogError(ex.ToString());
+                log?.LogError(ex.ToString());
             }
         }
 
         public async Task CreateDriveColumn(Site site, List list, ColumnDefinition def)
         {
+            if(graphClient == null)
+            {
+                return;
+            }
+
             try
             {
-                log.LogInformation($"Adding column: {def.Description}");
+                log?.LogInformation($"Adding column: {def.Description}");
                 var col = await graphClient.Sites[site.Id].Lists[list.Id].Columns.PostAsync(def);
             }
             catch (Exception ex)
             {
-                log.LogError(ex.ToString());
+                log?.LogError(ex.ToString());
             }
         }
         #endregion
 
         #region Plans
-        public async Task<PlannerPlan?> CreatePlanAsync(string? groupId, string? planName)
+        public async Task<PlannerPlan?> CreatePlanAsync(string groupId, string planName)
         {
             PlannerPlan? createdPlan = null;
 
@@ -1425,7 +1536,7 @@ namespace Shared
             PlannerPlan? newPlan = new PlannerPlan
             {
                 Title = planName,
-                Container = { ContainerId = groupId, Type = PlannerContainerType.Group }
+                Container = new PlannerPlanContainer() { ContainerId = groupId, Type = PlannerContainerType.Group }
             };
 
             try
@@ -1451,7 +1562,7 @@ namespace Shared
             {
                 var plans = await graphClient.Groups[groupId].Planner.Plans.GetAsync();
 
-                if (plans?.Value.Count > 0)
+                if (plans?.Value?.Count > 0)
                 {
                     services?.Log("Found: " + plans.Value.Count + " plans in group");
 
@@ -1463,13 +1574,13 @@ namespace Shared
             }
             catch (ServiceException ex)
             {
-                log.LogError($"Error retrieving plans: {ex.Message}");
+                log?.LogError($"Error retrieving plans: {ex.Message}");
             }
 
             return returnValue;
         }
 
-        public async Task<PlannerPlan> PlanExists(GraphServiceClient graphClient, string groupId, string planTitle)
+        public async Task<PlannerPlan?> PlanExists(GraphServiceClient graphClient, string groupId, string planTitle)
         {
             services?.Log("Trying to find plan: " + planTitle + " in group: " + groupId);
             var plans = await GetPlansAsync(graphClient, groupId);
@@ -1502,7 +1613,7 @@ namespace Shared
             }
             catch (ServiceException ex)
             {
-                log.LogError($"Error retrieving buckets: {ex.Message}");
+                log?.LogError($"Error retrieving buckets: {ex.Message}");
             }
 
             return returnValue;
@@ -1510,6 +1621,11 @@ namespace Shared
 
         public async Task CopyBucketAsync(GraphServiceClient graphClient, PlannerBucket sourceBucket, string targetPlanId)
         {
+            if(graphClient == null)
+            {
+                return;
+            }
+
             // Create a new bucket in the target plan
             var newBucket = new PlannerBucket
             {
@@ -1517,7 +1633,7 @@ namespace Shared
                 PlanId = targetPlanId
             };
 
-            PlannerBucket createdBucket;
+            PlannerBucket? createdBucket;
 
             try
             {
@@ -1529,30 +1645,33 @@ namespace Shared
                 return;
             }
 
-            // Retrieve tasks from the source bucket
-            var tasks = await graphClient.Planner.Buckets[sourceBucket.Id].Tasks
-                .GetAsync();
-
-            if(tasks?.Value?.Count > 0)
+            if(createdBucket != null)
             {
-                // Copy tasks to the new bucket
-                foreach (var task in tasks.Value)
-                {
-                    var newTask = new PlannerTask
-                    {
-                        Title = task.Title,
-                        PlanId = targetPlanId,
-                        BucketId = createdBucket.Id
-                    };
+                // Retrieve tasks from the source bucket
+                var tasks = await graphClient.Planner.Buckets[sourceBucket.Id].Tasks
+                    .GetAsync();
 
-                    try
+                if (tasks?.Value?.Count > 0)
+                {
+                    // Copy tasks to the new bucket
+                    foreach (var task in tasks.Value)
                     {
-                        await graphClient.Planner.Tasks
-                            .PostAsync(newTask);
-                    }
-                    catch (ServiceException ex)
-                    {
-                        Console.WriteLine($"Error creating task: {ex.Message}");
+                        var newTask = new PlannerTask
+                        {
+                            Title = task.Title,
+                            PlanId = targetPlanId,
+                            BucketId = createdBucket.Id
+                        };
+
+                        try
+                        {
+                            await graphClient.Planner.Tasks
+                                .PostAsync(newTask);
+                        }
+                        catch (ServiceException ex)
+                        {
+                            log?.LogError($"Error creating task: {ex.Message}");
+                        }
                     }
                 }
             }

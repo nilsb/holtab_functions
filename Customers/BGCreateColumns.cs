@@ -89,7 +89,7 @@ namespace CreateTeam
             }
         }
 
-        public async Task CreateColumn(Settings settings, Graph msGraph, Common common, Group? group, Customer? customer)
+        public async Task CreateColumn(Settings settings, Graph msGraph, Common common, Group group, Customer customer)
         {
             var drive = await msGraph.GetGroupDrive(group);
 

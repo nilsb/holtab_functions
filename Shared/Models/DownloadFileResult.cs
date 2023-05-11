@@ -8,6 +8,6 @@ namespace Shared.Models
     public class DownloadFileResult
     {
         public bool Success { get; set; }
-        public Stream Contents { get; set; }
+        public Stream? Contents { get; set; }
     }
 }

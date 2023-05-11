@@ -6,9 +6,9 @@ namespace Shared.Models
 {
     public class HandleEmailMessage
     {
-        public string Title { get; set; }
-        public string Filename { get; set; }
-        public string Source { get; set; }
-        public string Sender { get; set; }
+        public string? Title { get; set; }
+        public string? Filename { get; set; }
+        public string? Source { get; set; }
+        public string? Sender { get; set; }
     }
 }

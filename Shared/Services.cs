@@ -103,17 +103,29 @@ namespace Shared
         {
             Dictionary<string, object> keys = new Dictionary<string, object>();
 
-            if (obj.ID != Guid.Empty)
+            if(obj != null)
             {
-                keys.Add("ID", obj.ID);
-            }
-            else
-            {
-                keys.Add("ExternalId", obj.ExternalId);
-                keys.Add("Type", obj.Type);
+                if (obj.ID != Guid.Empty)
+                {
+                    keys.Add("ID", obj.ID);
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(obj.ExternalId))
+                    {
+                        keys.Add("ExternalId", obj.ExternalId);
+                    }
+
+                    if (!string.IsNullOrEmpty(obj.Type))
+                    {
+                        keys.Add("Type", obj.Type);
+                    }
+                }
+
+                return UpdateSQLQuery(obj, "Orders", keys);
             }
 
-            return UpdateSQLQuery(obj, "Orders", keys);
+            return false;
         }
         #endregion
 
@@ -171,7 +183,10 @@ namespace Shared
             }
             else 
             {
-                keys.Add("ExternalId", obj.ExternalId);
+                if (!string.IsNullOrEmpty(obj.ExternalId))
+                {
+                    keys.Add("ExternalId", obj.ExternalId);
+                }
             }
 
 
@@ -360,9 +375,14 @@ namespace Shared
         /// <param name="tablename"></param>
         /// <param name="keys"></param>
         /// <returns></returns>
-        public string GetSQLInsertQuery<T>(T src, string tablename)
+        public string GetSQLInsertQuery<T>(T? src, string tablename)
         {
             string query = "INSERT INTO " + tablename + " (";
+
+            if(src == null)
+            {
+                return "";
+            }
 
             //Set all mapped properties of the update query
             var properties = src.GetType().GetProperties();
