@@ -496,7 +496,6 @@ namespace Shared
                     try
                     {
                         await graphClient.Groups[GroupId].Owners.Ref.PostAsync(directoryObject);
-
                         await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
 
                         returnValue = true;

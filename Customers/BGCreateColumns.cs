@@ -70,10 +70,10 @@ namespace CreateTeam
 
                         return new OkObjectResult(JsonConvert.SerializeObject(Message));
                     }
-                    catch (Exception ex)
+                    catch (ServiceException ex)
                     {
-                        log.LogError(ex.ToString());
-                        log.LogTrace($"Failed to add columns to {customer.Name} with error: " + ex.ToString());
+                        log.LogError(ex.RawResponseBody.ToString());
+                        log.LogTrace($"Failed to add columns to {customer.Name} with error: " + ex.Message.ToString());
                     }
 
                     return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(Message));
