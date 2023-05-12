@@ -107,13 +107,20 @@ namespace CreateTeam
 
             var root = await settings.GraphClient.Drives[drive.Id].Root.GetAsync();
             var lists = await settings.GraphClient.Sites[site.Id].Lists.GetAsync();
+            List? list = null;
 
             if(root == null || lists == null || lists.Value == null)
             {
                 return;
             }
 
-            var list = lists.Value.FirstOrDefault(l => l != null && !string.IsNullOrEmpty(l.DisplayName) && l.DisplayName == drive.Name);
+            foreach(var l in lists.Value)
+            {
+                if(l != null && !string.IsNullOrEmpty(l.DisplayName))
+                {
+                    list = l; break;
+                }
+            }
 
             if(list == null)
             {
