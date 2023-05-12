@@ -15,7 +15,7 @@ namespace Shared
         private readonly int maxUploadChunkSize = 320 * 1024;
         private readonly string? SqlConnectionString;
 
-        public Graph(ref Settings? _settings)
+        public Graph(Settings _settings)
         {
             if (_settings != null)
             {

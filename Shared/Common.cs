@@ -21,7 +21,7 @@ namespace Shared
         public readonly Group? CDNGroup;
         public List<char> illegalChars = new List<char>() { '~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '=', '{', '}', '|', '[', ']', '\\', ':', '\"', ';', '\'', '<', '>', ',', '.', '?', '/', 'å', 'ä', 'ö', 'Å', 'Ä', 'Ö', ' ', 'Ø', 'Æ', 'æ', 'ø', 'ü', 'Ü', 'µ', 'ẞ', 'ß' };
 
-        public Common(ref Settings? _settings, ref Graph? _msGraph)
+        public Common(Settings _settings, Graph _msGraph)
         {
             log = _settings?.log;
             errorCheck = new ErrorCheck(ref log, ref settings, ref services);

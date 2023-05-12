@@ -32,8 +32,8 @@ namespace CreateTeam
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
 
             log.LogInformation($"Copy root structure queue trigger function processed message: {Message}");
-            Graph msGraph = new Graph(ref settings);
-            Common common = new Common(ref settings, ref msGraph);
+            Graph msGraph = new Graph(settings);
+            Common common = new Common(settings, msGraph);
             log.LogTrace($"Got copy root structure request with message: {Message}");
 
             //Parse the incoming message into JSON

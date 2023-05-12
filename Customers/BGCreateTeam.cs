@@ -34,8 +34,8 @@ namespace CreateTeam
             log.LogInformation($"Create team queue trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
             string response = string.Empty;
-            Graph msGraph = new Graph(ref settings);
-            Common common = new Common(ref settings, ref msGraph);
+            Graph msGraph = new Graph(settings);
+            Common common = new Common(settings, msGraph);
             FindGroupResult result = new FindGroupResult() { Success = false };
 
             //Parse the incoming message into JSON

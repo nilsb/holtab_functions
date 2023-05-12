@@ -31,8 +31,8 @@ namespace CreateTeam
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
             log.LogInformation($"Customer Information trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
-            Graph msGraph = new Graph(ref settings);
-            Common common = new Common(ref settings, ref msGraph);
+            Graph msGraph = new Graph(settings);
+            Common common = new Common(settings, msGraph);
 
             //Parse the incoming message into JSON
             CustomerMessage customerMessage = JsonConvert.DeserializeObject<CustomerMessage>(Message);

@@ -33,8 +33,8 @@ namespace Customers
 
             log.LogInformation($"Assign permissions queue trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
-            Graph msGraph = new Graph(ref settings);
-            Common common = new Common(ref settings, ref msGraph);
+            Graph msGraph = new Graph(settings);
+            Common common = new Common(settings, msGraph);
             log.LogTrace($"Got assign permissions request with message: {Message}");
 
             //Parse the incoming message into JSON
