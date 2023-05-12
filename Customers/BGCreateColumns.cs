@@ -142,8 +142,8 @@ namespace CreateTeam
             }
             catch (ServiceException ex)
             {
-                settings.log.LogError(ex.ToString());
-                settings.log.LogTrace($"Failed to add column Kundnummer to {customer.Name} with error: " + ex.ToString());
+                settings.log.LogError(ex.RawResponseBody.ToString());
+                settings.log.LogTrace($"Failed to add column Kundnummer to {customer.Name} with error: " + ex.Message.ToString());
             }
 
             try
@@ -171,8 +171,8 @@ namespace CreateTeam
             }
             catch (ServiceException ex)
             {
-                settings.log.LogError(ex.ToString());
-                settings.log.LogTrace($"Failed to add column NAVid to {customer.Name} with error: " + ex.ToString());
+                settings.log.LogError(ex.RawResponseBody.ToString());
+                settings.log.LogTrace($"Failed to add column NAVid to {customer.Name} with error: " + ex.Message.ToString());
             }
 
             try
@@ -197,8 +197,8 @@ namespace CreateTeam
             }
             catch (ServiceException ex)
             {
-                settings.log.LogError(ex.ToString());
-                settings.log.LogTrace($"Failed to add column Produktionsdokument to {customer.Name} with error: " + ex.ToString());
+                settings.log.LogError(ex.RawResponseBody.ToString());
+                settings.log.LogTrace($"Failed to add column Produktionsdokument to {customer.Name} with error: " + ex.Message.ToString());
             }
         }
 
