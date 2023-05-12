@@ -125,6 +125,9 @@ namespace CreateTeam
                     Text = new TextColumn()
                     {
                         AllowMultipleLines = false,
+                        AppendChangesToExistingText = false,
+                        LinesForEditing = 0,
+                        MaxLength = 255,
                         TextType = "plain"
                     },
                     DefaultValue = new DefaultColumnValue() { Value = customer.ExternalId },
@@ -137,7 +140,7 @@ namespace CreateTeam
 
                 var customerNoCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(customerNoDef);
             }
-            catch (Exception ex)
+            catch (ServiceException ex)
             {
                 settings.log.LogError(ex.ToString());
                 settings.log.LogTrace($"Failed to add column Kundnummer to {customer.Name} with error: " + ex.ToString());
@@ -152,6 +155,9 @@ namespace CreateTeam
                     Text = new TextColumn()
                     {
                         AllowMultipleLines = false,
+                        AppendChangesToExistingText = false,
+                        LinesForEditing = 0,
+                        MaxLength = 255,
                         TextType = "plain"
                     },
                     DefaultValue = new DefaultColumnValue() { Value = "-" },
@@ -163,7 +169,7 @@ namespace CreateTeam
 
                 var navIdCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(navIdDef);
             }
-            catch (Exception ex)
+            catch (ServiceException ex)
             {
                 settings.log.LogError(ex.ToString());
                 settings.log.LogTrace($"Failed to add column NAVid to {customer.Name} with error: " + ex.ToString());
@@ -189,7 +195,7 @@ namespace CreateTeam
 
                 var isProdCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(isProdDef);
             }
-            catch (Exception ex)
+            catch (ServiceException ex)
             {
                 settings.log.LogError(ex.ToString());
                 settings.log.LogTrace($"Failed to add column Produktionsdokument to {customer.Name} with error: " + ex.ToString());
