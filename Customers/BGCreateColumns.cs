@@ -107,26 +107,13 @@ namespace CreateTeam
 
             var root = await settings.GraphClient.Drives[drive.Id].Root.GetAsync();
             var lists = await settings.GraphClient.Sites[site.Id].Lists.GetAsync();
-            List list = new List();
 
             if(root == null || lists == null || lists.Value == null)
             {
                 return;
             }
 
-            foreach(var l in lists.Value)
-            {
-                if(l != null && !string.IsNullOrEmpty(l.DisplayName) && l.DisplayName == drive.Name)
-                {
-                    list = l; break;
-                }
-            }
-
-            if(list == null)
-            {
-                return;
-            }
-
+            var list = lists.Value.FirstOrDefault();
             string siteUrl = drive.WebUrl.Substring(0, drive.WebUrl.LastIndexOf("/"));
             var groupsite = group.Sites.FirstOrDefault();
 
@@ -246,6 +233,22 @@ namespace CreateTeam
             }
 
             return returnValue;
+        }
+
+        private async Task<string> GetDocumentLibraryIdAsync(Settings settings, string siteId)
+        {
+            var lists = await settings.GraphClient
+                .Sites[siteId]
+                .Lists
+                .GetAsync();
+
+            var documentLibrary = lists?.Value?.FirstOrDefault();
+            if (documentLibrary != null)
+            {
+                return documentLibrary.Id;
+            }
+
+            return null; // Document Library not found
         }
 
     }
