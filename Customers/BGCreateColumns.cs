@@ -114,7 +114,7 @@ namespace CreateTeam
             }
 
             string siteUrl = drive.WebUrl.Substring(0, drive.WebUrl.LastIndexOf("/"));
-            var groupsite = group.Sites.FirstOrDefault();
+            var groupsite = site;
 
             try
             {
