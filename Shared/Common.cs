@@ -16,15 +16,14 @@ namespace Shared
         private readonly string? CDNTeamID;
         private readonly string? cdnSiteId;
         private readonly string? SqlConnectionString;
-        private readonly ErrorCheck errorCheck;
+        private readonly ErrorCheck? errorCheck;
         private readonly Services? services;
         public readonly Group? CDNGroup;
         public List<char> illegalChars = new List<char>() { '~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '=', '{', '}', '|', '[', ']', '\\', ':', '\"', ';', '\'', '<', '>', ',', '.', '?', '/', 'å', 'ä', 'ö', 'Å', 'Ä', 'Ö', ' ', 'Ø', 'Æ', 'æ', 'ø', 'ü', 'Ü', 'µ', 'ẞ', 'ß' };
 
         public Common(Settings _settings, Graph _msGraph)
         {
-            log = _settings?.log;
-            errorCheck = new ErrorCheck(ref log, ref settings, ref services);
+            log = _settings.log;
             msGraph = _msGraph;
             settings = _settings;
 
@@ -38,6 +37,11 @@ namespace Shared
                 if (!string.IsNullOrEmpty(SqlConnectionString))
                 {
                     services = new Services(SqlConnectionString);
+
+                    if(log != null)
+                    {
+                        errorCheck = new ErrorCheck(log, settings, services);
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(CDNTeamID))
@@ -55,11 +59,6 @@ namespace Shared
         public Order? GetOrderFromCDN(string orderNo)
         {
             Order? returnValue = new Order();
-
-            if(!errorCheck.CheckInit())
-            {
-                return null;
-            }
 
             try
             {
@@ -95,11 +94,6 @@ namespace Shared
 
         public void UpdateOrder(Order? order, string logmsg)
         {
-            if (!errorCheck.CheckOrder(order, "UpdateOrder") || !errorCheck.CheckInit())
-            {
-                return;
-            }
-
             if (order != null)
             {
                 log?.LogTrace($"Updating {logmsg} for order {order.ExternalId} in database.");
@@ -115,11 +109,6 @@ namespace Shared
         {
             Order? returnValue = null;
             Order? DBOrder = null;
-
-            if(!errorCheck.CheckOrder(order,"UpdateOrCreateDbOrder") || !errorCheck.CheckInit())
-            {
-                return null;
-            }
 
             if(order != null)
             {
@@ -1192,7 +1181,7 @@ namespace Shared
             List<string> adminids = new List<string>();
             List<string> _admins = new List<string>();
 
-            if (!errorCheck.CheckInit() && customer == null)
+            if (customer == null)
             {
                 return adminids;
             }

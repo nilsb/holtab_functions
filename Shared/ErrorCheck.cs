@@ -14,7 +14,7 @@ namespace Shared
         private readonly Services? services;
         private readonly ILogger? log;
 
-        public ErrorCheck(ref ILogger? _log, ref Settings? _settings, ref Services? _services)
+        public ErrorCheck(ILogger _log, Settings _settings, Services _services)
         {
             log = _log;
             settings = _settings;
