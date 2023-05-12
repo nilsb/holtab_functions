@@ -113,7 +113,7 @@ namespace CreateTeam
                 return;
             }
 
-            var list = lists.Value.FirstOrDefault(l => l.DisplayName == drive.Name);
+            var list = lists.Value?.FirstOrDefault(l => l.DisplayName == drive.Name);
 
             if(list == null)
             {
