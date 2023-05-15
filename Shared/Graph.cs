@@ -495,14 +495,13 @@ namespace Shared
         public async Task<bool> AddGroupMember(string userEmail, string GroupId)
         {
             User? memberToAdd = default(User);
-            bool returnValue = false;
+            bool returnValue = true;
 
             if (!string.IsNullOrEmpty(userEmail) && graphClient != null)
             {
                 try
                 {
                     log?.LogInformation($"Trying to find member {userEmail}");
-
                     memberToAdd = await graphClient.Users[userEmail].GetAsync();
                 }
                 catch (Exception)
@@ -510,11 +509,8 @@ namespace Shared
                     log?.LogInformation($"Unable to find member {userEmail}");
                 }
 
-
                 if (memberToAdd != default(User))
                 {
-                    log?.LogInformation($"Adding member {userEmail}: {memberToAdd.Id} to group");
-
                     var directoryObject = new ReferenceCreate
                     {
                         OdataId = "https://graph.microsoft.com/v1.0/directoryObjects/" + memberToAdd.Id
@@ -522,15 +518,29 @@ namespace Shared
 
                     try
                     {
+                        log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
                         await graphClient.Groups[GroupId].Owners.Ref.PostAsync(directoryObject);
-                        await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
-
-                        returnValue = true;
                     }
                     catch (Exception ex)
                     {
                         log?.LogError(ex.Message);
+                        returnValue = false;
                     }
+
+                    try
+                    {
+                        log?.LogInformation($"Adding member {userEmail}: {memberToAdd.Id} to group");
+                        await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
+                    }
+                    catch (Exception ex)
+                    {
+                        log?.LogError(ex.Message);
+                        returnValue = false;
+                    }
+                }
+                else
+                {
+                    returnValue = false;
                 }
             }
 
