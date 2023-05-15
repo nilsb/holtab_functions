@@ -364,7 +364,10 @@ namespace Shared
                     TeamsTab infotab = new TeamsTab()
                     {
                         DisplayName = tabName,
-                        TeamsApp = app,
+                        AdditionalData = new Dictionary<string, object>()
+                        {
+                            { "teamsApp@odata.bind", "https://graph.microsoft.com/v1.0/appCatalogs/teamsApps/" + app.Id }
+                        },
                         Configuration = new TeamsTabConfiguration()
                         {
                             ContentUrl = contentUrl

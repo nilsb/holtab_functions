@@ -67,8 +67,6 @@ namespace CreateTeam
                         customer.CreatedColumnNAVid = true;
                         customer.CreatedColumnProduktionsdokument = true;
                         common.UpdateCustomer(customer, "columns");
-
-                        return new OkObjectResult(JsonConvert.SerializeObject(Message));
                     }
                     catch (Exception ex)
                     {
