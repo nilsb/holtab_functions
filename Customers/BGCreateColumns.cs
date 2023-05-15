@@ -74,6 +74,7 @@ namespace CreateTeam
                     {
                         log.LogError(ex.ToString());
                         log.LogTrace($"Failed to add columns to {customer.Name} with error: " + ex.ToString());
+                        return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(Message));
                     }
                 }
                 else
