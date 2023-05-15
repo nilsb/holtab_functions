@@ -72,6 +72,8 @@ namespace CreateTeam
             {
                 return new BadRequestObjectResult(JsonConvert.SerializeObject(Message));
             }
+
+            return new BadRequestObjectResult(JsonConvert.SerializeObject(Message));
         }
 
 
