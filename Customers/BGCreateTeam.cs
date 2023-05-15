@@ -62,8 +62,6 @@ namespace CreateTeam
                     {
                         return new UnprocessableEntityObjectResult(ex.ToString());
                     }
-
-                    return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(Message));
                 }
                 else
                 {

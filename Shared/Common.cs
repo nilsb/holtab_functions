@@ -981,6 +981,7 @@ namespace Shared
 
                                     if (app != null)
                                     {
+                                        log?.LogTrace($"Adding channel for app {app.DisplayName} to {customer.Name}");
                                         await msGraph.AddChannelApp(team, app, channels.Value[0], "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, root.WebUrl, "");
                                         log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
                                         customer.InstalledApp = true;
