@@ -247,28 +247,45 @@ namespace Shared
                 return returnValue;
             }
 
-            try
+            var result = await graphClient.Teams[team.Id].InstalledApps.GetAsync();
+
+            if(result?.Value?.Count > 0)
             {
-                log?.LogInformation("Add app to team " + team.DisplayName);
-                var teamsAppInstallation = new TeamsAppInstallation
+                
+                foreach(var app in result.Value)
                 {
-                    AdditionalData = new Dictionary<string, object>()
+                    if(app.Id == appId)
+                    {
+                        returnValue = app.TeamsApp;
+                    }
+                }
+            }
+
+            if(returnValue == null)
+            {
+                try
+                {
+                    log?.LogInformation("Add app to team " + team.DisplayName);
+                    var teamsAppInstallation = new TeamsAppInstallation
+                    {
+                        AdditionalData = new Dictionary<string, object>()
                     {
                         {"teamsApp@odata.bind", "https://graph.microsoft.com/v1.0/appCatalogs/teamsApps/" + appId}
                     }
-                };
+                    };
 
-                var installation = await graphClient.Teams[team.Id].InstalledApps.PostAsync(teamsAppInstallation);
-                
-                if(installation?.TeamsApp != null)
-                {
-                    returnValue = installation.TeamsApp;
+                    var installation = await graphClient.Teams[team.Id].InstalledApps.PostAsync(teamsAppInstallation);
+
+                    if (installation?.TeamsApp != null)
+                    {
+                        returnValue = installation.TeamsApp;
+                    }
+
                 }
-
-            }
-            catch (Exception ex)
-            {
-                log?.LogError(ex.Message);
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.Message);
+                }
             }
 
             return returnValue;

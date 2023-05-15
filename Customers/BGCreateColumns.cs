@@ -75,8 +75,6 @@ namespace CreateTeam
                         log.LogError(ex.ToString());
                         log.LogTrace($"Failed to add columns to {customer.Name} with error: " + ex.ToString());
                     }
-
-                    return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(Message));
                 }
                 else
                 {
@@ -87,6 +85,8 @@ namespace CreateTeam
             {
                 return new BadRequestObjectResult(JsonConvert.SerializeObject(Message));
             }
+
+            return new OkObjectResult(JsonConvert.SerializeObject(Message));
         }
 
         public async Task CreateColumn(Settings settings, Graph msGraph, Common common, Group group, Customer customer)
