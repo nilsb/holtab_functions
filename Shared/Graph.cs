@@ -517,7 +517,7 @@ namespace Shared
 
                     var directoryObject = new ReferenceCreate
                     {
-                        OdataId = memberToAdd.Id
+                        OdataId = "https://graph.microsoft.com/v1.0/directoryObjects/" + memberToAdd.Id
                     };
 
                     try
