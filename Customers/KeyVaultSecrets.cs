@@ -25,5 +25,6 @@ namespace Customers
         public const string sbholtabnavConnection = "sbholtabnavConnection";
         public const string ConfigConnectionString = "ConfigConnectionString";
         public const string AzureAppConfigConnection = "AzureAppConfigConnection";
+        public const string CustomerCardAppId = "CustomerCardAppId";
     }
 }

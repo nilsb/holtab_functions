@@ -865,7 +865,7 @@ namespace Shared
             return generalFolder;
         }
 
-        public async Task<CreateCustomerResult> CreateCustomerGroup(Customer? customer)
+        public async Task<CreateCustomerResult> CreateCustomerGroup(Customer customer)
         {
             CreateCustomerResult returnValue = new CreateCustomerResult();
             returnValue.Success = false;
@@ -937,13 +937,83 @@ namespace Shared
             return returnValue;
         }
 
+        public async Task<bool> CreateCustomerTeam(Customer customer, Group group)
+        {
+            bool returnValue = false;
+
+            if (settings == null || settings.GraphClient == null || msGraph == null || customer == null || group == null)
+            {
+                return returnValue;
+            }
+
+            var appId = settings.config["CustomerCardAppId"];
+
+            //try to get team or create it if it's missing
+            var team = await msGraph.CreateTeamFromGroup(group);
+            log?.LogTrace($"Created team for {customer.Name} ({customer.ExternalId})");
+
+            if (team != null)
+            {
+                customer.TeamCreated = true;
+                customer.TeamID = team.Id;
+                customer.TeamUrl = team.WebUrl;
+                UpdateCustomer(customer, "team info");
+
+                try
+                {
+                    string ContentUrl = "https://holtabcustomercard.azurewebsites.net/Home/Index?id=" + team.Id;
+
+                    if (!customer.InstalledApp && !string.IsNullOrEmpty(group.Id) && !string.IsNullOrEmpty(appId))
+                    {
+                        var groupDrive = await msGraph.GetGroupDrive(group.Id);
+
+                        if (groupDrive != null)
+                        {
+                            var root = await settings.GraphClient.Drives[groupDrive.Id].Root.GetAsync();
+
+                            if (root != null)
+                            {
+                                var channels = await settings.GraphClient.Teams[team.Id].Channels.GetAsync();
+
+                                if (channels?.Value?.Count > 0 && !string.IsNullOrEmpty(root.WebUrl))
+                                {
+                                    var app = await msGraph.AddTeamApp(team, appId);
+
+                                    if (app != null)
+                                    {
+                                        await msGraph.AddChannelApp(team, app, channels.Value[0], "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, root.WebUrl, "");
+                                        log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
+                                        customer.InstalledApp = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.ToString());
+                    log?.LogTrace($"Failed to install teams app for {customer.Name} with error: " + ex.ToString());
+                }
+
+                UpdateCustomer(customer, "team app info");
+                returnValue = true;
+            }
+            else
+            {
+                log?.LogTrace($"Failed to create team for group {customer.Name} ({customer.ExternalId})");
+            }
+
+            return returnValue;
+        }
+
         /// <summary>
         /// Create group and team for customer or supplier
         /// No checking is done if group or team already exists.
         /// </summary>
         /// <param name="customer"></param>
         /// <returns></returns>
-        public async Task<CreateCustomerResult> CreateCustomerOrSupplier(Customer? customer)
+        public async Task<CreateCustomerResult> CreateCustomerOrSupplier(Customer customer)
         {
             CreateCustomerResult returnValue = new CreateCustomerResult();
             returnValue.Success = false;
