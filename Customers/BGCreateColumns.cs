@@ -70,10 +70,10 @@ namespace CreateTeam
 
                         return new OkObjectResult(JsonConvert.SerializeObject(Message));
                     }
-                    catch (ServiceException ex)
+                    catch (Exception ex)
                     {
-                        log.LogError(ex.RawResponseBody.ToString());
-                        log.LogTrace($"Failed to add columns to {customer.Name} with error: " + ex.Message.ToString());
+                        log.LogError(ex.ToString());
+                        log.LogTrace($"Failed to add columns to {customer.Name} with error: " + ex.ToString());
                     }
 
                     return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(Message));
@@ -98,13 +98,6 @@ namespace CreateTeam
                 return;
             }
 
-            var site = await msGraph.GetGroupSite(group.Id);
-
-            if(site == null)
-            {
-                return;
-            }
-
             var root = await settings.GraphClient.Drives[drive.Id].Root.GetAsync();
             var list = await settings.GraphClient.Drives[drive.Id].List.GetAsync();
 
@@ -114,7 +107,8 @@ namespace CreateTeam
             }
 
             string siteUrl = drive.WebUrl.Substring(0, drive.WebUrl.LastIndexOf("/"));
-            var groupsite = site;
+            
+            var groupsite = await settings.GraphClient.Sites[list?.ParentReference?.SiteId].GetAsync();
 
             try
             {
@@ -142,8 +136,9 @@ namespace CreateTeam
             }
             catch (ServiceException ex)
             {
-                settings.log.LogError(ex.RawResponseBody.ToString());
-                settings.log.LogTrace($"Failed to add column Kundnummer to {customer.Name} with error: " + ex.Message.ToString());
+                var errorMessage = ex.RawResponseBody.ToString();
+                settings.log.LogError(ex.ToString());
+                settings.log.LogTrace($"Failed to add column Kundnummer to {customer.Name} with error: " + ex.ToString());
             }
 
             try
@@ -169,10 +164,10 @@ namespace CreateTeam
 
                 var navIdCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(navIdDef);
             }
-            catch (ServiceException ex)
+            catch (Exception ex)
             {
-                settings.log.LogError(ex.RawResponseBody.ToString());
-                settings.log.LogTrace($"Failed to add column NAVid to {customer.Name} with error: " + ex.Message.ToString());
+                settings.log.LogError(ex.ToString());
+                settings.log.LogTrace($"Failed to add column NAVid to {customer.Name} with error: " + ex.ToString());
             }
 
             try
@@ -195,10 +190,10 @@ namespace CreateTeam
 
                 var isProdCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(isProdDef);
             }
-            catch (ServiceException ex)
+            catch (Exception ex)
             {
-                settings.log.LogError(ex.RawResponseBody.ToString());
-                settings.log.LogTrace($"Failed to add column Produktionsdokument to {customer.Name} with error: " + ex.Message.ToString());
+                settings.log.LogError(ex.ToString());
+                settings.log.LogTrace($"Failed to add column Produktionsdokument to {customer.Name} with error: " + ex.ToString());
             }
         }
 
