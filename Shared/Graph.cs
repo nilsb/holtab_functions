@@ -513,7 +513,7 @@ namespace Shared
 
                 if (memberToAdd != default(User))
                 {
-                    log?.LogInformation($"Adding member {userEmail} to group");
+                    log?.LogInformation($"Adding member {userEmail}: {memberToAdd.Id} to group");
 
                     var directoryObject = new ReferenceCreate
                     {
