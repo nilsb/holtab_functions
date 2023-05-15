@@ -254,7 +254,7 @@ namespace Shared
                 
                 foreach(var app in result.Value)
                 {
-                    if(app.Id == appId)
+                    if(app.TeamsApp?.Id == appId)
                     {
                         returnValue = app.TeamsApp;
                     }
