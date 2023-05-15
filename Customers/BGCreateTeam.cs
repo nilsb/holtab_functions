@@ -56,7 +56,7 @@ namespace CreateTeam
                     try
                     {
                         //try to find the team if it already exists or create it if it's missing
-                        _ = await common.CreateCustomerOrSupplier(findCustomer.customer);
+                        bool createTeamResult = await common.CreateCustomerTeam(findCustomer.customer, result.group);
                     }
                     catch (Exception ex)
                     {
