@@ -108,32 +108,48 @@ namespace CreateTeam
             }
 
             string siteUrl = drive.WebUrl.Substring(0, drive.WebUrl.LastIndexOf("/"));
-            
             var groupsite = await settings.GraphClient.Sites[list?.ParentReference?.SiteId].GetAsync();
+            var columns = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.GetAsync();
 
             try
             {
-                settings.log.LogTrace($"Adding column Kundnummer to {customer.Name} ({customer.ExternalId})");
-                ColumnDefinition customerNoDef = new ColumnDefinition()
-                {
-                    Description = "Kundnummer",
-                    Text = new TextColumn()
-                    {
-                        AllowMultipleLines = false,
-                        AppendChangesToExistingText = false,
-                        LinesForEditing = 0,
-                        MaxLength = 255,
-                        TextType = "plain"
-                    },
-                    DefaultValue = new DefaultColumnValue() { Value = customer.ExternalId },
-                    Name = "Kundnummer",
-                    Hidden = false,
-                    Required = false,
-                    EnforceUniqueValues = false,
-                    Indexed = true
-                };
+                bool kundnummerExists = false;
 
-                var customerNoCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(customerNoDef);
+                if (columns?.Value?.Count > 0)
+                {
+                    foreach ( var column in columns.Value )
+                    {
+                        if (!string.IsNullOrEmpty(column.Name) && column.Name == "Kundnummer")
+                        {
+                            kundnummerExists = true;
+                        }
+                    }
+                }
+
+                if(!kundnummerExists)
+                {
+                    settings.log.LogTrace($"Adding column Kundnummer to {customer.Name} ({customer.ExternalId})");
+                    ColumnDefinition customerNoDef = new ColumnDefinition()
+                    {
+                        Description = "Kundnummer",
+                        Text = new TextColumn()
+                        {
+                            AllowMultipleLines = false,
+                            AppendChangesToExistingText = false,
+                            LinesForEditing = 0,
+                            MaxLength = 255,
+                            TextType = "plain"
+                        },
+                        DefaultValue = new DefaultColumnValue() { Value = customer.ExternalId },
+                        Name = "Kundnummer",
+                        Hidden = false,
+                        Required = false,
+                        EnforceUniqueValues = false,
+                        Indexed = true
+                    };
+
+                    var customerNoCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(customerNoDef);
+                }
             }
             catch (ServiceException ex)
             {
@@ -144,26 +160,42 @@ namespace CreateTeam
 
             try
             {
-                settings.log.LogTrace($"Adding column NAVid to {customer.Name} ({customer.ExternalId})");
-                ColumnDefinition navIdDef = new ColumnDefinition()
-                {
-                    Description = "NAVid",
-                    Text = new TextColumn()
-                    {
-                        AllowMultipleLines = false,
-                        AppendChangesToExistingText = false,
-                        LinesForEditing = 0,
-                        MaxLength = 255,
-                        TextType = "plain"
-                    },
-                    DefaultValue = new DefaultColumnValue() { Value = "-" },
-                    Name = "NAVid",
-                    Hidden = false,
-                    EnforceUniqueValues = false,
-                    Indexed = true
-                };
+                bool navidExists = false;
 
-                var navIdCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(navIdDef);
+                if (columns?.Value?.Count > 0)
+                {
+                    foreach (var column in columns.Value)
+                    {
+                        if (!string.IsNullOrEmpty(column.Name) && column.Name == "NAVid")
+                        {
+                            navidExists = true;
+                        }
+                    }
+                }
+
+                if(!navidExists)
+                {
+                    settings.log.LogTrace($"Adding column NAVid to {customer.Name} ({customer.ExternalId})");
+                    ColumnDefinition navIdDef = new ColumnDefinition()
+                    {
+                        Description = "NAVid",
+                        Text = new TextColumn()
+                        {
+                            AllowMultipleLines = false,
+                            AppendChangesToExistingText = false,
+                            LinesForEditing = 0,
+                            MaxLength = 255,
+                            TextType = "plain"
+                        },
+                        DefaultValue = new DefaultColumnValue() { Value = "-" },
+                        Name = "NAVid",
+                        Hidden = false,
+                        EnforceUniqueValues = false,
+                        Indexed = true
+                    };
+
+                    var navIdCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(navIdDef);
+                }
             }
             catch (Exception ex)
             {
@@ -173,23 +205,38 @@ namespace CreateTeam
 
             try
             {
-                settings.log.LogTrace($"Adding column Produktionsdokument to {customer.Name} ({customer.ExternalId})");
+                bool produktionsdokumentExists = false;
 
-                ColumnDefinition isProdDef = new ColumnDefinition()
+                if (columns?.Value?.Count > 0)
                 {
-                    Description = "Produktionsdokument",
-                    Choice = new ChoiceColumn()
+                    foreach (var column in columns.Value)
                     {
-                        DisplayAs = "checkBoxes",
-                        Choices = await GetProductionChoices(settings)
-                    },
-                    Name = "Produktionsdokument",
-                    Hidden = false,
-                    EnforceUniqueValues = false,
-                    Indexed = false
-                };
+                        if (!string.IsNullOrEmpty(column.Name) && column.Name == "NAVid")
+                        {
+                            produktionsdokumentExists = true;
+                        }
+                    }
+                }
 
-                var isProdCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(isProdDef);
+                if (!produktionsdokumentExists)
+                {
+                    settings.log.LogTrace($"Adding column Produktionsdokument to {customer.Name} ({customer.ExternalId})");
+                    ColumnDefinition isProdDef = new ColumnDefinition()
+                    {
+                        Description = "Produktionsdokument",
+                        Choice = new ChoiceColumn()
+                        {
+                            DisplayAs = "checkBoxes",
+                            Choices = await GetProductionChoices(settings)
+                        },
+                        Name = "Produktionsdokument",
+                        Hidden = false,
+                        EnforceUniqueValues = false,
+                        Indexed = false
+                    };
+
+                    var isProdCol = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.PostAsync(isProdDef);
+                }
             }
             catch (Exception ex)
             {
