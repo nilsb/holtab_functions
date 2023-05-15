@@ -247,21 +247,28 @@ namespace Shared
                 return returnValue;
             }
 
-            var result = await graphClient.Teams[team.Id].InstalledApps.GetAsync();
-
-            if(result?.Value?.Count > 0)
+            try
             {
-                
-                foreach(var app in result.Value)
+                var result = await graphClient.Teams[team.Id].InstalledApps.GetAsync(request => { request.QueryParameters.Expand = new string[] { "teamsApp" }; });
+
+                if (result?.Value?.Count > 0)
                 {
-                    if(app.TeamsApp?.Id == appId)
+
+                    foreach (var app in result.Value)
                     {
-                        returnValue = app.TeamsApp;
+                        if (app.TeamsApp?.Id == appId)
+                        {
+                            returnValue = app.TeamsApp;
+                        }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                log?.LogError(ex.Message);
+            }
 
-            if(returnValue == null)
+            if (returnValue == null)
             {
                 try
                 {
