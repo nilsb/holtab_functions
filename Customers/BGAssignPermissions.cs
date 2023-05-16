@@ -57,7 +57,7 @@ namespace Customers
                     {
                         if (!string.IsNullOrEmpty(customer.Seller))
                         {
-                            await msGraph.AddGroupMember(customer.Seller, customer.GroupID);
+                            await msGraph.AddGroupOwner(customer.Seller, customer.GroupID);
                         }
 
                         return new OkObjectResult(JsonConvert.SerializeObject(Message));

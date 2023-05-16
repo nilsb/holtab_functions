@@ -492,6 +492,77 @@ namespace Shared
         #endregion
 
         #region Groups
+        public async Task<bool> AddGroupOwner(string userEmail, string GroupId)
+        {
+            User? memberToAdd = default(User);
+            bool returnValue = true;
+
+            if (!string.IsNullOrEmpty(userEmail) && graphClient != null)
+            {
+                try
+                {
+                    log?.LogInformation($"Trying to find member {userEmail}");
+                    memberToAdd = await graphClient.Users[userEmail].GetAsync();
+                }
+                catch (Exception)
+                {
+                    log?.LogInformation($"Unable to find member {userEmail}");
+                }
+
+                if (memberToAdd != default(User))
+                {
+                    var directoryObject = new ReferenceCreate
+                    {
+                        OdataId = "https://graph.microsoft.com/v1.0/directoryObjects/" + memberToAdd.Id
+                    };
+
+                    bool ownerExists = false;
+
+                    try
+                    {
+                        var owners = await graphClient.Groups[GroupId].Owners.GetAsync();
+
+                        if (owners?.Value?.Count > 0)
+                        {
+                            foreach (var owner in owners.Value)
+                            {
+                                if (owner.Id == memberToAdd.Id)
+                                {
+                                    ownerExists = true;
+                                }
+                            }
+
+                            if (!ownerExists)
+                            {
+                                log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
+                                await graphClient.Groups[GroupId].Owners.Ref.PostAsync(directoryObject);
+                                ownerExists = true;
+                            }
+                        }
+                        else
+                        {
+                            log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
+                            await graphClient.Groups[GroupId].Owners.Ref.PostAsync(directoryObject);
+                            ownerExists = true;
+                        }
+
+                        returnValue = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        log?.LogError(ex.Message);
+                        returnValue = false;
+                    }
+                }
+                else
+                {
+                    returnValue = false;
+                }
+            }
+
+            return returnValue;
+        }
+
         public async Task<bool> AddGroupMember(string userEmail, string GroupId)
         {
             User? memberToAdd = default(User);
@@ -516,21 +587,37 @@ namespace Shared
                         OdataId = "https://graph.microsoft.com/v1.0/directoryObjects/" + memberToAdd.Id
                     };
 
-                    try
-                    {
-                        log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
-                        await graphClient.Groups[GroupId].Owners.Ref.PostAsync(directoryObject);
-                    }
-                    catch (Exception ex)
-                    {
-                        log?.LogError(ex.Message);
-                        returnValue = false;
-                    }
+                    bool memberExists = false;
 
                     try
                     {
-                        log?.LogInformation($"Adding member {userEmail}: {memberToAdd.Id} to group");
-                        await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
+                        var members = await graphClient.Groups[GroupId].Members.GetAsync();
+
+                        if(members?.Value?.Count > 0)
+                        {
+                            foreach(var member in members.Value)
+                            {
+                                if(member.Id == memberToAdd.Id)
+                                {
+                                    memberExists = true;
+                                }
+                            }
+
+                            if(!memberExists)
+                            {
+                                log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
+                                await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
+                                memberExists = true;
+                            }
+                        }
+                        else
+                        {
+                            log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
+                            await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
+                            memberExists = true;
+                        }
+
+                        returnValue = true;
                     }
                     catch (Exception ex)
                     {
