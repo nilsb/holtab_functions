@@ -58,7 +58,7 @@ namespace Shared
 
         public Order? GetOrderFromCDN(string orderNo)
         {
-            Order? returnValue = new Order();
+            Order? returnValue = null;
 
             try
             {

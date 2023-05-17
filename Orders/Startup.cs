@@ -6,12 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Shared;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
-[assembly: FunctionsStartup(typeof(Customers.Startup))]
-namespace Customers
+[assembly: FunctionsStartup(typeof(Orders.Startup))]
+namespace Orders
 {
     public class Startup : FunctionsStartup
     {
