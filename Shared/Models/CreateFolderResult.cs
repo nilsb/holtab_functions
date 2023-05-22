@@ -10,5 +10,6 @@ namespace Shared.Models
     {
         public DriveItem? folder { get; set; }
         public bool Success { get; set; }
+        public bool Existed { get; set; } = false;
     }
 }

@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Customers", "Customers\Cust
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shared", "Shared\Shared.csproj", "{F19FFBD2-EC03-437D-B5C0-4EB04252CB76}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Orders", "Orders\Orders.csproj", "{5ACBDE92-C2AF-4AC1-9500-8A381AF1FA88}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders", "Orders\Orders.csproj", "{5ACBDE92-C2AF-4AC1-9500-8A381AF1FA88}"
 	ProjectSection(ProjectDependencies) = postProject
 		{F19FFBD2-EC03-437D-B5C0-4EB04252CB76} = {F19FFBD2-EC03-437D-B5C0-4EB04252CB76}
 	EndProjectSection

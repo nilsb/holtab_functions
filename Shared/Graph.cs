@@ -1496,6 +1496,7 @@ namespace Shared
                     {
                         returnValue.folder = createdFolder;
                         returnValue.Success = true;
+                        returnValue.Existed = false;
                         log?.LogInformation("Created " + FolderName + " folder.");
                     }
                 }
@@ -1506,6 +1507,7 @@ namespace Shared
             }
             else
             {
+                returnValue.Existed = true;
                 returnValue.folder = existingFolder;
                 returnValue.Success = true;
             }

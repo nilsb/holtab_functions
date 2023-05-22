@@ -725,6 +725,52 @@ namespace CreateTeam.Shared
             return returnValue;
         }
 
+        public string GetOrderParentFolderName(Order order)
+        {
+            string parentName = "";
+
+            switch (order.Type)
+            {
+                case "Order":
+                    parentName = "Order";
+                    break;
+                case "Project":
+                    parentName = "Order";
+                    break;
+                case "Quote":
+                    parentName = "Offert";
+                    break;
+                case "Offer":
+                    parentName = "Offert";
+                    break;
+                case "Purchase":
+                    parentName = "Beställning";
+                    break;
+                default:
+                    break;
+            }
+
+            return parentName;
+        }
+
+        public Order GetOrderExternalId(Order order)
+        {
+            Order returnValue = order;
+
+            if (order.Type == "Quote" || order.Type == "Offer")
+            {
+                RE.Match offerMatch = RE.Regex.Match(order.ExternalId, @"^([A-Z]?\d+)");
+
+                if (offerMatch.Success)
+                {
+                    telemetryClient.TrackEvent(new EventTelemetry($"Changed order no for quote: {order.ExternalId} to: {offerMatch.Value}"));
+                    returnValue.ExternalId = offerMatch.Value;
+                }
+            }
+
+            return returnValue;
+        }
+
         public string FindOrderNoInString(string input)
         {
             string returnValue = "";

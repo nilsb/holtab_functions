@@ -4,21 +4,24 @@ using Microsoft.Extensions.Logging;
 using RE = System.Text.RegularExpressions;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
+using Microsoft.IdentityModel.Abstractions;
+using Microsoft.Graph.Drives.Item.Bundles.Item;
 
 namespace Shared
 {
     public class Common
     {
         private readonly ILogger? log;
-        private readonly GraphServiceClient? graphClient;
         private readonly Graph? msGraph;
         private readonly Settings? settings;
         private readonly string? CDNTeamID;
         private readonly string? cdnSiteId;
         private readonly string? SqlConnectionString;
-        private readonly ErrorCheck? errorCheck;
         private readonly Services? services;
         public readonly Group? CDNGroup;
+        public readonly string quoteRegex = @"^([A-Z]?\d+)";
+        public readonly string customerRegex = @"(\d+)(\s?|-?)";
+        public readonly string orderRegex = @"B\d{6}|T\d{5}|A\d{5}|Z\d{5}|G\d{4}|R\d{2}|E\d{5,7}|F\d{5}|H\d{5,6}|K\d{5,6}|\d{5}-\d{2}|Q\d{5}-\d{2}";
         public List<char> illegalChars = new List<char>() { '~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '=', '{', '}', '|', '[', ']', '\\', ':', '\"', ';', '\'', '<', '>', ',', '.', '?', '/', 'å', 'ä', 'ö', 'Å', 'Ä', 'Ö', ' ', 'Ø', 'Æ', 'æ', 'ø', 'ü', 'Ü', 'µ', 'ẞ', 'ß' };
 
         public Common(Settings _settings, Graph _msGraph)
@@ -29,7 +32,6 @@ namespace Shared
 
             if (settings != null)
             {
-                graphClient = settings.GraphClient;
                 SqlConnectionString = settings.SqlConnectionString;
                 CDNTeamID = settings.CDNTeamID;
                 cdnSiteId = settings.cdnSiteId;
@@ -37,11 +39,6 @@ namespace Shared
                 if (!string.IsNullOrEmpty(SqlConnectionString))
                 {
                     services = new Services(SqlConnectionString);
-
-                    if(log != null)
-                    {
-                        errorCheck = new ErrorCheck(log, settings, services);
-                    }
                 }
 
                 if (!string.IsNullOrEmpty(CDNTeamID))
@@ -752,10 +749,55 @@ namespace Shared
             return returnValue;
         }
 
+        public string GetOrderParentFolderName(string orderType)
+        {
+            string parentName = "";
+
+            switch (orderType)
+            {
+                case "Order":
+                    parentName = "Order";
+                    break;
+                case "Project":
+                    parentName = "Order";
+                    break;
+                case "Quote":
+                    parentName = "Offert";
+                    break;
+                case "Offer":
+                    parentName = "Offert";
+                    break;
+                case "Purchase":
+                    parentName = "Beställning";
+                    break;
+                default:
+                    break;
+            }
+
+            return parentName;
+        }
+
+        public string GetOrderExternalId(string orderType, string orderNo)
+        {
+            string returnValue = orderNo;
+
+            if (orderType == "Quote" || orderType == "Offer")
+            {
+                RE.Match offerMatch = RE.Regex.Match(orderNo, quoteRegex);
+
+                if (offerMatch.Success)
+                {
+                    returnValue = offerMatch.Value;
+                }
+            }
+
+            return returnValue;
+        }
+
         public string FindOrderNoInString(string input)
         {
             string returnValue = "";
-            RE.Match orderMatches = RE.Regex.Match(input, @"B\d{6}|T\d{5}|A\d{5}|Z\d{5}|G\d{4}|R\d{2}|E\d{5,7}|F\d{5}|H\d{5,6}|K\d{5,6}|\d{5}-\d{2}|Q\d{5}-\d{2}");
+            RE.Match orderMatches = RE.Regex.Match(input, orderRegex);
 
             if (orderMatches.Success)
             {
@@ -768,7 +810,7 @@ namespace Shared
         public string FindCustomerNoInString(string input)
         {
             string returnValue = "";
-            RE.Match orderMatches = RE.Regex.Match(input, @"(\d+)(\s?|-?)");
+            RE.Match orderMatches = RE.Regex.Match(input, customerRegex);
 
             if (orderMatches.Success)
             {
@@ -863,6 +905,87 @@ namespace Shared
             }
 
             return generalFolder;
+        }
+
+        public async Task<DriveItem?> GetOrderFolder(string groupId, Drive groupDrive, Order order)
+        {
+            DriveItem? returnValue = null;
+
+            if(order.Type == null || string.IsNullOrEmpty(groupId) || msGraph == null)
+            {
+                return null;
+            }
+
+            string parentName = GetOrderParentFolderName(order.Type);
+            DriveItem? generalFolder = await GetGeneralFolder(groupId);
+
+            if(generalFolder != null)
+            {
+                DriveItem? orderParentFolder = await msGraph.FindItem(groupDrive, generalFolder.Id, parentName, false);
+                
+                if(orderParentFolder != null)
+                {
+                    DriveItem? orderFolder = await msGraph.FindItem(groupDrive, orderParentFolder.Id, parentName, false);
+
+                    if(orderFolder != null)
+                    {
+                        returnValue = orderFolder;
+                    }
+                }
+            }
+
+            return returnValue;
+        }
+
+        public Order SetFolderStatus(Order order, bool found)
+        {
+            Order returnValue = order;
+
+            if (order.Type == "Order" || order.Type == "Project")
+            {
+                returnValue.OffersFolderFound = false;
+                returnValue.PurchaseFolderFound = false;
+                returnValue.OrdersFolderFound = found;
+            }
+            else if (order.Type == "Quote" || order.Type == "Offer")
+            {
+                returnValue.OffersFolderFound = found;
+                returnValue.PurchaseFolderFound = false;
+                returnValue.OrdersFolderFound = false;
+            }
+            else if (order.Type == "Purchase")
+            {
+                returnValue.OffersFolderFound = false;
+                returnValue.PurchaseFolderFound = found;
+                returnValue.OrdersFolderFound = false;
+            }
+
+            return returnValue;
+        }
+
+        public async Task<List<DriveItem>> GetOrderTemplateFolders(Order order)
+        {
+            List<DriveItem> foldersToCreate = new List<DriveItem>();
+
+            if(msGraph == null || settings == null)
+            {
+                return foldersToCreate;
+            }
+
+            var cdnDrive = await msGraph.GetSiteDrive(settings.cdnSiteId);
+
+            if (cdnDrive != null)
+            {
+                DriveItem? folder = await msGraph.FindItem(cdnDrive, "Dokumentstruktur " + order.Type, false);
+
+                if(folder != null)
+                {
+                    List<DriveItem> folderChildren = await msGraph.GetDriveFolderChildren(cdnDrive, folder, true);
+                    foldersToCreate.AddRange(folderChildren);
+                }
+            }
+
+            return foldersToCreate;
         }
 
         public async Task<CreateCustomerResult> CreateCustomerGroup(Customer customer)
