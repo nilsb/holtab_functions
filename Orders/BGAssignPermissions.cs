@@ -35,7 +35,7 @@ namespace Orders
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context)
         {
-            log.LogInformation("Order assign permissions message received");
+            log.LogInformation("Order assign permissions message received.");
 
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
             Settings settings = new Settings(config, context, log);
