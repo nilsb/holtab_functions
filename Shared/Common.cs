@@ -89,7 +89,7 @@ namespace Shared
             return returnValue;
         }
 
-        public void UpdateOrder(Order? order, string logmsg)
+        public void UpdateOrder(Order order, string logmsg)
         {
             if (order != null)
             {
@@ -102,7 +102,7 @@ namespace Shared
             }
         }
 
-        public Order? UpdateOrCreateDbOrder(Order? order)
+        public Order? UpdateOrCreateDbOrder(Order order)
         {
             Order? returnValue = null;
             Order? DBOrder = null;
@@ -110,8 +110,7 @@ namespace Shared
             if(order != null)
             {
                 //try to find the customer in the order object sent as parameter (in case it changed or the order is new)
-                FindCustomerResult DBCustomer = new FindCustomerResult();
-                DBCustomer = GetCustomer(order);
+                FindCustomerResult DBCustomer = GetCustomer(order);
 
                 if (DBCustomer.Success && DBCustomer.customer != null)
                 {
@@ -130,24 +129,22 @@ namespace Shared
                 }
                 else
                 {
-                    log?.LogTrace($"Failed to find or update order in database.");
+                    log?.LogTrace($"Order does not exist in database.");
                 }
 
                 if (returnValue == null)
                 {
+                    log?.LogTrace($"Creating new order.");
                     Order NewOrder = new Order();
 
                     if (DBCustomer.Success && DBCustomer.customer != null)
                     {
+                        log?.LogTrace($"Setting new order customer.");
                         NewOrder.Customer = order.Customer;
                         NewOrder.CustomerName = order.CustomerName;
                         NewOrder.CustomerType = order.CustomerType;
                         NewOrder.CustomerNo = order.CustomerNo;
                         NewOrder.CustomerID = DBCustomer.customer.ID;
-                    }
-                    else
-                    {
-
                     }
 
                     NewOrder.ID = Guid.NewGuid();
@@ -163,14 +160,18 @@ namespace Shared
 
                     try
                     {
-                        services?.AddOrderInDB(NewOrder);
+                        log?.LogTrace($"Adding order to DB.");
 
-                        Order? NewDBOrder = services?.GetOrderFromDB(NewOrder.ExternalId);
-
-                        if (NewDBOrder != null)
+                        if (services?.AddOrderInDB(NewOrder) == true)
                         {
-                            returnValue = NewDBOrder;
+                            Order? NewDBOrder = services?.GetOrderFromDB(NewOrder.ExternalId);
+
+                            if (NewDBOrder != null)
+                            {
+                                returnValue = NewDBOrder;
+                            }
                         }
+
                     }
                     catch (Exception ex)
                     {
