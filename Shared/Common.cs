@@ -38,7 +38,7 @@ namespace Shared
 
                 if (!string.IsNullOrEmpty(SqlConnectionString))
                 {
-                    services = new Services(SqlConnectionString);
+                    services = new Services(SqlConnectionString, log);
                 }
 
                 if (!string.IsNullOrEmpty(CDNTeamID))
@@ -164,6 +164,7 @@ namespace Shared
 
                         if (services?.AddOrderInDB(NewOrder) == true)
                         {
+                            log?.LogTrace($"Fetching added order from DB.");
                             Order? NewDBOrder = services?.GetOrderFromDB(NewOrder.ExternalId);
 
                             if (NewDBOrder != null)

@@ -26,7 +26,7 @@ namespace Shared
 
                 if (!string.IsNullOrEmpty(SqlConnectionString))
                 {
-                    services = new Services(SqlConnectionString);
+                    services = new Services(SqlConnectionString, log);
                 }
             }
         }
