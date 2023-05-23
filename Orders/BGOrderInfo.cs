@@ -58,6 +58,7 @@ namespace Orders
                 cdnItem.Customer = null;
                 cdnItem.CustomerNo = orderMessage.CustomerNo;
                 cdnItem.CustomerType = orderMessage.CustomerType;
+                cdnItem.Type = orderMessage.Type;
                 newOrder = common.UpdateOrCreateDbOrder(cdnItem);
             }
             else
@@ -69,6 +70,7 @@ namespace Orders
                     CustomerNo = orderMessage.CustomerNo,
                     CustomerType = orderMessage.CustomerType,
                     Seller = orderMessage.Seller,
+                    Type = orderMessage.Type,
                     ProjectManager = orderMessage.ProjectManager
                 };
 
