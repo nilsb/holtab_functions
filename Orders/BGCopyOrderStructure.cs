@@ -105,7 +105,7 @@ namespace Orders
                                 order.Status = "Order folder not found";
                                 common.UpdateOrder(order, "status");
 
-                                return new UnprocessableEntityObjectResult($"Unable to find order folder for order {order.No} in customer {order.Customer.Name} ({order.Customer.ExternalId})");
+                                return new UnprocessableEntityObjectResult($"Unable to find order folder for order {order.ExternalId} in customer {order.Customer.Name} ({order.Customer.ExternalId})");
                             }
                         }
                     }

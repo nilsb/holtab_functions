@@ -927,7 +927,7 @@ namespace Shared
                 
                 if(orderParentFolder != null)
                 {
-                    DriveItem? orderFolder = await msGraph.FindItem(groupDrive, orderParentFolder.Id, parentName, false);
+                    DriveItem? orderFolder = await msGraph.FindItem(groupDrive, orderParentFolder.Id, order.ExternalId, false);
 
                     if(orderFolder != null)
                     {
