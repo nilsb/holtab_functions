@@ -1,12 +1,10 @@
 using System;
-using System.Threading.Tasks;
 using Azure.Identity;
 using CreateTeam.Shared;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
@@ -24,7 +22,7 @@ namespace CreateTeam
         }
 
         [FunctionName("PostProcessOrders")]
-        public async Task Run([TimerTrigger("0 */5 * * * *")]TimerInfo myTimer, [Queue("createorder"), StorageAccount("AzureWebJobsStorage")] ICollector<string> outputQueueItem, Microsoft.Azure.WebJobs.ExecutionContext context, ILogger log)
+        public void Run([TimerTrigger("0 */5 * * * *")]TimerInfo myTimer, [Queue("createorder"), StorageAccount("AzureWebJobsStorage")] ICollector<string> outputQueueItem, Microsoft.Azure.WebJobs.ExecutionContext context, ILogger log)
         {
             log.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
 

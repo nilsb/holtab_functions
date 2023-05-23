@@ -11,9 +11,9 @@ namespace Shared
     {
         public readonly bool init;
         private readonly string SqlConnectionString;
-        private readonly ILogger log;
+        private readonly ILogger? log;
 
-        public Services(string? _sqlConnectionString, ILogger _log)
+        public Services(string? _sqlConnectionString, ILogger? _log)
         {
             this.init = false;
             this.log = _log;
@@ -365,7 +365,7 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log.LogError($"Update query {query} failed with error {ex.ToString()}");
+                log?.LogError($"Update query {query} failed with error {ex.ToString()}");
             }
 
             return returnValue;
@@ -493,7 +493,7 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log.LogError($"Insert query {query} failed with error {ex.ToString()}");
+                log?.LogError($"Insert query {query} failed with error {ex.ToString()}");
             }
 
             return returnValue;

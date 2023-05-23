@@ -1,11 +1,7 @@
 ﻿using Shared.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RE = System.Text.RegularExpressions;
-using Microsoft.Graph;
 using Microsoft.Graph.Models;
-using Microsoft.IdentityModel.Abstractions;
-using Microsoft.Graph.Drives.Item.Bundles.Item;
 
 namespace Shared
 {
