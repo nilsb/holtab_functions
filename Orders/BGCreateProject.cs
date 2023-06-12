@@ -234,7 +234,7 @@ namespace Orders
 
                                 foreach (var bucket in buckets)
                                 {
-                                    await msgraph.CopyBucketAsync(graph, bucket, existingPlan.Id);
+                                    await msgraph.CopyBucketAsync(bucket, existingPlan.Id);
                                 }
 
                                 log?.LogInformation("Copied template");
