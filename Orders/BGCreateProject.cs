@@ -65,41 +65,11 @@ namespace Orders
 
                             if (orderFolder != null)
                             {
-                                if (orderMessage.NeedStructureCopy == true)
+                                Team? groupTeam = await msGraph.GetTeamFromGroup(groupDrive.group.Id);
+
+                                if(groupTeam != null)
                                 {
-                                    bool copyStructure = false;
-                                    List<DriveItem> templateFolders = await common.GetOrderTemplateFolders(order);
-
-                                    foreach (DriveItem templateFolder in templateFolders)
-                                    {
-                                        CreateFolderResult result = await msGraph.CopyFolder(groupDrive.group.Id, orderFolder.Id, templateFolder, true, false);
-
-                                        if (result.Success)
-                                        {
-                                            copyStructure &= true;
-                                        }
-                                        else
-                                        {
-                                            copyStructure &= false;
-                                        }
-                                    }
-
-                                    order.StructureCreated = true;
-                                    order.Handled = copyStructure;
-                                    order.Status = "Folder created and structure copied";
-                                    common.UpdateOrder(order, "status");
-                                }
-                                else
-                                {
-                                    order.Status = "Order folder already existed";
-                                    order.Handled = true;
-                                    order.FolderID = orderFolder.Id;
-                                    order.DriveFound = true;
-                                    order.DriveID = groupDrive.groupDrive.Id;
-                                    order.CreatedFolder = true;
-                                    order.GroupFound = true;
-                                    order.GeneralFolderFound = true;
-                                    common.UpdateOrder(order, "status");
+                                    _ = await CreateProjectTabs(settings, groupDrive, groupTeam, orderFolder, order, log, msGraph);
                                 }
                             }
                             else
@@ -139,17 +109,17 @@ namespace Orders
             return foldersToCreate;
         }
 
-        public async Task<bool> CreateProjectTabs(Settings settings, Site cdnSite, FindOrderGroupAndFolder orderGroup, DriveItem orderFolder, Order order, ILogger log, GraphServiceClient graph, Graph msgraph, string CDNSiteID, string TenantID)
+        public async Task<bool> CreateProjectTabs(Settings settings, FindCustomerGroupResult customerGroup, Team orderTeam, DriveItem orderFolder, Order order, ILogger log, Graph msgraph)
         {
             bool returnValue = false;
-            var channel = await msgraph.FindChannel(orderGroup.orderTeam, "Projekt " + order.No);
+            var channel = await msgraph.FindChannel(orderTeam, "Projekt " + order.No);
 
             if (channel == null)
             {
                 try
                 {
-                    _ = await msgraph.CreateFolder(orderGroup.orderGroup.Id, "Projekt " + order.No);
-                    channel = await msgraph.AddChannel(orderGroup.orderTeam, "Projekt " + order.No, "Projekt " + order.No, ChannelMembershipType.Standard);
+                    _ = await msgraph.CreateFolder(customerGroup.group.Id, "Projekt " + order.No);
+                    channel = await msgraph.AddChannel(orderTeam, "Projekt " + order.No, "Projekt " + order.No, ChannelMembershipType.Standard);
                 }
                 catch (Exception ex)
                 {
@@ -160,20 +130,23 @@ namespace Orders
             //wait for channel to become available
             Thread.Sleep(60000);
 
+            var cdnSite = await msgraph.GetGroupSite(settings.cdnSiteId);
+
             if (channel != null)
             {
+
                 try
                 {
-                    var orderFolderTab = await msgraph.TabExists(orderGroup.orderTeam, channel, "Order");
+                    var orderFolderTab = await msgraph.TabExists(orderTeam, channel, "Order");
 
                     if (!orderFolderTab)
                     {
-                        log.LogInformation("Add tab with url " + orderFolder.WebUrl + " to channel " + channel.DisplayName + " in team " + orderGroup.orderTeam.DisplayName);
+                        log.LogInformation("Add tab with url " + orderFolder.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
                         TeamsApp app = await msgraph.GetTeamApp("", "com.microsoft.teamspace.tab.web");
 
                         if (app != null)
                         {
-                            await msgraph.AddChannelApp(orderGroup.orderTeam, app, channel, "Order", null, orderFolder.WebUrl, orderFolder.WebUrl, null);
+                            await msgraph.AddChannelApp(orderTeam, app, channel, "Order", null, orderFolder.WebUrl, orderFolder.WebUrl, null);
                         }
                     }
                 }
@@ -184,18 +157,18 @@ namespace Orders
 
                 try
                 {
-                    var offerFolderTab = await msgraph.TabExists(orderGroup.orderTeam, channel, "Offert");
+                    var offerFolderTab = await msgraph.TabExists(orderTeam, channel, "Offert");
 
                     if (!offerFolderTab)
                     {
-                        DriveItem offerParent = await msgraph.FindItem(orderGroup.orderDrive, orderGroup.generalFolder.Id, "Offert", true);
+                        DriveItem offerParent = await msgraph.FindItem(customerGroup.groupDrive, customerGroup.customer.GeneralFolderID, "Offert", true);
 
-                        log.LogInformation("Add tab with url " + offerParent.WebUrl + " to channel " + channel.DisplayName + " in team " + orderGroup.orderTeam.DisplayName);
+                        log.LogInformation("Add tab with url " + offerParent.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
                         TeamsApp app = await msgraph.GetTeamApp("", "com.microsoft.teamspace.tab.web");
 
                         if (offerParent != null && app != null)
                         {
-                            await msgraph.AddChannelApp(orderGroup.orderTeam, app, channel, "Offert", null, offerParent.WebUrl, offerParent.WebUrl, null);
+                            await msgraph.AddChannelApp(orderTeam, app, channel, "Offert", null, offerParent.WebUrl, offerParent.WebUrl, null);
                         }
                     }
                 }
@@ -210,7 +183,7 @@ namespace Orders
                     string tabName = "Checklista - Projekt " + order.No;
 
                     //try adding checklist
-                    var checklistFolderTab = await msgraph.TabExists(orderGroup.orderTeam, channel, tabName);
+                    var checklistFolderTab = await msgraph.TabExists(orderTeam, channel, tabName);
 
                     if (!checklistFolderTab)
                     {
@@ -222,12 +195,12 @@ namespace Orders
                         {
                             log?.LogInformation("Looking for existing planner");
                             //found template so create the plan if it doesn't exist
-                            var existingPlan = await msgraph.PlanExists(orderGroup.orderGroup.Id, tabName);
+                            var existingPlan = await msgraph.PlanExists(customerGroup.group.Id, tabName);
 
                             if (existingPlan == null)
                             {
                                 log?.LogInformation("Creating new plan");
-                                existingPlan = await msgraph.CreatePlanAsync(orderGroup.orderGroup.Id, tabName);
+                                existingPlan = await msgraph.CreatePlanAsync(customerGroup.group.Id, tabName);
 
                                 //copy buckets and tasks
                                 var buckets = await msgraph.GetBucketsAsync(planTemplate.Id);
@@ -240,13 +213,13 @@ namespace Orders
                                 log?.LogInformation("Copied template");
 
                                 //create the planner tab
-                                await msgraph.CreatePlannerTabInChannelAsync(graph, TenantID, orderGroup.orderTeam.Id, tabName, channel.Id, existingPlan.Id);
+                                await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
                                 log?.LogInformation("Creating planner tab");
                             }
                             else
                             {
                                 //create the planner tab
-                                await msgraph.CreatePlannerTabInChannelAsync(graph, TenantID, orderGroup.orderTeam.Id, tabName, channel.Id, existingPlan.Id);
+                                await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
                                 log?.LogInformation("Creating planner tab");
                             }
                         }
@@ -260,11 +233,11 @@ namespace Orders
                 try
                 {
                     log?.LogInformation("Copy project template files");
-                    DriveItem channelFolder = await msgraph.FindItem(orderGroup.orderDrive, "Projekt " + order.No, true);
+                    DriveItem channelFolder = await msgraph.FindItem(customerGroup.groupDrive, "Projekt " + order.No, true);
 
-                    if (channelFolder != null)
+                    if (channelFolder != null && cdnSite != null)
                     {
-                        List<DriveItem> projectTemplates = await GetProjectTemplates(log, msgraph, cdnSite, CDNSiteID);
+                        List<DriveItem> projectTemplates = await GetProjectTemplates(log, msgraph, cdnSite, settings.cdnSiteId);
 
                         foreach (DriveItem templateItem in projectTemplates)
                         {
@@ -272,30 +245,30 @@ namespace Orders
                             {
                                 ParentReference = new ItemReference
                                 {
-                                    DriveId = orderGroup.orderDrive.Id,
+                                    DriveId = customerGroup.groupDrive.Id,
                                     Id = channelFolder.Id,
                                 },
                                 Name = templateItem.Name,
                             };
 
                             log?.LogInformation($"Copy template item {templateItem.Name} to project folder for {order.ExternalId}.");
-                            Drive siteDrive = await graph.Sites[CDNSiteID].Drive.GetAsync();
-                            var result = await graph.Drives[siteDrive.Id].Items[templateItem.Id].Copy.PostAsync(requestBody);
+                            Drive siteDrive = await msgraph.GetGroupDrive(settings.cdnSiteId);
+                            var result = await settings.GraphClient.Drives[siteDrive.Id].Items[templateItem.Id].Copy.PostAsync(requestBody);
                         }
 
                         try
                         {
-                            var onenoteTab = await msgraph.TabExists(orderGroup.orderTeam, channel, "Mötesanteckningar");
+                            var onenoteTab = await msgraph.TabExists(orderTeam, channel, "Mötesanteckningar");
 
                             if (!onenoteTab)
                             {
-                                DriveItem onenotefile = await msgraph.FindItem(orderGroup.orderDrive, channelFolder.Id, "ProjectMeetingNotes", false);
+                                DriveItem onenotefile = await msgraph.FindItem(customerGroup.groupDrive, channelFolder.Id, "ProjectMeetingNotes", false);
                                 TeamsApp app = await msgraph.GetTeamApp("", "com.microsoft.teamspace.tab.web");
 
                                 if (onenotefile != null && app != null)
                                 {
-                                    log?.LogInformation("Add onenotetab with url " + onenotefile.WebUrl + " to channel " + channel.DisplayName + " in team " + orderGroup.orderTeam.DisplayName);
-                                    await msgraph.AddChannelApp(orderGroup.orderTeam, app, channel, "Mötesanteckningar", null, onenotefile.WebUrl, onenotefile.WebUrl, null);
+                                    log?.LogInformation("Add onenotetab with url " + onenotefile.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
+                                    await msgraph.AddChannelApp(orderTeam, app, channel, "Mötesanteckningar", null, onenotefile.WebUrl, onenotefile.WebUrl, null);
                                 }
                             }
                         }

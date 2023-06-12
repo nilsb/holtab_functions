@@ -180,6 +180,46 @@ namespace Shared
             return returnValue;
         }
 
+        public async Task<Team?> GetTeamFromGroup(Group group)
+        {
+            Team? foundTeam = null;
+
+            if (graphClient == null)
+            {
+                return foundTeam;
+            }
+
+            try
+            {
+                foundTeam = await graphClient.Groups[group.Id].Team.GetAsync();
+            }
+            catch (Exception)
+            {
+            }
+
+            return foundTeam;
+        }
+
+        public async Task<Team?> GetTeamFromGroup(string groupId)
+        {
+            Team? foundTeam = null;
+
+            if (graphClient == null)
+            {
+                return foundTeam;
+            }
+
+            try
+            {
+                foundTeam = await graphClient.Groups[groupId].Team.GetAsync();
+            }
+            catch (Exception)
+            {
+            }
+
+            return foundTeam;
+        }
+
         public async Task<Team?> CreateTeamFromGroup(Group group)
         {
             Team? createdTeam = null;
@@ -456,9 +496,13 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task CreatePlannerTabInChannelAsync(GraphServiceClient graphClient, string TenantId, string teamId, string tabName, string channelId, string planId)
+        public async Task CreatePlannerTabInChannelAsync(string teamId, string tabName, string channelId, string planId)
         {
-            
+            if(settings == null || settings.GraphClient == null)
+            {
+                return;
+            }
+
             var tab = new TeamsTab
             {
                 DisplayName = tabName,
@@ -469,15 +513,15 @@ namespace Shared
                 Configuration = new TeamsTabConfiguration
                 {
                     EntityId = planId,
-                    ContentUrl = $"https://tasks.office.com/{TenantId}/en-US/Home/PlannerFrame?page=7&planId={planId}&auth=true",
-                    WebsiteUrl = $"https://tasks.office.com/{TenantId}/en-US/Home/PlanViews/{planId}",
-                    RemoveUrl = $"https://tasks.office.com/{TenantId}/en-US/Home/PlannerFrame?page=13&planId={planId}&auth=true"
+                    ContentUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlannerFrame?page=7&planId={planId}&auth=true",
+                    WebsiteUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlanViews/{planId}",
+                    RemoveUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlannerFrame?page=13&planId={planId}&auth=true"
                 }
             };
 
             try
             {
-                var createdTab = await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab);
+                var createdTab = await settings.GraphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab);
 
                 if(createdTab != null)
                 {
