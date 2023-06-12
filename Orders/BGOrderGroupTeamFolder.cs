@@ -117,6 +117,7 @@ namespace Orders
 
                                     orderMessage.OrderParentFolderID = orderParent.folder.Id;
                                     orderMessage.OrderFolderID = orderFolder.folder.Id;
+                                    orderMessage.NeedStructureCopy = true;
                                 }
                                 else if(orderFolder?.Success == true && orderFolder?.Existed == true)
                                 {
@@ -134,6 +135,7 @@ namespace Orders
 
                                     orderMessage.OrderParentFolderID = orderParent.folder.Id;
                                     orderMessage.OrderFolderID = orderFolder.folder.Id;
+                                    orderMessage.NeedStructureCopy = false;
                                 }
                                 else
                                 {
