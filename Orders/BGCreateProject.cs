@@ -112,14 +112,14 @@ namespace Orders
         public async Task<bool> CreateProjectTabs(Settings settings, FindCustomerGroupResult customerGroup, Team orderTeam, DriveItem orderFolder, Order order, ILogger log, Graph msgraph)
         {
             bool returnValue = false;
-            var channel = await msgraph.FindChannel(orderTeam, "Projekt " + order.No);
+            var channel = await msgraph.FindChannel(orderTeam, "Projekt " + order.ExternalId);
 
             if (channel == null)
             {
                 try
                 {
-                    _ = await msgraph.CreateFolder(customerGroup.group.Id, "Projekt " + order.No);
-                    channel = await msgraph.AddChannel(orderTeam, "Projekt " + order.No, "Projekt " + order.No, ChannelMembershipType.Standard);
+                    _ = await msgraph.CreateFolder(customerGroup.group.Id, "Projekt " + order.ExternalId);
+                    channel = await msgraph.AddChannel(orderTeam, "Projekt " + order.ExternalId, "Projekt " + order.ExternalId, ChannelMembershipType.Standard);
                 }
                 catch (Exception ex)
                 {
@@ -180,7 +180,7 @@ namespace Orders
                 try
                 {
                     log?.LogInformation("Looking for planner tab");
-                    string tabName = "Checklista - Projekt " + order.No;
+                    string tabName = "Checklista - Projekt " + order.ExternalId;
 
                     //try adding checklist
                     var checklistFolderTab = await msgraph.TabExists(orderTeam, channel, tabName);
@@ -233,7 +233,7 @@ namespace Orders
                 try
                 {
                     log?.LogInformation("Copy project template files");
-                    DriveItem channelFolder = await msgraph.FindItem(customerGroup.groupDrive, "Projekt " + order.No, true);
+                    DriveItem channelFolder = await msgraph.FindItem(customerGroup.groupDrive, "Projekt " + order.ExternalId, true);
 
                     if (channelFolder != null && cdnSite != null)
                     {
