@@ -14,7 +14,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders", "Orders\Orders.csp
 		{F19FFBD2-EC03-437D-B5C0-4EB04252CB76} = {F19FFBD2-EC03-437D-B5C0-4EB04252CB76}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jobs", "Jobs\Jobs.csproj", "{F460F79B-01D7-4C19-944D-0CBC5E9800F9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jobs", "Jobs\Jobs.csproj", "{F460F79B-01D7-4C19-944D-0CBC5E9800F9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -48,12 +48,14 @@ namespace Orders
 
             if (order?.Customer != null && !string.IsNullOrEmpty(orderMessage.OrderParentFolderID) && !string.IsNullOrEmpty(orderMessage.OrderFolderID))
             {
+                log.LogInformation("Found customer.");
                 var groupDrive = await common.FindCustomerGroupAndDrive(order.Customer);
 
                 if (groupDrive?.Success == true && groupDrive?.customer != null)
                 {
                     if (!string.IsNullOrEmpty(groupDrive.customer.DriveID))
                     {
+                        log.LogInformation("Group drive found.");
                         orderMessage.DriveID = groupDrive.customer.DriveID;
 
                         if (!string.IsNullOrEmpty(groupDrive.customer.GeneralFolderID))
@@ -62,6 +64,7 @@ namespace Orders
 
                             if(orderFolder != null)
                             {
+                                log.LogInformation("Order folder found.");
                                 if (orderMessage.NeedStructureCopy == true)
                                 {
                                     bool copyStructure = false;
@@ -81,6 +84,7 @@ namespace Orders
                                         }
                                     }
 
+                                    log.LogInformation("Folder created and structure copied.");
                                     order.StructureCreated = true;
                                     order.Handled = copyStructure;
                                     order.Status = "Folder created and structure copied";
@@ -88,6 +92,7 @@ namespace Orders
                                 }
                                 else
                                 {
+                                    log.LogInformation("Order folder already existed.");
                                     order.Status = "Order folder already existed";
                                     order.Handled = true;
                                     order.FolderID = orderFolder.Id;
@@ -101,6 +106,7 @@ namespace Orders
                             }
                             else
                             {
+                                log.LogInformation("Order folder not found.");
                                 order.Handled = false;
                                 order.Status = "Order folder not found";
                                 common.UpdateOrder(order, "status");
