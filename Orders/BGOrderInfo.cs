@@ -49,6 +49,7 @@ namespace Orders
 
             if(cdnItem != null)
             {
+                log.LogInformation("Found order in Database");
                 if (string.IsNullOrEmpty(cdnItem.ExternalId))
                     cdnItem.ExternalId = orderMessage.No; //backwards compatibility
 
@@ -60,6 +61,7 @@ namespace Orders
                 cdnItem.CustomerType = orderMessage.CustomerType;
                 cdnItem.Type = orderMessage.Type;
                 newOrder = common.UpdateOrCreateDbOrder(cdnItem);
+                log.LogInformation("Updated order in Database");
             }
             else
             {
@@ -75,10 +77,12 @@ namespace Orders
                 };
 
                 newOrder = common.UpdateOrCreateDbOrder(newOrder);
+                log.LogInformation("Created order in Database");
             }
 
-            if(newOrder != null)
+            if (newOrder != null)
             {
+                log.LogInformation("Order was created or updated in Database");
                 orderMessage.ExternalId = newOrder.ExternalId;
 
                 if(newOrder.Customer != null)
@@ -96,6 +100,7 @@ namespace Orders
             }
             else
             {
+                log.LogInformation("Could not create or update order in Database");
                 return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(orderMessage));
             }
 
