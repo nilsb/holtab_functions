@@ -130,8 +130,6 @@ namespace Orders
             //wait for channel to become available
             Thread.Sleep(60000);
 
-            var cdnSite = await msgraph.GetGroupSite(settings.cdnSiteId);
-
             if (channel != null)
             {
 
@@ -235,7 +233,7 @@ namespace Orders
                     log?.LogInformation("Copy project template files");
                     DriveItem channelFolder = await msgraph.FindItem(customerGroup.groupDrive, "Projekt " + order.ExternalId, true);
 
-                    if (channelFolder != null && cdnSite != null)
+                    if (channelFolder != null)
                     {
                         List<DriveItem> projectTemplates = await GetProjectTemplates(log, msgraph, settings.cdnSiteId);
 
