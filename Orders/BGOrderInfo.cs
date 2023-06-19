@@ -37,6 +37,12 @@ namespace Orders
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
             OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message);
+
+            if(string.IsNullOrEmpty(orderMessage.No) && !string.IsNullOrEmpty(orderMessage.ExternalId))
+            {
+                orderMessage.No = orderMessage.ExternalId;
+            }
+
             var newOrder = default(Order);
 
             //Find and update or create the order database post
