@@ -31,7 +31,7 @@ namespace Orders
 
         [FunctionName("BGCopyOrderStructure")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, new string { "post" }, Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context)
         {
             log.LogInformation("Copy order structure message recieved.");

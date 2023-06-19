@@ -34,7 +34,7 @@ namespace Orders
 
         [FunctionName("BGCreateProject")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, new string { "post" }, Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context)
         {
             log.LogInformation("Create project function processed a request.");

@@ -33,7 +33,7 @@ namespace Orders
 
         [FunctionName("BGOrderGroupTeamFolder")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, new string { "post" }, Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context
             )
         {
