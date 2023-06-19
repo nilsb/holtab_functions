@@ -30,12 +30,8 @@ namespace Orders
         }
 
         [FunctionName("BGCopyOrderStructure")]
-        [OpenApiOperation(operationId: "Run", tags: new[] { "name" })]
-        [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
-        [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "text/plain", bodyType: typeof(string), Description = "The OK response")]
-        [OpenApiResponseWithBody(statusCode: HttpStatusCode.UnprocessableEntity, contentType: "text/plain", bodyType: typeof(string), Description = "Was unable to copy folder structure")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Function, new string { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context)
         {
             log.LogInformation("Copy order structure message recieved.");

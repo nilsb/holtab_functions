@@ -28,12 +28,8 @@ namespace Orders
         }
 
         [FunctionName("BGOrderInfo")]
-        [OpenApiOperation(operationId: "Run", tags: new[] { "name" })]
-        [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
-        [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "text/plain", bodyType: typeof(string), Description = "The OK response")]
-        [OpenApiResponseWithBody(statusCode: HttpStatusCode.UnprocessableEntity, contentType: "text/plain", bodyType: typeof(string), Description = "Was unable to create to order folder or it's parent")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Function, new string { "post" }, Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
