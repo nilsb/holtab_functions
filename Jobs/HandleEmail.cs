@@ -109,8 +109,8 @@ namespace Jobs
                         //Loop through email folders
                         for(int i = 0; i <= historyMonths; i++)
                         {
-                            await ProcessCDNFiles("General", msGraph, cdnDrive, data, orderNo, i, settings.CDNTeamID, orderFolder);
-                            await ProcessCDNFiles("Salesemails", msGraph, cdnDrive, data, orderNo, i, settings.CDNTeamID, orderFolder);
+                            await ProcessCDNFiles("General", msGraph, cdnDrive, data, orderNo, i, settings.CDNTeamID, orderFolder, log);
+                            await ProcessCDNFiles("Salesemails", msGraph, cdnDrive, data, orderNo, i, settings.CDNTeamID, orderFolder, log);
                         }
                     }
                 }
@@ -271,7 +271,7 @@ namespace Jobs
             }
         }
 
-        public async Task<bool> ProcessCDNFiles(string root, Graph msgraph, Drive cdnDrive, HandleEmailMessage data, string orderNo, int i, string CDNTeamID, FindOrderGroupAndFolder orderFolder)
+        public async Task<bool> ProcessCDNFiles(string root, Graph msgraph, Drive cdnDrive, HandleEmailMessage data, string orderNo, int i, string CDNTeamID, FindOrderGroupAndFolder orderFolder, ILogger log)
         {
             //get current email folder
             DriveItem emailFolder = await msgraph.FindItem(cdnDrive, root + "/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString(), false);
