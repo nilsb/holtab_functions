@@ -10,12 +10,10 @@ namespace Jobs
 {
     public class PostProcessOrders
     {
-        private readonly ILogger<PostProcessOrders> log;
         private readonly IConfiguration config;
 
-        public PostProcessOrders(ILogger<PostProcessOrders> _log, IConfiguration _config)
+        public PostProcessOrders(IConfiguration _config)
         {
-            log = _log;
             config = _config;
         }
 

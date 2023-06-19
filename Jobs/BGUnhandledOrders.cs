@@ -18,19 +18,18 @@ namespace Jobs
 {
     public class BGUnhandledOrders
     {
-        private readonly ILogger<BGUnhandledOrders> log;
         private readonly IConfiguration config;
 
-        public BGUnhandledOrders(ILogger<BGUnhandledOrders> _log, IConfiguration _config)
+        public BGUnhandledOrders(IConfiguration _config)
         {
-            log = _log;
             config = _config;
         }
 
         [FunctionName("BGUnhandledOrders")]
         public IActionResult Run(
             [HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
-            Microsoft.Azure.WebJobs.ExecutionContext context)
+            Microsoft.Azure.WebJobs.ExecutionContext context,
+            ILogger log)
         {
             log.LogInformation("Triggered get unhandled orders request.");
 

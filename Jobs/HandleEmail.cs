@@ -15,19 +15,18 @@ namespace Jobs
 {
     public class HandleEmail
     {
-        private readonly ILogger<HandleEmail> log;
         private readonly IConfiguration config;
 
-        public HandleEmail(ILogger<HandleEmail> _log, IConfiguration _config)
+        public HandleEmail(IConfiguration _config)
         {
-            log = _log;
             config = _config;
         }
 
         [FunctionName("HandleEmail")]
         public async Task Run(
             [QueueTrigger("receive", Connection = "AzureWebJobsStorage")] string myQueueItem,
-            Microsoft.Azure.WebJobs.ExecutionContext context)
+            Microsoft.Azure.WebJobs.ExecutionContext context,
+            ILogger log)
         {
             log.LogInformation("Got handle email request with message " + myQueueItem);
 

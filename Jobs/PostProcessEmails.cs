@@ -13,12 +13,10 @@ namespace Jobs
 {
     public class PostProcessEmails
     {
-        private readonly ILogger<PostProcessEmails> log;
         private readonly IConfiguration config;
 
-        public PostProcessEmails(ILogger<PostProcessEmails> _log, IConfiguration _config)
+        public PostProcessEmails(IConfiguration _config)
         {
-            log = _log;
             config = _config;
         }
 
