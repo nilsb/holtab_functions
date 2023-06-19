@@ -47,6 +47,7 @@ namespace Orders
 
             if (order?.Customer != null && !string.IsNullOrEmpty(orderMessage.OrderParentFolderID) && !string.IsNullOrEmpty(orderMessage.OrderFolderID))
             {
+                log.LogInformation("Trying to find customer group and drive");
                 var groupDrive = await common.FindCustomerGroupAndDrive(order.Customer);
 
                 if (groupDrive?.Success == true && groupDrive?.customer != null)
@@ -57,14 +58,17 @@ namespace Orders
 
                         if (!string.IsNullOrEmpty(groupDrive.customer.GeneralFolderID))
                         {
+                            log.LogInformation("Found customer group and drive, getting order folder");
                             var orderFolder = await common.GetOrderFolder(groupDrive.group.Id, groupDrive.groupDrive, order);
 
                             if (orderFolder != null)
                             {
-                                Team? groupTeam = await msGraph.GetTeamFromGroup(groupDrive.group.Id);
+                                log.LogInformation("Found order folder, fetching team for customer");
+                                Team groupTeam = await msGraph.GetTeamFromGroup(groupDrive.group.Id);
 
                                 if(groupTeam != null)
                                 {
+                                    log.LogInformation("Found team for customer, adding tabs");
                                     _ = await CreateProjectTabs(settings, groupDrive, groupTeam, orderFolder, order, log, msGraph);
                                 }
                             }
