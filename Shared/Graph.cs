@@ -323,7 +323,7 @@ namespace Shared
 
                     var installation = await graphClient.Teams[team.Id].InstalledApps.PostAsync(teamsAppInstallation);
 
-                    if (installation?.TeamsApp != null)
+                    if (installation != null)
                     {
                         returnValue = installation.TeamsApp;
                     }
