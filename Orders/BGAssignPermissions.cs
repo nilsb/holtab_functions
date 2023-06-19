@@ -18,19 +18,18 @@ namespace Orders
 {
     public class BGAssignPermissions
     {
-        private readonly ILogger<BGAssignPermissions> log;
         private readonly IConfiguration config;
 
-        public BGAssignPermissions(ILogger<BGAssignPermissions> _log, IConfiguration _config)
+        public BGAssignPermissions(IConfiguration _config)
         {
-            log = _log;
             config = _config;
         }
 
         [FunctionName("BGAssignPermissions")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
-            Microsoft.Azure.WebJobs.ExecutionContext context)
+            Microsoft.Azure.WebJobs.ExecutionContext context,
+            ILogger log)
         {
             log.LogInformation("Order assign permissions message received.");
 

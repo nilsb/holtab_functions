@@ -20,19 +20,18 @@ namespace Orders
 {
     public class BGCopyOrderStructure
     {
-        private readonly ILogger<BGCopyOrderStructure> log;
         private readonly IConfiguration config;
 
-        public BGCopyOrderStructure(ILogger<BGCopyOrderStructure> _log, IConfiguration _config)
+        public BGCopyOrderStructure(IConfiguration _config)
         {
-            log = _log;
             config = _config;
         }
 
         [FunctionName("BGCopyOrderStructure")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
-            Microsoft.Azure.WebJobs.ExecutionContext context)
+            Microsoft.Azure.WebJobs.ExecutionContext context,
+            ILogger log)
         {
             log.LogInformation("Copy order structure message recieved.");
             string Message = await new StreamReader(req.Body).ReadToEndAsync();

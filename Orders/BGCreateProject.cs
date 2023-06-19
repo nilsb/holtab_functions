@@ -23,19 +23,18 @@ namespace Orders
 {
     public class BGCreateProject
     {
-        private readonly ILogger<BGCreateProject> log;
         private readonly IConfiguration config;
 
-        public BGCreateProject(ILogger<BGCreateProject> _log, IConfiguration _config)
+        public BGCreateProject(IConfiguration _config)
         {
-            log = _log;
             config = _config;
         }
 
         [FunctionName("BGCreateProject")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
-            Microsoft.Azure.WebJobs.ExecutionContext context)
+            Microsoft.Azure.WebJobs.ExecutionContext context,
+            ILogger log)
         {
             log.LogInformation("Create project function processed a request.");
 

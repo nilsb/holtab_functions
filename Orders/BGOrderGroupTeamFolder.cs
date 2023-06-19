@@ -22,20 +22,18 @@ namespace Orders
 {
     public class BGOrderGroupTeamFolder
     {
-        private readonly ILogger<BGOrderGroupTeamFolder> log;
         private readonly IConfiguration config;
 
-        public BGOrderGroupTeamFolder(IConfiguration _config, ILogger<BGOrderGroupTeamFolder> _log)
+        public BGOrderGroupTeamFolder(IConfiguration _config)
         {
-            log = _log;
             config = _config;
         }
 
         [FunctionName("BGOrderGroupTeamFolder")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
-            Microsoft.Azure.WebJobs.ExecutionContext context
-            )
+            Microsoft.Azure.WebJobs.ExecutionContext context,
+            ILogger log)
         {
             log.LogInformation("Find order group, team and general folder message recieved.");
             string Message = await new StreamReader(req.Body).ReadToEndAsync();

@@ -18,19 +18,18 @@ namespace Orders
 {
     public class BGOrderInfo
     {
-        private readonly ILogger<BGOrderInfo> log;
         private readonly IConfiguration config;
 
-        public BGOrderInfo(ILogger<BGOrderInfo> _log, IConfiguration _config)
+        public BGOrderInfo(IConfiguration _config)
         {
-            log = _log;
             config = _config;
         }
 
         [FunctionName("BGOrderInfo")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, new string[] { "post" }, Route = null)] HttpRequest req,
-            Microsoft.Azure.WebJobs.ExecutionContext context)
+            Microsoft.Azure.WebJobs.ExecutionContext context,
+            ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
             log.LogInformation($"Order Information trigger function processed message: {Message}");
