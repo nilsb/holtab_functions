@@ -89,7 +89,7 @@ namespace Orders
             return new OkObjectResult(JsonConvert.SerializeObject(orderMessage));
         }
 
-        public async Task<List<DriveItem>> GetProjectTemplates(ILogger log, Graph msgraph, Site cdnSite, string CDNSiteID)
+        public async Task<List<DriveItem>> GetProjectTemplates(ILogger log, Graph msgraph, string CDNSiteID)
         {
             List<DriveItem> foldersToCreate = new List<DriveItem>();
             var cdnDrive = await msgraph.GetSiteDrive(CDNSiteID);
@@ -237,7 +237,7 @@ namespace Orders
 
                     if (channelFolder != null && cdnSite != null)
                     {
-                        List<DriveItem> projectTemplates = await GetProjectTemplates(log, msgraph, cdnSite, settings.cdnSiteId);
+                        List<DriveItem> projectTemplates = await GetProjectTemplates(log, msgraph, settings.cdnSiteId);
 
                         foreach (DriveItem templateItem in projectTemplates)
                         {
@@ -252,7 +252,7 @@ namespace Orders
                             };
 
                             log?.LogInformation($"Copy template item {templateItem.Name} to project folder for {order.ExternalId}.");
-                            Drive siteDrive = await msgraph.GetGroupDrive(settings.cdnSiteId);
+                            Drive siteDrive = await msgraph.GetSiteDrive(settings.cdnSiteId);
                             var result = await settings.GraphClient.Drives[siteDrive.Id].Items[templateItem.Id].Copy.PostAsync(requestBody);
                         }
 

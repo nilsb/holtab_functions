@@ -457,6 +457,7 @@ namespace Shared
                 if(channels?.Value?.Count() > 0)
                 {
                     returnValue = channels.Value.FirstOrDefault(c => c.DisplayName == channelName);
+                    log?.LogInformation("Channel " + channelName + " found in team " + team.DisplayName);
                 }
             }
             catch (Exception ex)

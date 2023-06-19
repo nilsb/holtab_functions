@@ -9,10 +9,6 @@ using Newtonsoft.Json;
 using Microsoft.Extensions.Configuration;
 using Shared.Models;
 using Shared;
-using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
-using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
-using Microsoft.OpenApi.Models;
-using System.Net;
 
 namespace Orders
 {
