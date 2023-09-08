@@ -54,16 +54,16 @@ namespace Shared.Models
         }
 
         public GraphServiceClient? GraphClient { get; set; }
-        public string? TenantID { get; set; }
-        public string? ClientID { get; set; }
-        public string? ClientSecret { get; set; }
-        public string? CDNTeamID { get; set; }
-        public string? cdnSiteId { get; set; }
-        public string? OrderListID { get; set; }
-        public string? CustomerListID { get; set; }
-        public string? SqlConnectionString { get; set; }
-        public string? Admins { get; set; }
-        public string? ProductionChoicesListID { get; set; }
+        public string TenantID { get; set; } = "";
+        public string ClientID { get; set; } = "";
+        public string ClientSecret { get; set; } = "";
+        public string CDNTeamID { get; set; } = "";
+        public string cdnSiteId { get; set; } = "";
+        public string OrderListID { get; set; } = "";
+        public string CustomerListID { get; set; } = "";
+        public string SqlConnectionString { get; set; } = "";
+        public string Admins { get; set; } = "";
+        public string ProductionChoicesListID { get; set; } = "";
         public IConfiguration config { get; set; }
         public ExecutionContext? context { get; set; }
         public ILogger? log { get; set; }

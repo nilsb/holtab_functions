@@ -8,7 +8,7 @@ namespace Shared.Models
 {
     public class CreateFolderMessage
     {
-        public string? GroupID { get; set; }
-        public string? GroupURL { get; set; }
+        public string GroupID { get; set; } = "";
+        public string GroupURL { get; set; } = "";
     }
 }

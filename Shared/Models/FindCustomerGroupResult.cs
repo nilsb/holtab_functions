@@ -8,7 +8,7 @@ namespace Shared.Models
 {
     public class FindCustomerGroupResult
     {
-        public bool Success { get; set; }
+        public bool Success { get; set; } = false;
         public Group? group { get; set; }
         public Drive? groupDrive { get; set; }
         public DriveItem? rootFolder { get; set; }

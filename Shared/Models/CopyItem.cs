@@ -6,10 +6,10 @@ namespace Shared.Models
 {
     public class CopyItem
     {
-        public string? GroupId { get; set; }
-        public string? FolderId { get; set; }
-        public string? Path { get; set; }
-        public string? FileId { get; set; }
+        public string GroupId { get; set; } = "";
+        public string FolderId { get; set; } = "";
+        public string Path { get; set; } = "";
+        public string FileId { get; set; } = "";
 
         public CopyItem()
         {

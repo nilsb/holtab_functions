@@ -8,7 +8,7 @@ namespace Shared.Models
 {
     public class FindOrderGroupAndFolder
     {
-        public bool Success { get; set; }
+        public bool Success { get; set; } = false;
         public Team? orderTeam { get; set; }
         public Group? orderGroup { get; set; }
         public Drive? orderDrive { get; set; }
