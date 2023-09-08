@@ -32,23 +32,27 @@ namespace Orders
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
-            OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message);
+            OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message, new JsonSerializerSettings() { DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore });
 
             if(string.IsNullOrEmpty(orderMessage.No) && !string.IsNullOrEmpty(orderMessage.ExternalId))
             {
                 orderMessage.No = orderMessage.ExternalId;
             }
+            if (string.IsNullOrEmpty(orderMessage.ExternalId) && !string.IsNullOrEmpty(orderMessage.No))
+            {
+                orderMessage.ExternalId = orderMessage.No;
+            }
 
             var newOrder = default(Order);
 
             //Find and update or create the order database post
-            Order cdnItem = common.GetOrderFromCDN(orderMessage.No);
+            Order cdnItem = common.GetOrderFromCDN(orderMessage.ExternalId);
 
             if(cdnItem != null)
             {
                 log.LogInformation("Found order in Database");
                 if (string.IsNullOrEmpty(cdnItem.ExternalId))
-                    cdnItem.ExternalId = orderMessage.No; //backwards compatibility
+                    cdnItem.ExternalId = orderMessage.ExternalId; //backwards compatibility
 
                 cdnItem.AdditionalInfo = orderMessage.AdditionalInfo;
                 cdnItem.Seller = orderMessage.Seller;
@@ -63,8 +67,8 @@ namespace Orders
             else
             {
                 newOrder = new Order() { 
-                    No = orderMessage.No,
-                    ExternalId = orderMessage.No,
+                    No = orderMessage.ExternalId,
+                    ExternalId = orderMessage.ExternalId,
                     AdditionalInfo = orderMessage.AdditionalInfo,
                     CustomerNo = orderMessage.CustomerNo,
                     CustomerType = orderMessage.CustomerType,

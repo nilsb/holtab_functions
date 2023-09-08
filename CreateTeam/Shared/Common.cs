@@ -774,7 +774,7 @@ namespace CreateTeam.Shared
         public string FindOrderNoInString(string input)
         {
             string returnValue = "";
-            RE.Match orderMatches = RE.Regex.Match(input, @"B\d{6}|T\d{5}|A\d{5}|Z\d{5}|G\d{4}|R\d{2}|E\d{5,7}|F\d{5}|H\d{5,6}|K\d{5,6}|\d{5}-\d{2}|Q\d{5}-\d{2}");
+            RE.Match orderMatches = RE.Regex.Match(input, @"B\d{6}|T\d{5}|A\d{5}|Z\d{5}|G\d{4}|R\d{2}|E\d{5,7}|F\d{5}|H\d{5,6}|K\d{5,6}|\d{5}-\d{2}|Q\d{5}-\d{2}|Q\d{5}");
 
             if (orderMatches.Success)
             {
