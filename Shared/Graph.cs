@@ -1439,8 +1439,8 @@ namespace Shared
                         if (childFile.Folder != null)
                             continue;
 
-                        CopyItem source = new CopyItem() { GroupId = GroupId, FolderId = Folder.Id, Path = childFile.Name };
-                        CopyItem destination = new CopyItem() { GroupId = GroupId, FolderId = createdFolder.Id, Path = childFile.Name };
+                        CopyItem source = new CopyItem() { GroupId = GroupId, FolderId = Folder.Id ?? "", Path = childFile.Name ?? "" };
+                        CopyItem destination = new CopyItem() { GroupId = GroupId, FolderId = createdFolder.Id ?? "", Path = childFile.Name ?? "" };
                         await this.CopyFile(source, destination);
                     }
                 }
@@ -1495,8 +1495,8 @@ namespace Shared
                         if (childFile.Folder != null)
                             continue;
 
-                        CopyItem source = new CopyItem() { GroupId = GroupId, FolderId = Folder.Id, Path = childFile.Name };
-                        CopyItem destination = new CopyItem() { GroupId = GroupId, FolderId = createdFolder.Id, Path = childFile.Name };
+                        CopyItem source = new CopyItem() { GroupId = GroupId, FolderId = Folder.Id ?? "", Path = childFile.Name ?? "" };
+                        CopyItem destination = new CopyItem() { GroupId = GroupId, FolderId = createdFolder.Id ?? "", Path = childFile.Name ?? "" };
                         await this.CopyFile(source, destination);
                     }
                 }

@@ -13,7 +13,42 @@ namespace Shared.Models
     {
         public Customer()
         {
-            
+            this.ID = Guid.Empty;
+            this.ExternalId = "";
+            this.Type = "";
+            this.Seller = "";
+            this.ProjectManager = "";
+            this.Name = "";
+            this.Prospect = "";
+            this.Address = "";
+            this.Address1 = "";
+            this.ZipCode = "";
+            this.City = "";
+            this.State = "";
+            this.Country = "";
+            this.Phone = "";
+            this.Fax = "";
+            this.TeamID = "";
+            this.TeamUrl = "";
+            this.GroupID = "";
+            this.GroupURL = "";
+            this.DriveID = "";
+            this.GeneralFolderID = "";
+            this.GroupCreated = false;
+            this.TeamCreated = false;
+            this.GeneralFolderCreated = false;
+            this.CopiedRootStructure = false;
+            this.CreatedColumnKundnummer = false;
+            this.CreatedColumnAdditionalInfo = false;
+            this.CreatedColumnNAVid = false;
+            this.CreatedColumnProduktionsdokument = false;
+            this.CreatedDefaultView = false;
+            this.InstalledApp = false;
+            this.MembersAdded = "";
+            this.Created = DateTime.Now;
+            this.Modified = DateTime.Now;
+            this.Orders = new List<Order>();
+            this.itemId = "";
         }
 
         public Customer(Customer? src)
@@ -56,6 +91,45 @@ namespace Shared.Models
                 this.Modified = src.Modified;
                 this.Orders = src.Orders;
                 this.itemId = src.itemId;
+            }
+            else
+            {
+                this.ID = Guid.Empty;
+                this.ExternalId = "";
+                this.Type = "";
+                this.Seller = "";
+                this.ProjectManager = "";
+                this.Name = "";
+                this.Prospect = "";
+                this.Address = "";
+                this.Address1 = "";
+                this.ZipCode = "";
+                this.City = "";
+                this.State = "";
+                this.Country = "";
+                this.Phone = "";
+                this.Fax = "";
+                this.TeamID = "";
+                this.TeamUrl = "";
+                this.GroupID = "";
+                this.GroupURL = "";
+                this.DriveID = "";
+                this.GeneralFolderID = "";
+                this.GroupCreated = false;
+                this.TeamCreated = false;
+                this.GeneralFolderCreated = false;
+                this.CopiedRootStructure = false;
+                this.CreatedColumnKundnummer = false;
+                this.CreatedColumnAdditionalInfo = false;
+                this.CreatedColumnNAVid = false;
+                this.CreatedColumnProduktionsdokument = false;
+                this.CreatedDefaultView = false;
+                this.InstalledApp = false;
+                this.MembersAdded = "";
+                this.Created = DateTime.Now;
+                this.Modified = DateTime.Now;
+                this.Orders = new List<Order>();
+                this.itemId = "";
             }
         }
 
