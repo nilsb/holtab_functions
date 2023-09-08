@@ -13,7 +13,7 @@ namespace Shared.Models
             customer = null;
         }
 
-        public bool Success { get; set; } = falkse;
+        public bool Success { get; set; } = false;
         public List<Customer> customers { get; set; }
         public Customer? customer { get; set; }
     }
