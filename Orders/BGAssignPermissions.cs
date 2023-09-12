@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Shared;
 using Shared.Models;
 
@@ -37,7 +38,7 @@ namespace Orders
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
-            OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message);
+            dynamic orderMessage = JObject.Parse(Message);
             Order order = common.GetOrderFromCDN(orderMessage.No);
 
             if (order?.Customer != null)

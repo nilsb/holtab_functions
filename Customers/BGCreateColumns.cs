@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Shared;
 using Shared.Models;
 
@@ -41,7 +42,7 @@ namespace CreateTeam
             log.LogTrace($"Got copy root structure request with message: {Message}");
 
             //Parse the incoming message into JSON
-            CustomerQueueMessage customerQueueMessage = JsonConvert.DeserializeObject<CustomerQueueMessage>(Message);
+            dynamic customerQueueMessage = JObject.Parse(Message);
 
             //Get customer object from database
             FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);

@@ -10,6 +10,7 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace CreateTeam
 {
@@ -35,7 +36,7 @@ namespace CreateTeam
             Common common = new Common(settings, msGraph);
 
             //Parse the incoming message into JSON
-            CustomerMessage customerMessage = JsonConvert.DeserializeObject<CustomerMessage>(Message);
+            dynamic customerMessage = JObject.Parse(Message);
 
             //Find the customer in the database and update the information or create it if it doesn't exist
             Customer createdCustomer = common.UpdateOrCreateDbCustomer(customerMessage);

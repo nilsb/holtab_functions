@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using Microsoft.Extensions.Configuration;
 using Shared.Models;
 using Shared;
+using Newtonsoft.Json.Linq;
 
 namespace Orders
 {
@@ -32,12 +33,13 @@ namespace Orders
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
-            OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message, new JsonSerializerSettings() { DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore });
+            dynamic orderMessage = JObject.Parse(Message);
 
             if(string.IsNullOrEmpty(orderMessage.No) && !string.IsNullOrEmpty(orderMessage.ExternalId))
             {
                 orderMessage.No = orderMessage.ExternalId;
             }
+
             if (string.IsNullOrEmpty(orderMessage.ExternalId) && !string.IsNullOrEmpty(orderMessage.No))
             {
                 orderMessage.ExternalId = orderMessage.No;

@@ -13,6 +13,7 @@ using Microsoft.Graph;
 using Shared;
 using Shared.Models;
 using Microsoft.Graph.Models;
+using Newtonsoft.Json.Linq;
 
 namespace CreateTeam
 {
@@ -39,7 +40,7 @@ namespace CreateTeam
             FindGroupResult result = new FindGroupResult() { Success = false };
 
             //Parse the incoming message into JSON
-            CustomerQueueMessage customerQueueMessage = JsonConvert.DeserializeObject<CustomerQueueMessage>(Message);
+            dynamic customerQueueMessage = JObject.Parse(Message);
 
             //Get customer object from database
             FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);

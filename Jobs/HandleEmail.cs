@@ -10,6 +10,7 @@ using Shared.Models;
 using Shared;
 using System.Linq;
 using Microsoft.Graph.Models;
+using Newtonsoft.Json.Linq;
 
 namespace Jobs
 {
@@ -30,19 +31,7 @@ namespace Jobs
         {
             log.LogInformation("Got handle email request with message " + myQueueItem);
 
-            HandleEmailMessage data = new HandleEmailMessage();
-
-            try
-            {
-                log?.LogTrace($"Got handle email request with message: {myQueueItem}");
-                data = JsonConvert.DeserializeObject<HandleEmailMessage>(myQueueItem);
-            }
-            catch (Exception ex)
-            {
-                log?.LogError(ex.ToString());
-                log?.LogTrace($"Failed to convert queue message to object with error: {ex.ToString()}");
-            }
-
+            dynamic data = JObject.Parse(myQueueItem);
 
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);

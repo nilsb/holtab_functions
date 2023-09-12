@@ -12,6 +12,7 @@ using System.IO;
 using Microsoft.AspNetCore.Mvc;
 using Shared;
 using Shared.Models;
+using Newtonsoft.Json.Linq;
 
 namespace Customers
 {
@@ -38,7 +39,7 @@ namespace Customers
             log.LogTrace($"Got assign permissions request with message: {Message}");
 
             //Parse the incoming message into JSON
-            CustomerQueueMessage customerQueueMessage = JsonConvert.DeserializeObject<CustomerQueueMessage>(Message);
+            dynamic customerQueueMessage = JObject.Parse(Message);
 
             //Get customer object from database
             FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);
