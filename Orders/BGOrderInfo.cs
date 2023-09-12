@@ -36,7 +36,7 @@ namespace Orders
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
 
-            OrderMessage orderMessage = MessageObject.MessageText != null ? JObject.Parse(MessageObject.MessageText) : MessageObject;
+            OrderMessage orderMessage = MessageObject;
 
             if(string.IsNullOrEmpty(orderMessage.No) && !string.IsNullOrEmpty(orderMessage.ExternalId))
             {
