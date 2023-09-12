@@ -31,14 +31,14 @@ namespace CreateTeam
         {
             Settings settings = new Settings(config, context, log);
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
-
+            dynamic MessageObject = JObject.Parse(Message);
             log.LogInformation($"Copy root structure queue trigger function processed message: {Message}");
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
             log.LogTrace($"Got copy root structure request with message: {Message}");
 
             //Parse the incoming message into JSON
-            dynamic customerQueueMessage = JObject.Parse(Message);
+            dynamic customerQueueMessage = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(Message);
 
             //Get customer object from database
             FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);

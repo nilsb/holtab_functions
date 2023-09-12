@@ -38,10 +38,12 @@ namespace Orders
         {
             log.LogInformation("Find order group, team and general folder message recieved.");
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
+            dynamic MessageObject = JObject.Parse(Message);
+
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
-            dynamic orderMessage = JObject.Parse(Message);
+            dynamic orderMessage = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(Message);
             Order order = common.GetOrderFromCDN(orderMessage.No);
 
             if(order?.Customer != null)

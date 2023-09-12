@@ -29,11 +29,14 @@ namespace Orders
             ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
+            dynamic MessageObject = JObject.Parse(Message);
+
             log.LogInformation($"Order Information trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
-            dynamic orderMessage = JObject.Parse(Message);
+
+            dynamic orderMessage = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(Message);
 
             if(string.IsNullOrEmpty(orderMessage.No) && !string.IsNullOrEmpty(orderMessage.ExternalId))
             {

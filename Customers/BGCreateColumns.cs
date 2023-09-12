@@ -34,7 +34,7 @@ namespace CreateTeam
             ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
-
+            dynamic MessageObject = JObject.Parse(Message);
             log.LogInformation($"Create columns queue trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);
@@ -42,7 +42,7 @@ namespace CreateTeam
             log.LogTrace($"Got copy root structure request with message: {Message}");
 
             //Parse the incoming message into JSON
-            dynamic customerQueueMessage = JObject.Parse(Message);
+            dynamic customerQueueMessage = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(Message);
 
             //Get customer object from database
             FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);

@@ -6,6 +6,8 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Microsoft.Graph.Models;
 
 namespace Jobs
 {
@@ -21,7 +23,8 @@ namespace Jobs
             string name = req.Query["id"];
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
+            dynamic MessageObject = JObject.Parse(requestBody);
+            dynamic data = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(requestBody);
             string responseMessage = "";
 
             if (data != null )
