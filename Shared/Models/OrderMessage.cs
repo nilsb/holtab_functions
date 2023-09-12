@@ -11,6 +11,154 @@ namespace Shared.Models
 {
     public class OrderMessage
     {
+        public OrderMessage()
+        {
+            
+        }
+
+        public OrderMessage(dynamic src)
+        {
+            if(src != null)
+            {
+                try
+                {
+                    this.No = src.No;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.Type = src.Type;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.Seller = src.Seller;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.ProjectManager = src.ProjectManager;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.AdditionalInfo = src.AdditionalInfo;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.CustomerName = src.CustomerName;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.CustomerNo = src.CustomerNo;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.CustomerType = src.CustomerType;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.ExternalId = src.ExternalId;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.CustomerExternalId = src.CustomerExternalId;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.CustomerGroupID = src.CustomerGroupID;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.DriveID = src.DriveID;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.GeneralFolderID = src.GeneralFolderID;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.TeamID = src.TeamID;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.OrderParentFolderID = src.OrderParentFolderID;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.OrderFolderID = src.OrderFolderID;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.NeedStructureCopy = src.NeedStructureCopy;
+                }
+                catch
+                {
+                }
+
+            }
+        }
+
         public string No { get; set; } = "";
         public string Type { get; set; } = "";
         public string Seller { get; set; } = "";
