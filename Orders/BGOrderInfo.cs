@@ -37,11 +37,13 @@ namespace Orders
 
             if(string.IsNullOrEmpty(orderMessage.No) && !string.IsNullOrEmpty(orderMessage.ExternalId))
             {
+                log.LogInformation("Message did not contain ExternalId so assigning it from No");
                 orderMessage.No = orderMessage.ExternalId;
             }
 
             if (string.IsNullOrEmpty(orderMessage.ExternalId) && !string.IsNullOrEmpty(orderMessage.No))
             {
+                log.LogInformation("Message did not contain No so assigning it from ExternalId");
                 orderMessage.ExternalId = orderMessage.No;
             }
 

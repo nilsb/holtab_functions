@@ -55,14 +55,17 @@ namespace Shared
 
             try
             {
+                log?.LogInformation($"Trying to find order with id {orderNo}.");
                 returnValue = services?.GetOrderFromDB(orderNo);
 
                 if(returnValue != null)
                 {
+                    log?.LogInformation($"Found order with id {orderNo}. Trying to fetch customer.");
                     FindCustomerResult customers = GetCustomer(returnValue);
 
                     if (returnValue.Customer == null && customers.Success && customers.customer != null)
                     {
+                        log?.LogInformation($"Found customer {customers.customer.Name} for order with id {orderNo}.");
                         returnValue.CustomerName = customers.customer.Name;
                         returnValue.Customer = customers.customer;
 
@@ -105,11 +108,13 @@ namespace Shared
 
             if(order != null)
             {
+                log?.LogInformation($"Processing order {order.ExternalId} for CreateOrUpdateDB.");
                 //try to find the customer in the order object sent as parameter (in case it changed or the order is new)
                 FindCustomerResult DBCustomer = GetCustomer(order);
 
                 if (DBCustomer.Success && DBCustomer.customer != null)
                 {
+                    log?.LogInformation($"Found customer for order {order.ExternalId} in CreateOrUpdateDB.");
                     order.Customer = DBCustomer.customer;
                 }
 
@@ -118,6 +123,7 @@ namespace Shared
 
                 if (DBOrder != null && DBOrder != default(Order))
                 {
+                    log?.LogInformation($"Found existing order {order.ExternalId} in CreateOrUpdateDB.");
                     DBOrder = order;
                     DBOrder.Status = "Updated";
                     returnValue = DBOrder;
@@ -125,17 +131,17 @@ namespace Shared
                 }
                 else
                 {
-                    log?.LogTrace($"Order does not exist in database.");
+                    log?.LogInformation($"Order does not exist in database.");
                 }
 
                 if (returnValue == null)
                 {
-                    log?.LogTrace($"Creating new order.");
+                    log?.LogInformation($"Creating new order.");
                     Order NewOrder = new Order();
 
                     if (DBCustomer.Success && DBCustomer.customer != null)
                     {
-                        log?.LogTrace($"Setting new order customer.");
+                        log?.LogInformation($"Setting new order customer.");
                         NewOrder.Customer = order.Customer;
                         NewOrder.CustomerName = order.CustomerName;
                         NewOrder.CustomerType = order.CustomerType;
@@ -156,7 +162,7 @@ namespace Shared
 
                     try
                     {
-                        log?.LogTrace($"Adding order to DB.");
+                        log?.LogInformation($"Adding order to DB.");
 
                         if (services?.AddOrderInDB(NewOrder) == true)
                         {
