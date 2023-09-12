@@ -41,7 +41,7 @@ namespace Orders
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
-            dynamic orderMessage = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(Message);
+            dynamic orderMessage = MessageObject.MessageText != null ? MessageObject.MessageText : MessageObject;
             Order order = common.GetOrderFromCDN(orderMessage.No);
 
             if (order?.Customer != null && !string.IsNullOrEmpty(orderMessage.OrderParentFolderID) && !string.IsNullOrEmpty(orderMessage.OrderFolderID))

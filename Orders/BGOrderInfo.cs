@@ -36,7 +36,7 @@ namespace Orders
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
 
-            dynamic orderMessage = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(Message);
+            dynamic orderMessage = MessageObject.MessageText != null ? MessageObject.MessageText : MessageObject;
 
             if(string.IsNullOrEmpty(orderMessage.No) && !string.IsNullOrEmpty(orderMessage.ExternalId))
             {

@@ -42,7 +42,7 @@ namespace CreateTeam
             log.LogTrace($"Got copy root structure request with message: {Message}");
 
             //Parse the incoming message into JSON
-            dynamic customerQueueMessage = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(Message);
+            dynamic customerQueueMessage = MessageObject.MessageText != null ? MessageObject.MessageText : MessageObject;
 
             //Get customer object from database
             FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);

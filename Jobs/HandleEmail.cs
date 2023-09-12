@@ -31,7 +31,7 @@ namespace Jobs
         {
             log.LogInformation("Got handle email request with message " + myQueueItem);
             dynamic MessageObject = JObject.Parse(myQueueItem);
-            dynamic data = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(myQueueItem);
+            dynamic data = MessageObject.MessageText != null ? MessageObject.MessageText : MessageObject;
 
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);

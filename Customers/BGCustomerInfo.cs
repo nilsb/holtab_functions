@@ -37,7 +37,7 @@ namespace CreateTeam
             Common common = new Common(settings, msGraph);
 
             //Parse the incoming message into JSON
-            dynamic customerMessage = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(Message);
+            dynamic customerMessage = MessageObject.MessageText != null ? MessageObject.MessageText : MessageObject;
 
             //Find the customer in the database and update the information or create it if it doesn't exist
             Customer createdCustomer = common.UpdateOrCreateDbCustomer(customerMessage);
