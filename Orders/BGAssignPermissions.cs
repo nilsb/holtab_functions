@@ -39,7 +39,7 @@ namespace Orders
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
             OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message);
-            Order order = common.GetOrderFromCDN(orderMessage.No);
+            Order order = common.GetOrderFromCDN(orderMessage.ExternalId);
 
             if (order?.Customer != null)
             {
@@ -58,6 +58,9 @@ namespace Orders
                         {
                             await msGraph.AddGroupOwner(orderMessage.ProjectManager, orderMessage.CustomerGroupID);
                         }
+
+                        order.Handled = true;
+                        common.UpdateOrCreateDbOrder(order);
                     }
                 }
             }
