@@ -23,8 +23,7 @@ namespace Jobs
             string name = req.Query["id"];
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic MessageObject = JObject.Parse(requestBody);
-            dynamic data = !string.IsNullOrEmpty(MessageObject.MessageText) ? JObject.Parse(MessageObject.MessageText) : JObject.Parse(requestBody);
+            dynamic data = JsonConvert.DeserializeObject<dynamic>(requestBody);
             string responseMessage = "";
 
             if (data != null )

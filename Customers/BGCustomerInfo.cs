@@ -30,14 +30,13 @@ namespace CreateTeam
             ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic MessageObject = JObject.Parse(Message);
             log.LogInformation($"Customer Information trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
 
             //Parse the incoming message into JSON
-            dynamic customerMessage = MessageObject.MessageText != null ? MessageObject.MessageText : MessageObject;
+            CustomerMessage customerMessage = JsonConvert.DeserializeObject<CustomerMessage>(Message);
 
             //Find the customer in the database and update the information or create it if it doesn't exist
             Customer createdCustomer = common.UpdateOrCreateDbCustomer(customerMessage);

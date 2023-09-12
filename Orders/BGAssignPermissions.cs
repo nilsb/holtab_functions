@@ -35,11 +35,10 @@ namespace Orders
             log.LogInformation("Order assign permissions message received.");
 
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic MessageObject = JObject.Parse(Message);
             Settings settings = new Settings(config, context, log);
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph);
-            dynamic orderMessage = MessageObject.MessageText != null ? MessageObject.MessageText : MessageObject;
+            OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message);
             Order order = common.GetOrderFromCDN(orderMessage.No);
 
             if (order?.Customer != null)
