@@ -589,14 +589,14 @@ namespace Shared
                 DisplayName = tabName,
                 TeamsApp = new TeamsApp
                 {
-                    Id = "com.microsoft.teamspace.tab.web"
+                    Id = "com.microsoft.teamspace.tab.planner"
                 },
                 Configuration = new TeamsTabConfiguration
                 {
-                    EntityId = null,
+                    EntityId = planId,
                     ContentUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlannerFrame?page=7&planId={planId}&auth=true",
                     WebsiteUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlanViews/{planId}",
-                    RemoveUrl = null
+                    RemoveUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlannerFrame?page=13&planId={planId}&auth=true"
                 }
             };
 
