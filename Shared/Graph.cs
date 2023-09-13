@@ -1778,7 +1778,7 @@ namespace Shared
         {
             PlannerPlan? createdPlan = null;
 
-            if (settings == null || settings.GraphClient == null)
+            if (graphClient == null)
             {
                 return createdPlan;
             }
@@ -1791,7 +1791,7 @@ namespace Shared
 
             try
             {
-                createdPlan = await settings.GraphClient.Planner.Plans
+                createdPlan = await graphClient.Planner.Plans
                     .PostAsync(newPlan);
 
                 log?.LogInformation($"Plan created with ID: {createdPlan?.Id}");
@@ -1808,14 +1808,14 @@ namespace Shared
         {
             List<PlannerPlan> returnValue = new List<PlannerPlan>();
 
-            if(settings == null || settings.GraphClient == null)
+            if(graphClient == null)
             {
                 return returnValue;
             }
 
             try
             {
-                var plans = await settings.GraphClient.Groups[groupId].Planner.Plans.GetAsync();
+                var plans = await graphClient.Groups[groupId].Planner.Plans.GetAsync();
 
                 if (plans?.Value?.Count > 0)
                 {
@@ -1856,14 +1856,14 @@ namespace Shared
         {
             List<PlannerBucket> returnValue = new List<PlannerBucket>();
 
-            if (settings == null || settings.GraphClient == null)
+            if (graphClient == null)
             {
                 return returnValue;
             }
 
             try
             {
-                var buckets = await settings.GraphClient.Planner.Plans[planId].Buckets
+                var buckets = await graphClient.Planner.Plans[planId].Buckets
                     .GetAsync();
 
                 if(buckets?.Value?.Count > 0)
@@ -1881,7 +1881,7 @@ namespace Shared
 
         public async Task CopyBucketAsync(PlannerBucket sourceBucket, string targetPlanId)
         {
-            if(settings == null || settings.GraphClient == null)
+            if(graphClient == null)
             {
                 return;
             }
@@ -1897,7 +1897,7 @@ namespace Shared
 
             try
             {
-                createdBucket = await settings.GraphClient.Planner.Buckets.PostAsync(newBucket);
+                createdBucket = await graphClient.Planner.Buckets.PostAsync(newBucket);
             }
             catch (ServiceException ex)
             {
@@ -1908,7 +1908,7 @@ namespace Shared
             if(createdBucket != null)
             {
                 // Retrieve tasks from the source bucket
-                var tasks = await settings.GraphClient.Planner.Buckets[sourceBucket.Id].Tasks
+                var tasks = await graphClient.Planner.Buckets[sourceBucket.Id].Tasks
                     .GetAsync();
 
                 if (tasks?.Value?.Count > 0)
@@ -1925,7 +1925,7 @@ namespace Shared
 
                         try
                         {
-                            await settings.GraphClient.Planner.Tasks
+                            await graphClient.Planner.Tasks
                                 .PostAsync(newTask);
                         }
                         catch (ServiceException ex)
