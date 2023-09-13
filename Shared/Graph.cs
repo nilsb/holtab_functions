@@ -1837,12 +1837,12 @@ namespace Shared
 
         public async Task<PlannerPlan?> PlanExists(string groupId, string planTitle)
         {
-            services?.Log("Trying to find plan: " + planTitle + " in group: " + groupId);
+            log?.LogInformation("Trying to find plan: " + planTitle + " in group: " + groupId);
             var plans = await GetPlansAsync(groupId);
 
             if(plans?.Count > 0)
             {
-                services?.Log("Found: " + plans.Count);
+                log?.LogInformation("Found: " + plans.Count);
                 if (plans.Any(p => p.Title == planTitle))
                 {
                     return plans.FirstOrDefault(p => p.Title == planTitle);
