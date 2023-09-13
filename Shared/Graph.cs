@@ -353,7 +353,7 @@ namespace Shared
             {
                 if(!string.IsNullOrEmpty(appName))
                 {
-                    returnValue = apps.Value.FirstOrDefault(a => a.Id == appName);
+                    returnValue = apps.Value.FirstOrDefault(a => a.DisplayName == appName);
                 }
 
                 if (!string.IsNullOrEmpty(appId))
@@ -389,6 +389,47 @@ namespace Shared
             }
 
             return returnValue;
+        }
+
+        public async Task<TeamsTab?> GetTab(Team team, Channel channel, string tabName)
+        {
+            TeamsTab? returnValue = default(TeamsTab);
+
+            if (graphClient == null)
+            {
+                return returnValue;
+            }
+
+            try
+            {
+                var tabs = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.GetAsync();
+
+                if (tabs?.Value?.Count > 0)
+                {
+                    returnValue = tabs.Value.FirstOrDefault(t => t.DisplayName == tabName);
+                }
+            }
+            catch (Exception ex)
+            {
+                log?.LogError(ex.Message);
+            }
+
+            return returnValue;
+        }
+
+        public async Task RemoveTab(Team team, Channel channel, string TabId)
+        {
+            if (graphClient != null)
+            {
+                try
+                {
+                    await graphClient.Teams[team.Id].Channels[channel.Id].Tabs[TabId].DeleteAsync();
+                }
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.Message);
+                }
+            }
         }
 
         public async Task<bool> AddChannelWebApp(Team team, Channel channel, string tabName, string contentUrl, string webUrl)
@@ -548,14 +589,14 @@ namespace Shared
                 DisplayName = tabName,
                 TeamsApp = new TeamsApp
                 {
-                    Id = "com.microsoft.teamspace.tab.planner"
+                    Id = "com.microsoft.teamspace.tab.web"
                 },
                 Configuration = new TeamsTabConfiguration
                 {
-                    EntityId = planId,
+                    EntityId = null,
                     ContentUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlannerFrame?page=7&planId={planId}&auth=true",
                     WebsiteUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlanViews/{planId}",
-                    RemoveUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlannerFrame?page=13&planId={planId}&auth=true"
+                    RemoveUrl = null
                 }
             };
 

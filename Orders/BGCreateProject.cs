@@ -246,17 +246,30 @@ namespace Orders
 
                         try
                         {
+                            var notesTab = await msgraph.GetTab(orderTeam, channel, "Notes");
+
+                            if (notesTab != default(TeamsTab))
+                            {
+                                await msgraph.RemoveTab(orderTeam, channel, notesTab.Id);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            log.LogError("Error removing default notes tab: " + ex.Message);
+                        }
+
+                        try
+                        {
                             var onenoteTab = await msgraph.TabExists(orderTeam, channel, "Mötesanteckningar");
 
                             if (!onenoteTab)
                             {
                                 DriveItem onenotefile = await msgraph.FindItem(customerGroup.groupDrive, channelFolder.Id, "ProjectMeetingNotes", false);
-                                TeamsApp app = await msgraph.GetTeamApp("", "com.microsoft.teamspace.tab.web");
 
-                                if (onenotefile != null && app != null)
+                                if (onenotefile != null)
                                 {
                                     log.LogInformation("Add onenotetab with url " + onenotefile.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
-                                    await msgraph.AddChannelApp(orderTeam, app, channel, "Mötesanteckningar", null, onenotefile.WebUrl, onenotefile.WebUrl, null);
+                                    await msgraph.AddChannelWebApp(orderTeam, channel, "Mötesanteckningar", onenotefile.WebUrl, onenotefile.WebUrl);
                                 }
                             }
                         }
