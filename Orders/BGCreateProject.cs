@@ -133,7 +133,6 @@ namespace Orders
 
             if (channel != null)
             {
-
                 try
                 {
                     var orderFolderTab = await msgraph.TabExists(orderTeam, channel, "Order");
@@ -141,12 +140,7 @@ namespace Orders
                     if (!orderFolderTab)
                     {
                         log.LogInformation("Add tab with url " + orderFolder.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
-                        TeamsApp app = await msgraph.GetTeamApp("", "com.microsoft.teamspace.tab.web");
-
-                        if (app != null)
-                        {
-                            await msgraph.AddChannelApp(orderTeam, app, channel, "Order", null, orderFolder.WebUrl, orderFolder.WebUrl, null);
-                        }
+                        await msgraph.AddChannelWebApp(orderTeam, channel, "Order", orderFolder.WebUrl, orderFolder.WebUrl);
                     }
                 }
                 catch (Exception ex)
@@ -163,12 +157,7 @@ namespace Orders
                         DriveItem offerParent = await msgraph.FindItem(customerGroup.groupDrive, customerGroup.customer.GeneralFolderID, "Offert", true);
 
                         log.LogInformation("Add tab with url " + offerParent.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
-                        TeamsApp app = await msgraph.GetTeamApp("", "com.microsoft.teamspace.tab.web");
-
-                        if (offerParent != null && app != null)
-                        {
-                            await msgraph.AddChannelApp(orderTeam, app, channel, "Offert", null, offerParent.WebUrl, offerParent.WebUrl, null);
-                        }
+                        await msgraph.AddChannelWebApp(orderTeam, channel, "Offert", offerParent.WebUrl, offerParent.WebUrl);
                     }
                 }
                 catch (Exception ex)
@@ -178,7 +167,7 @@ namespace Orders
 
                 try
                 {
-                    log?.LogInformation("Looking for planner tab");
+                    log.LogInformation("Looking for planner tab");
                     string tabName = "Checklista - Projekt " + order.ExternalId;
 
                     //try adding checklist
@@ -186,19 +175,19 @@ namespace Orders
 
                     if (!checklistFolderTab)
                     {
-                        log?.LogInformation("Looking for template planner");
+                        log.LogInformation("Looking for template planner");
                         //Try to find the template checklist
                         var planTemplate = await msgraph.PlanExists(settings?.CDNTeamID, "Checklista - Projektledning Template");
 
                         if (planTemplate != null)
                         {
-                            log?.LogInformation("Looking for existing planner");
+                            log.LogInformation("Looking for existing planner");
                             //found template so create the plan if it doesn't exist
                             var existingPlan = await msgraph.PlanExists(customerGroup.group.Id, tabName);
 
                             if (existingPlan == null)
                             {
-                                log?.LogInformation("Creating new plan");
+                                log.LogInformation("Creating new plan");
                                 existingPlan = await msgraph.CreatePlanAsync(customerGroup.group.Id, tabName);
 
                                 //copy buckets and tasks
@@ -209,29 +198,29 @@ namespace Orders
                                     await msgraph.CopyBucketAsync(bucket, existingPlan.Id);
                                 }
 
-                                log?.LogInformation("Copied template");
+                                log.LogInformation("Copied template");
 
                                 //create the planner tab
                                 await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
-                                log?.LogInformation("Creating planner tab");
+                                log.LogInformation("Creating planner tab");
                             }
                             else
                             {
                                 //create the planner tab
                                 await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
-                                log?.LogInformation("Creating planner tab");
+                                log.LogInformation("Creating planner tab");
                             }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError("Error adding checklist channel tab: " + ex.Message);
+                    log.LogError("Error adding checklist channel tab: " + ex.Message);
                 }
 
                 try
                 {
-                    log?.LogInformation("Copy project template files");
+                    log.LogInformation("Copy project template files");
                     DriveItem channelFolder = await msgraph.FindItem(customerGroup.groupDrive, "Projekt " + order.ExternalId, true);
 
                     if (channelFolder != null)
@@ -250,7 +239,7 @@ namespace Orders
                                 Name = templateItem.Name,
                             };
 
-                            log?.LogInformation($"Copy template item {templateItem.Name} to project folder for {order.ExternalId}.");
+                            log.LogInformation($"Copy template item {templateItem.Name} to project folder for {order.ExternalId}.");
                             Drive siteDrive = await msgraph.GetSiteDrive(settings.cdnSiteId);
                             var result = await settings.GraphClient.Drives[siteDrive.Id].Items[templateItem.Id].Copy.PostAsync(requestBody);
                         }
@@ -266,20 +255,20 @@ namespace Orders
 
                                 if (onenotefile != null && app != null)
                                 {
-                                    log?.LogInformation("Add onenotetab with url " + onenotefile.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
+                                    log.LogInformation("Add onenotetab with url " + onenotefile.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
                                     await msgraph.AddChannelApp(orderTeam, app, channel, "Mötesanteckningar", null, onenotefile.WebUrl, onenotefile.WebUrl, null);
                                 }
                             }
                         }
                         catch (Exception ex)
                         {
-                            log?.LogError("Error Adding Onenote Tab: " + ex.Message);
+                            log.LogError("Error Adding Onenote Tab: " + ex.Message);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError("Error copying project templates: " + ex.Message);
+                    log.LogError("Error copying project templates: " + ex.Message);
                 }
 
                 returnValue = true;

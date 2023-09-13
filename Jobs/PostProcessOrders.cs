@@ -30,8 +30,12 @@ namespace Jobs
 
             foreach(var order in orderItems)
             {
-                log.LogTrace("Putting message on order queue: " + JsonConvert.SerializeObject(order));
-                outputQueueItem.Add(JsonConvert.SerializeObject(order));
+                order.QueueCount = order.QueueCount + 1;
+
+                if(order.QueueCount < 3) {
+                    log.LogTrace("Putting message on order queue: " + JsonConvert.SerializeObject(order));
+                    outputQueueItem.Add(JsonConvert.SerializeObject(order));
+                }
             }
         }
     }

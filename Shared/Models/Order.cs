@@ -38,6 +38,7 @@ namespace Shared.Models
                 this.Created = src.Created;
                 this.Type = src.Type;
                 this.itemId = src.itemId;
+                this.QueueCount = src.QueueCount;
 
                 if (src.Customer != null)
                 {
@@ -82,5 +83,6 @@ namespace Shared.Models
         public string CustomerName { get; set; } = "";
         public string CustomerNo { get; set; } = "";
         public string CustomerType { get; set; } = "";
+        public int QueueCount { get; set; } = 0;
     }
 }

@@ -353,7 +353,7 @@ namespace Shared
             {
                 if(!string.IsNullOrEmpty(appName))
                 {
-                    returnValue = apps.Value.FirstOrDefault(a => a.DisplayName == appName);
+                    returnValue = apps.Value.FirstOrDefault(a => a.Id == appName);
                 }
 
                 if (!string.IsNullOrEmpty(appId))
@@ -386,6 +386,45 @@ namespace Shared
             catch (Exception ex)
             {
                 log?.LogError(ex.Message);
+            }
+
+            return returnValue;
+        }
+
+        public async Task<bool> AddChannelWebApp(Team team, Channel channel, string tabName, string contentUrl, string webUrl)
+        {
+            bool returnValue = false;
+
+            if (!(await TabExists(team, channel, tabName)))
+            {
+                try
+                {
+                    log?.LogInformation("Adding website tab");
+
+                    TeamsTab infotab = new TeamsTab()
+                    {
+                        DisplayName = tabName,
+                        AdditionalData = new Dictionary<string, object>()
+                        {
+                            { "teamsApp@odata.bind", "https://graph.microsoft.com/v1.0/appCatalogs/teamsApps/com.microsoft.teamspace.tab.web" }
+                        },
+                        Configuration = new TeamsTabConfiguration()
+                        {
+                            WebsiteUrl = webUrl,
+                            ContentUrl = contentUrl
+                        }
+                    };
+
+                    if (graphClient != null)
+                    {
+                        var tab = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.PostAsync(infotab);
+                        returnValue = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.Message);
+                }
             }
 
             return returnValue;
