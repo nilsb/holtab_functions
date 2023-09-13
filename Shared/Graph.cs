@@ -579,7 +579,7 @@ namespace Shared
 
         public async Task CreatePlannerTabInChannelAsync(string teamId, string tabName, string channelId, string planId)
         {
-            if(settings == null || settings.GraphClient == null)
+            if(settings == null || graphClient == null)
             {
                 return;
             }
@@ -602,7 +602,7 @@ namespace Shared
 
             try
             {
-                var createdTab = await settings.GraphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab);
+                var createdTab = await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab);
 
                 if(createdTab != null)
                 {
