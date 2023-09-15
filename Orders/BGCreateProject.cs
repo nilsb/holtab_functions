@@ -260,7 +260,7 @@ namespace Orders
 
                         try
                         {
-                            var onenoteTab = await msgraph.TabExists(orderTeam, channel, "Mötesanteckningar");
+                            var onenoteTab = await msgraph.TabExists(orderTeam, channel, "M%F6tesanteckningar");
 
                             if (!onenoteTab)
                             {
@@ -269,7 +269,7 @@ namespace Orders
                                 if (onenotefile != null)
                                 {
                                     log.LogInformation("Add onenotetab with url " + onenotefile.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
-                                    await msgraph.AddChannelWebApp(orderTeam, channel, "Mötesanteckningar", onenotefile.WebUrl, onenotefile.WebUrl);
+                                    await msgraph.AddChannelWebApp(orderTeam, channel, "M%F6tesanteckningar", onenotefile.WebUrl, onenotefile.WebUrl);
                                 }
                             }
                         }
