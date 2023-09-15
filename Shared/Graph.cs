@@ -1786,7 +1786,7 @@ namespace Shared
             PlannerPlan? newPlan = new PlannerPlan
             {
                 Title = planName,
-                Container = new PlannerPlanContainer() { ContainerId = groupId, Type = PlannerContainerType.Group }
+                Container = new PlannerPlanContainer() { Url = "https://graph.microsoft.com/beta/groups/" + groupId, Type = PlannerContainerType.Group }
             };
 
             try
@@ -1890,7 +1890,8 @@ namespace Shared
             var newBucket = new PlannerBucket
             {
                 Name = sourceBucket.Name,
-                PlanId = targetPlanId
+                PlanId = targetPlanId,
+                OrderHint = sourceBucket.OrderHint
             };
 
             PlannerBucket? createdBucket;
