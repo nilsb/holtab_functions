@@ -193,6 +193,7 @@ namespace Orders
                                 //copy buckets and tasks
                                 var buckets = await msgraph.GetBucketsAsync(planTemplate.Id);
 
+                                log.LogInformation("Creating buckets");
                                 foreach (var bucket in buckets)
                                 {
                                     await msgraph.CopyBucketAsync(bucket, existingPlan.Id);
@@ -260,7 +261,7 @@ namespace Orders
 
                         try
                         {
-                            var onenoteTab = await msgraph.TabExists(orderTeam, channel, "M%F6tesanteckningar");
+                            var onenoteTab = await msgraph.TabExists(orderTeam, channel, "Anteckningar");
 
                             if (!onenoteTab)
                             {
@@ -269,7 +270,7 @@ namespace Orders
                                 if (onenotefile != null)
                                 {
                                     log.LogInformation("Add onenotetab with url " + onenotefile.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
-                                    await msgraph.AddChannelWebApp(orderTeam, channel, "M%F6tesanteckningar", onenotefile.WebUrl, onenotefile.WebUrl);
+                                    await msgraph.AddChannelWebApp(orderTeam, channel, "Anteckningar", onenotefile.WebUrl, onenotefile.WebUrl);
                                 }
                             }
                         }

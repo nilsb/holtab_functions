@@ -560,6 +560,7 @@ namespace Shared
             try
             {
                 log?.LogInformation("Add channel " + channelName + " to team " + team.DisplayName);
+
                 var channel = new Channel
                 {
                     DisplayName = channelName,
@@ -1786,7 +1787,7 @@ namespace Shared
             PlannerPlan? newPlan = new PlannerPlan
             {
                 Title = planName,
-                Container = new PlannerPlanContainer() { Url = "https://graph.microsoft.com/beta/groups/" + groupId, Type = PlannerContainerType.Group }
+                Container = new PlannerPlanContainer() { ContainerId = groupId, Url = "https://graph.microsoft.com/v1.0/groups/" + groupId, Type = PlannerContainerType.Group }
             };
 
             try
@@ -1921,7 +1922,31 @@ namespace Shared
                         {
                             Title = task.Title,
                             PlanId = targetPlanId,
-                            BucketId = createdBucket.Id
+                            BucketId = createdBucket.Id,
+                            ActiveChecklistItemCount = task.ActiveChecklistItemCount,
+                            AdditionalData = task.AdditionalData,
+                            AppliedCategories = task.AppliedCategories,
+                            AssignedToTaskBoardFormat = task.AssignedToTaskBoardFormat,
+                            AssigneePriority = task.AssigneePriority,
+                            Assignments = task.Assignments,
+                            BucketTaskBoardFormat = task.BucketTaskBoardFormat,
+                            ChecklistItemCount = task.ChecklistItemCount,
+                            CompletedDateTime = task.CompletedDateTime,
+                            ConversationThreadId = task.ConversationThreadId,
+                            CreatedBy = task.CreatedBy,
+                            CreatedDateTime = task.CreatedDateTime,
+                            CompletedBy = task.CompletedBy,
+                            Details = task.Details,
+                            DueDateTime = task.DueDateTime,
+                            HasDescription = task.HasDescription,
+                            OdataType = task.OdataType,
+                            OrderHint = task.OrderHint,
+                            PercentComplete = task.PercentComplete,
+                            PreviewType = task.PreviewType,
+                            Priority = task.Priority,
+                            ProgressTaskBoardFormat = task.ProgressTaskBoardFormat,
+                            ReferenceCount = task.ReferenceCount,
+                            StartDateTime = task.StartDateTime
                         };
 
                         try
