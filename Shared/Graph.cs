@@ -588,22 +588,20 @@ namespace Shared
             var tab = new TeamsTab
             {
                 DisplayName = tabName,
-                TeamsApp = new TeamsApp
+                AdditionalData = new Dictionary<string, object>()
                 {
-                    Id = "com.microsoft.teamspace.tab.planner"
+                    { "teamsApp@odata.bind", "https://graph.microsoft.com/v1.0/appCatalogs/teamsApps/com.microsoft.teamspace.tab.web" }
                 },
                 Configuration = new TeamsTabConfiguration
                 {
-                    EntityId = planId,
                     ContentUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlannerFrame?page=7&planId={planId}&auth=true",
-                    WebsiteUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlanViews/{planId}",
-                    RemoveUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlannerFrame?page=13&planId={planId}&auth=true"
+                    WebsiteUrl = $"https://tasks.office.com/{settings.TenantID}/en-US/Home/PlanViews/{planId}"
                 }
             };
 
             try
             {
-                var createdTab = await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab);
+                var createdTab = await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab); //await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab);
 
                 if(createdTab != null)
                 {
@@ -1893,7 +1891,6 @@ namespace Shared
                 Name = sourceBucket.Name,
                 PlanId = targetPlanId,
                 OrderHint = sourceBucket.OrderHint,
-                OdataType = sourceBucket.OdataType,
                 AdditionalData = sourceBucket.AdditionalData
             };
 
@@ -1925,30 +1922,12 @@ namespace Shared
                             Title = task.Title,
                             PlanId = targetPlanId,
                             BucketId = createdBucket.Id,
-                            ActiveChecklistItemCount = task.ActiveChecklistItemCount,
                             AdditionalData = task.AdditionalData,
                             AppliedCategories = task.AppliedCategories,
-                            AssignedToTaskBoardFormat = task.AssignedToTaskBoardFormat,
-                            AssigneePriority = task.AssigneePriority,
-                            Assignments = task.Assignments,
-                            BucketTaskBoardFormat = task.BucketTaskBoardFormat,
-                            ChecklistItemCount = task.ChecklistItemCount,
-                            CompletedDateTime = task.CompletedDateTime,
-                            ConversationThreadId = task.ConversationThreadId,
-                            CreatedBy = task.CreatedBy,
-                            CreatedDateTime = task.CreatedDateTime,
-                            CompletedBy = task.CompletedBy,
                             Details = task.Details,
-                            DueDateTime = task.DueDateTime,
                             HasDescription = task.HasDescription,
-                            OdataType = task.OdataType,
                             OrderHint = task.OrderHint,
-                            PercentComplete = task.PercentComplete,
-                            PreviewType = task.PreviewType,
-                            Priority = task.Priority,
-                            ProgressTaskBoardFormat = task.ProgressTaskBoardFormat,
-                            ReferenceCount = task.ReferenceCount,
-                            StartDateTime = task.StartDateTime
+                            Priority = task.Priority
                         };
 
                         try

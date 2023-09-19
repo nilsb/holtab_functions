@@ -52,11 +52,13 @@ namespace Orders
                         if (!string.IsNullOrEmpty(orderMessage.Seller))
                         {
                             await msGraph.AddGroupOwner(orderMessage.Seller, orderMessage.CustomerGroupID);
+                            await msGraph.AddGroupMember(orderMessage.Seller, orderMessage.CustomerGroupID);
                         }
 
                         if (!string.IsNullOrEmpty(orderMessage.ProjectManager))
                         {
                             await msGraph.AddGroupOwner(orderMessage.ProjectManager, orderMessage.CustomerGroupID);
+                            await msGraph.AddGroupMember(orderMessage.ProjectManager, orderMessage.CustomerGroupID);
                         }
 
                         order.Handled = true;
