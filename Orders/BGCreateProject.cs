@@ -199,17 +199,17 @@ namespace Orders
                                     await msgraph.CopyBucketAsync(bucket, existingPlan.Id);
                                 }
 
-                                log.LogInformation("Copied template");
+                                log.LogInformation("Copied planner template");
 
                                 //create the planner tab
-                                await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
                                 log.LogInformation("Creating planner tab");
+                                await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
                             }
                             else
                             {
                                 //create the planner tab
-                                await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
                                 log.LogInformation("Creating planner tab");
+                                await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
                             }
                         }
                     }

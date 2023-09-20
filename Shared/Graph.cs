@@ -601,7 +601,7 @@ namespace Shared
 
             try
             {
-                var createdTab = await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab); //await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab);
+                var createdTab = await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(tab);
 
                 if(createdTab != null)
                 {
@@ -1890,8 +1890,7 @@ namespace Shared
             {
                 Name = sourceBucket.Name,
                 PlanId = targetPlanId,
-                OrderHint = sourceBucket.OrderHint,
-                AdditionalData = sourceBucket.AdditionalData
+                OrderHint = sourceBucket.OrderHint
             };
 
             PlannerBucket? createdBucket;
@@ -1902,7 +1901,7 @@ namespace Shared
             }
             catch (ServiceException ex)
             {
-                Console.WriteLine($"Error creating bucket: {ex.Message}");
+                log?.LogError($"Error creating bucket: {ex.Message}");
                 return;
             }
 
