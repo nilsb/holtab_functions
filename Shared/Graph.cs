@@ -1889,8 +1889,7 @@ namespace Shared
             var newBucket = new PlannerBucket
             {
                 Name = sourceBucket.Name,
-                PlanId = targetPlanId,
-                OrderHint = sourceBucket.OrderHint
+                PlanId = targetPlanId
             };
 
             PlannerBucket? createdBucket;
@@ -1920,8 +1919,7 @@ namespace Shared
                         {
                             Title = task.Title,
                             PlanId = targetPlanId,
-                            BucketId = createdBucket.Id,
-                            OrderHint = task.OrderHint
+                            BucketId = createdBucket.Id
                         };
 
                         try
