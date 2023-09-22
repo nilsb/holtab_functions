@@ -1921,12 +1921,7 @@ namespace Shared
                             Title = task.Title,
                             PlanId = targetPlanId,
                             BucketId = createdBucket.Id,
-                            AdditionalData = task.AdditionalData,
-                            AppliedCategories = task.AppliedCategories,
-                            Details = task.Details,
-                            HasDescription = task.HasDescription,
-                            OrderHint = task.OrderHint,
-                            Priority = task.Priority
+                            OrderHint = task.OrderHint
                         };
 
                         try
