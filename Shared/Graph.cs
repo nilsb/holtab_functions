@@ -1906,6 +1906,8 @@ namespace Shared
 
             if(createdBucket != null)
             {
+                log?.LogInformation("Bucket " + sourceBucket.Name + " created, copying tasks");
+
                 // Retrieve tasks from the source bucket
                 var tasks = await graphClient.Planner.Buckets[sourceBucket.Id].Tasks
                     .GetAsync();

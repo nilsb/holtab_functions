@@ -202,14 +202,14 @@ namespace Orders
                                 log.LogInformation("Copied planner template");
 
                                 //create the planner tab
-                                log.LogInformation("Creating planner tab");
-                                await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
+                                //log.LogInformation("Creating planner tab");
+                                //await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
                             }
                             else
                             {
                                 //create the planner tab
-                                log.LogInformation("Creating planner tab");
-                                await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
+                                //log.LogInformation("Creating planner tab");
+                                //await msgraph.CreatePlannerTabInChannelAsync(orderTeam.Id, tabName, channel.Id, existingPlan.Id);
                             }
                         }
                     }
