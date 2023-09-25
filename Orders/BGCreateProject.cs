@@ -86,7 +86,6 @@ namespace Orders
                 }
             }
 
-
             return new OkObjectResult(JsonConvert.SerializeObject(orderMessage));
         }
 
@@ -293,4 +292,3 @@ namespace Orders
 
     }
 }
-

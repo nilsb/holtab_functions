@@ -81,6 +81,7 @@ namespace Jobs
         {
             var config = builder.GetContext().Configuration;
             builder.Services.AddSingleton(config);
+            builder.Services.AddHttpClient();
         }
     }
 }
