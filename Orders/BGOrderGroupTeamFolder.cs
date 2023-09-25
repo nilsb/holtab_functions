@@ -83,7 +83,8 @@ namespace Orders
                             common.UpdateOrder(order, "group info");
 
                             string parentName = common.GetOrderParentFolderName(orderMessage.Type);
-                            orderMessage.No = common.GetOrderExternalId(orderMessage.Type, orderMessage.No);
+                            var orderfolderName = common.GetOrderExternalId(orderMessage.Type, orderMessage.No);
+                            //orderMessage.No = common.GetOrderExternalId(orderMessage.Type, orderMessage.No);
                             var orderParent = await msGraph.CreateFolder(groupDrive.group.Id, groupDrive.customer.GeneralFolderID, parentName);
 
                             if (orderParent?.Success == true)
@@ -94,7 +95,7 @@ namespace Orders
                                 common.UpdateOrder(order, "Parent folder info");
 
                                 //order parent was found so find or create order folder
-                                var orderFolder = await msGraph.CreateFolder(groupDrive.group.Id, orderParent.folder.Id, orderMessage.No);
+                                var orderFolder = await msGraph.CreateFolder(groupDrive.group.Id, orderParent.folder.Id, orderfolderName);
 
                                 if(orderFolder?.Success == true && orderFolder?.Existed == false)
                                 {

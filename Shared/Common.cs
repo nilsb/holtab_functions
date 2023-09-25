@@ -980,28 +980,13 @@ namespace Shared
 
             if (cdnDrive != null)
             {
-                
-                if (order.Type == "Quote")
+                DriveItem? folder = await msGraph.FindItem(cdnDrive, "Dokumentstruktur " + order.Type, false);
+
+                if(folder != null)
                 {
-                    DriveItem? folder = await msGraph.FindItem(cdnDrive, "Dokumentstruktur Order", false);
-
-                    if (folder != null)
-                    {
-                        List<DriveItem> folderChildren = await msGraph.GetDriveFolderChildren(cdnDrive, folder, true);
-                        foldersToCreate.AddRange(folderChildren);
-                    }
+                    List<DriveItem> folderChildren = await msGraph.GetDriveFolderChildren(cdnDrive, folder, true);
+                    foldersToCreate.AddRange(folderChildren);
                 }
-                else
-                {
-                    DriveItem? folder = await msGraph.FindItem(cdnDrive, "Dokumentstruktur " + order.Type, false);
-
-                    if (folder != null)
-                    {
-                        List<DriveItem> folderChildren = await msGraph.GetDriveFolderChildren(cdnDrive, folder, true);
-                        foldersToCreate.AddRange(folderChildren);
-                    }
-                }
-
             }
 
             return foldersToCreate;
