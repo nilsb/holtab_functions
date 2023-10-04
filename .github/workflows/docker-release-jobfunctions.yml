@@ -6,11 +6,9 @@ name: JobFunctionsProd
 # documentation.
 
 on:
-  pull_request:
-    branches: 
-      - "main"
+  release:
     types:
-      - closed
+      - created
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -37,25 +35,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Create Release
-        id: create_release
-        run: |
-          # Determine the version or tag name from the pull request or other logic
-          # You can use GitHub API, semver, or any other method to calculate the version.
-          # For example, you can extract it from the pull request title.
-
-          # Example:
-          PR_TITLE=$(echo "${{ env.IMAGE_NAME }}/${{ github.event.pull_request.title }}" | grep -oP "Version:\s*\K([0-9]+\.[0-9]+\.[0-9]+)")
-
-          if [[ ! -z "${PR_TITLE}" ]]; then
-            echo "Creating release of customer functions for version ${PR_TITLE}"
-            git tag "${PR_TITLE}"
-            git tag "${{ env.IMAGE_NAME }}"
-            git push origin "${PR_TITLE}"
-          else
-            echo "No release version found in the pull request title."
-          fi
-          
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
@@ -96,7 +75,9 @@ jobs:
           context: .
           file: ./${{ env.CODEFOLDER }}/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: |
+              "latest" 
+              ${{ github.event.release.tag_name }} 
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
