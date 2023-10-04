@@ -6,6 +6,9 @@ name: OrderFunctionsProd
 # documentation.
 
 on:
+  release:
+    types:
+      - created
   push:
     branches: [ "release" ]
     # Publish semver tags as releases.
