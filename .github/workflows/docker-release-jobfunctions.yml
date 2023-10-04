@@ -6,21 +6,19 @@ name: JobFunctionsProd
 # documentation.
 
 on:
-  release:
-    types:
-      - created
-  push:
-    branches: [ "release" ]
-    # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [ "release" ]
+    branches: 
+      - "main"
+    types:
+      - closed
 
 env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: holtabprodsec.azurecr.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: jobfunctions
+  # name of the folder where Dockerfile is located
+  CODEFOLDER: Jobs
 
 
 jobs:
@@ -38,6 +36,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Create Release
+        id: create_release
+        run: |
+          # Determine the version or tag name from the pull request or other logic
+          # You can use GitHub API, semver, or any other method to calculate the version.
+          # For example, you can extract it from the pull request title.
+
+          # Example:
+          PR_TITLE=$(echo "${{ env.IMAGE_NAME }}/${{ github.event.pull_request.title }}" | grep -oP "Version:\s*\K([0-9]+\.[0-9]+\.[0-9]+)")
+
+          if [[ ! -z "${PR_TITLE}" ]]; then
+            echo "Creating release of customer functions for version ${PR_TITLE}"
+            git tag "${PR_TITLE}"
+            git tag "${{ env.IMAGE_NAME }}"
+            git push origin "${PR_TITLE}"
+          else
+            echo "No release version found in the pull request title."
+          fi
+          
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
@@ -76,7 +93,7 @@ jobs:
         uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
         with:
           context: .
-          file: ./Jobs/Dockerfile
+          file: ./${{ env.CODEFOLDER }}/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
