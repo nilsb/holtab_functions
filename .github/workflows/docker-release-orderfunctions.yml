@@ -19,6 +19,7 @@ env:
   IMAGE_NAME: orderfunctions
   # name of the folder where Dockerfile is located
   CODEFOLDER: Orders
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
 jobs:

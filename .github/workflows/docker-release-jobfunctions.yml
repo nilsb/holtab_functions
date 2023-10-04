@@ -19,6 +19,7 @@ env:
   IMAGE_NAME: jobfunctions
   # name of the folder where Dockerfile is located
   CODEFOLDER: Jobs
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
 jobs:
