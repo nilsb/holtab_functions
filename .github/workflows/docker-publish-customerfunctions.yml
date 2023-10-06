@@ -10,8 +10,6 @@ on:
     - cron: '26 14 * * *'
   push:
     branches: [ "dev" ]
-    # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
 
 env:
   # Use docker.io for Docker Hub if empty
