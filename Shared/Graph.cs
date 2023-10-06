@@ -1317,6 +1317,7 @@ namespace Shared
 
             try
             {
+                fileStream = FileContents;
                 Drive? groupDrive = await GetGroupDrive(GroupID);
 
                 if(groupDrive != null)
@@ -1374,6 +1375,7 @@ namespace Shared
 
             try
             {
+                fileStream = FileContents;
                 Drive? groupDrive = await GetGroupDrive(Group.Id);
 
                 if (groupDrive != null)

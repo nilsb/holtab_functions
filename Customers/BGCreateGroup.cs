@@ -134,7 +134,7 @@ namespace CreateTeam
                             {
                                 CreateFolderResult generalFolder = await msGraph.CreateFolder(result.group.Id, "General");
 
-                                if (generalFolder.Success)
+                                if (generalFolder.Success && generalFolder?.folder != null)
                                 {
                                     customer.GeneralFolderID = generalFolder.folder.Id;
                                     customer.GeneralFolderCreated = true;
