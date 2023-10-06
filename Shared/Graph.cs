@@ -1263,7 +1263,8 @@ namespace Shared
                 if(groupDrive != null)
                 {
                     //download order file content
-                    returnValue.Contents = await graphClient.Drives[groupDrive.Id].Items[FolderID].ItemWithPath(FileName).Content.GetAsync() ?? Stream.Null;
+                    returnValue.Contents = Stream.Null;
+                    (await graphClient.Drives[groupDrive.Id].Items[FolderID].ItemWithPath(FileName).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
                     returnValue.Success = true;
                 }
             }
@@ -1293,7 +1294,8 @@ namespace Shared
                 if(groupDrive != null)
                 {
                     //download order file content
-                    returnValue.Contents = await graphClient.Drives[groupDrive.Id].Items[Folder.Id].ItemWithPath(Path).Content.GetAsync() ?? Stream.Null;
+                    returnValue.Contents = Stream.Null;
+                    (await graphClient.Drives[groupDrive.Id].Items[Folder.Id].ItemWithPath(Path).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
                     returnValue.Success = true;
                 }
             }
@@ -1334,7 +1336,7 @@ namespace Shared
 
                     if (fileUploadSession != null)
                     {
-                        var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, FileStream.Synchronized(FileContents), maxUploadChunkSize, graphClient.RequestAdapter);
+                        var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, FileContents, maxUploadChunkSize, graphClient.RequestAdapter);
 
                         var totalLength = FileContents.Length;
                         // Create a callback that is invoked after each slice is uploaded
@@ -1390,7 +1392,7 @@ namespace Shared
 
                     if (fileUploadSession != null)
                     {
-                        var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, FileStream.Synchronized(FileContents), maxUploadChunkSize, graphClient.RequestAdapter);
+                        var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, FileContents, maxUploadChunkSize, graphClient.RequestAdapter);
 
                         var totalLength = FileContents.Length;
                         // Create a callback that is invoked after each slice is uploaded
