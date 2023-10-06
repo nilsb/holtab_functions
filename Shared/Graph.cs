@@ -1308,16 +1308,14 @@ namespace Shared
         public async Task<bool> UploadFile(string? GroupID, string? FolderID, string? FileName, Stream? FileContents)
         {
             bool returnValue = false;
-            Stream fileStream = Stream.Null;
 
-            if (graphClient == null || FileContents == null || FileContents == Stream.Null || string.IsNullOrEmpty(GroupID) || string.IsNullOrEmpty(FolderID) || string.IsNullOrEmpty(FileName))
+            if (graphClient == null || FileContents == null || FileContents == Stream.Null || string.IsNullOrEmpty(GroupID) || string.IsNullOrEmpty(FolderID) || string.IsNullOrEmpty(FileName) || FileContents.Length > 0)
             {
                 return returnValue;
             }
 
             try
             {
-                fileStream = FileContents;
                 Drive? groupDrive = await GetGroupDrive(GroupID);
 
                 if(groupDrive != null)
@@ -1336,9 +1334,9 @@ namespace Shared
 
                     if (fileUploadSession != null)
                     {
-                        var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, fileStream, maxUploadChunkSize, graphClient.RequestAdapter);
+                        var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, FileStream.Synchronized(FileContents), maxUploadChunkSize, graphClient.RequestAdapter);
 
-                        var totalLength = fileStream.Length;
+                        var totalLength = FileContents.Length;
                         // Create a callback that is invoked after each slice is uploaded
                         IProgress<long> progress = new Progress<long>(prog => {
                             log?.LogInformation($"Uploaded {prog} bytes of {totalLength} bytes");
@@ -1366,16 +1364,14 @@ namespace Shared
         public async Task<bool> UploadFile(Group? Group, DriveItem? Folder, string? Path, Stream? FileContents)
         {
             bool returnValue = false;
-            Stream fileStream = Stream.Null;
 
-            if(graphClient == null || Group == null || Folder == null || string.IsNullOrEmpty(Path) || FileContents == null || FileContents == Stream.Null)
+            if(graphClient == null || Group == null || Folder == null || string.IsNullOrEmpty(Path) || FileContents == null || FileContents == Stream.Null || FileContents.Length > 0)
             {
                 return returnValue;
             }
 
             try
             {
-                fileStream = FileContents;
                 Drive? groupDrive = await GetGroupDrive(Group.Id);
 
                 if (groupDrive != null)
@@ -1394,9 +1390,9 @@ namespace Shared
 
                     if (fileUploadSession != null)
                     {
-                        var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, fileStream, maxUploadChunkSize, graphClient.RequestAdapter);
+                        var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, FileStream.Synchronized(FileContents), maxUploadChunkSize, graphClient.RequestAdapter);
 
-                        var totalLength = fileStream.Length;
+                        var totalLength = FileContents.Length;
                         // Create a callback that is invoked after each slice is uploaded
                         IProgress<long> progress = new Progress<long>(prog => {
                             log?.LogInformation($"Uploaded {prog} bytes of {totalLength} bytes");
