@@ -5,6 +5,7 @@ using Microsoft.Graph.Models;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Newtonsoft.Json;
+using System.Reflection.Metadata;
 
 namespace Shared
 {
@@ -318,7 +319,7 @@ namespace Shared
         {
             TeamsApp? returnValue = null;
 
-            if(graphClient == null && team.Id != null)
+            if(graphClient == null && team != null && team.Id != null)
             {
                 return returnValue;
             }
@@ -389,11 +390,13 @@ namespace Shared
                 if (!string.IsNullOrEmpty(appName))
                 {
                     returnValue = apps.Value.FirstOrDefault(a => a.TeamsAppDefinition?.DisplayName == appName).TeamsApp?.Id;
+                    redisDB.StringSet($"App: {appId} for: {teamId}", appId);
                 }
 
                 if (!string.IsNullOrEmpty(appId))
                 {
                     returnValue = apps.Value.FirstOrDefault(a => a.TeamsAppDefinition?.TeamsAppId == appId)?.TeamsApp?.Id;
+                    redisDB.StringSet($"App: {appId} for: {teamId}", appId);
                 }
             }
 
@@ -436,18 +439,37 @@ namespace Shared
                 return false;
             }
 
-            try
-            {
-                var tabs = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.GetAsync();
+            var cachedValue = redisDB.StringGet($"Tabnames for team: {team.Id} and channel: {channel.DisplayName}");
 
-                if(tabs?.Value?.Count > 0)
+            if(cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
+            {
+                var values = JsonConvert.DeserializeObject<List<string>>(cachedValue);
+
+                if(values != null && values.Any(t => t == tabName))
                 {
-                    returnValue = tabs.Value.Any(t => t.DisplayName == tabName);
+                    returnValue = true;
                 }
             }
-            catch (Exception ex)
+            else
             {
-                log?.LogError(ex.Message);
+                try
+                {
+                    var tabs = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.GetAsync();
+                    
+                    List<string> tabsCache = new List<string>();
+                    tabsCache.AddRange(tabs?.Value?.Select(i => i.DisplayName));
+
+                    redisDB.StringSet($"Tabnames for team: {team.Id} and channel: {channel.DisplayName}", JsonConvert.SerializeObject(tabsCache));
+
+                    if (tabs?.Value?.Count > 0)
+                    {
+                        returnValue = tabs.Value.Any(t => t.DisplayName == tabName);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.Message);
+                }
             }
 
             return returnValue;
@@ -1184,6 +1206,46 @@ namespace Shared
             return returnValue;
         }
 
+        public async Task<List<DriveItem>> GetDriveRootItems(string? groupDriveId)
+        {
+            List<DriveItem> returnValue = new List<DriveItem>();
+
+            if (!string.IsNullOrEmpty(groupDriveId) && graphClient != null)
+            {
+                DriveItem? root = null;
+
+                try
+                {
+                    root = await graphClient.Drives[groupDriveId].Root.GetAsync();
+                }
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.ToString());
+                }
+
+                if (root != null && graphClient != null)
+                {
+                    DriveItemCollectionResponse? rootChildren = null;
+
+                    try
+                    {
+                        rootChildren = await graphClient.Drives[groupDriveId].Items[root.Id].Children.GetAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        log?.LogError(ex.ToString());
+                    }
+
+                    if (rootChildren?.Value?.Count > 0)
+                    {
+                        returnValue = rootChildren.Value.ToList();
+                    }
+                }
+            }
+
+            return returnValue;
+        }
+
         public async Task<List<DriveItem>> GetDriveFolderChildren(Drive? groupDrive, DriveItem? parent, bool recursive = false)
         {
             List<DriveItem> returnValue = new List<DriveItem>();
@@ -1201,6 +1263,36 @@ namespace Shared
                             var subchildren = await GetDriveFolderChildren(groupDrive, child, recursive);
 
                             if(subchildren?.Count > 0)
+                            {
+                                child.Children = subchildren;
+                            }
+                        }
+                    }
+
+                    returnValue = folderChildren.Value;
+                }
+            }
+
+            return returnValue;
+        }
+
+        public async Task<List<DriveItem>> GetDriveFolderChildren(string? groupDriveId, DriveItem? parent, bool recursive = false)
+        {
+            List<DriveItem> returnValue = new List<DriveItem>();
+
+            if (!string.IsNullOrEmpty(groupDriveId) && graphClient != null && parent != null)
+            {
+                var folderChildren = await graphClient.Drives[groupDriveId].Items[parent.Id].Children.GetAsync();
+
+                if (folderChildren?.Value?.Count > 0)
+                {
+                    if (recursive)
+                    {
+                        foreach (var child in folderChildren.Value)
+                        {
+                            var subchildren = await GetDriveFolderChildren(groupDriveId, child, recursive);
+
+                            if (subchildren?.Count > 0)
                             {
                                 child.Children = subchildren;
                             }
@@ -1261,6 +1353,53 @@ namespace Shared
             return returnValue ?? default(DriveItem);
         }
 
+        public async Task<DriveItem?> FindItem(string? groupDriveId, string? Path, bool withRetry = false)
+        {
+            DriveItem? returnValue = null;
+
+            int maxcnt = 2;
+            int cnt = 0;
+
+            if (graphClient == null || string.IsNullOrEmpty(groupDriveId) || string.IsNullOrEmpty(Path))
+            {
+                return null;
+            }
+
+            try
+            {
+                returnValue = await graphClient.Drives[groupDriveId].Root.ItemWithPath(Path).GetAsync();
+            }
+            catch (Exception)
+            {
+            }
+
+            while (returnValue == null && withRetry)
+            {
+                if (returnValue != null)
+                {
+                    lock (returnValue)
+                    {
+                        log?.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+                        cnt += 1;
+                        Thread.Sleep(10000);
+                    }
+                }
+
+                try
+                {
+                    returnValue = await graphClient.Drives[groupDriveId].Root.ItemWithPath(Path).GetAsync();
+                }
+                catch (Exception)
+                {
+                }
+
+                if (cnt == maxcnt)
+                    break;
+            }
+
+            return returnValue ?? default(DriveItem);
+        }
+
         public async Task<DriveItem?> FindItem(Drive? groupDrive, string? parentId, string? Path, bool withRetry)
         {
             DriveItem? returnValue = null;
@@ -1296,6 +1435,53 @@ namespace Shared
                 try
                 {
                     returnValue = await graphClient.Drives[groupDrive.Id].Items[parentId].ItemWithPath(Path).GetAsync();
+                }
+                catch (Exception)
+                {
+                }
+
+                if (cnt == maxcnt)
+                    break;
+            }
+
+            return returnValue ?? default(DriveItem);
+        }
+
+        public async Task<DriveItem?> FindItem(string? groupDriveId, string? parentId, string? Path, bool withRetry)
+        {
+            DriveItem? returnValue = null;
+
+            if (graphClient == null || string.IsNullOrEmpty(groupDriveId) || string.IsNullOrEmpty(parentId) || string.IsNullOrEmpty(Path))
+            {
+                return null;
+            }
+
+            try
+            {
+                returnValue = await graphClient.Drives[groupDriveId].Items[parentId].ItemWithPath(Path).GetAsync();
+            }
+            catch (Exception)
+            {
+            }
+
+            int maxcnt = 2;
+            int cnt = 0;
+
+            while (returnValue == null && withRetry)
+            {
+                if (returnValue != null)
+                {
+                    lock (returnValue)
+                    {
+                        log?.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+                        cnt += 1;
+                        Thread.Sleep(10000);
+                    }
+                }
+
+                try
+                {
+                    returnValue = await graphClient.Drives[groupDriveId].Items[parentId].ItemWithPath(Path).GetAsync();
                 }
                 catch (Exception)
                 {

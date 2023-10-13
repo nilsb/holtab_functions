@@ -60,12 +60,12 @@ namespace Orders
                         if (!string.IsNullOrEmpty(groupDrive.customer.GeneralFolderID))
                         {
                             log.LogInformation("Found customer group and drive, getting order folder");
-                            var orderFolder = await common.GetOrderFolder(groupDrive.group.Id, groupDrive.groupDrive, order);
+                            var orderFolder = await common.GetOrderFolder(groupDrive.groupId, groupDrive.groupDriveId, order);
 
                             if (orderFolder != null)
                             {
                                 log.LogInformation("Found order folder, fetching team for customer");
-                                Team groupTeam = await msGraph.GetTeamFromGroup(groupDrive.group.Id);
+                                Team groupTeam = await msGraph.GetTeamFromGroup(groupDrive.groupId);
 
                                 if(groupTeam != null)
                                 {
@@ -118,7 +118,7 @@ namespace Orders
             {
                 try
                 {
-                    _ = await msgraph.CreateFolder(customerGroup.group.Id, "Projekt " + order.ExternalId);
+                    _ = await msgraph.CreateFolder(customerGroup.groupId, "Projekt " + order.ExternalId);
                     channel = await msgraph.AddChannel(orderTeam, "Projekt " + order.ExternalId, "Projekt " + order.ExternalId, ChannelMembershipType.Standard);
                 }
                 catch (Exception ex)
@@ -153,7 +153,7 @@ namespace Orders
 
                     if (!offerFolderTab)
                     {
-                        DriveItem offerParent = await msgraph.FindItem(customerGroup.groupDrive, customerGroup.customer.GeneralFolderID, "Offert", true);
+                        DriveItem offerParent = await msgraph.FindItem(customerGroup.groupDriveId, customerGroup.customer.GeneralFolderID, "Offert", true);
 
                         log.LogInformation("Add tab with url " + offerParent.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
                         await msgraph.AddChannelWebApp(orderTeam, channel, "Offert", offerParent.WebUrl, offerParent.WebUrl);
@@ -182,12 +182,12 @@ namespace Orders
                         {
                             log.LogInformation("Looking for existing planner");
                             //found template so create the plan if it doesn't exist
-                            var existingPlan = await msgraph.PlanExists(customerGroup.group.Id, tabName);
+                            var existingPlan = await msgraph.PlanExists(customerGroup.groupId, tabName);
 
                             if (existingPlan == null)
                             {
                                 log.LogInformation("Creating new plan");
-                                existingPlan = await msgraph.CreatePlanAsync(customerGroup.group.Id, tabName);
+                                existingPlan = await msgraph.CreatePlanAsync(customerGroup.groupId, tabName);
 
                                 //copy buckets and tasks
                                 var buckets = await msgraph.GetBucketsAsync(planTemplate.Id);
@@ -221,7 +221,7 @@ namespace Orders
                 try
                 {
                     log.LogInformation("Copy project template files");
-                    DriveItem channelFolder = await msgraph.FindItem(customerGroup.groupDrive, "Projekt " + order.ExternalId, true);
+                    DriveItem channelFolder = await msgraph.FindItem(customerGroup.groupDriveId, "Projekt " + order.ExternalId, true);
 
                     if (channelFolder != null)
                     {
@@ -233,7 +233,7 @@ namespace Orders
                             {
                                 ParentReference = new ItemReference
                                 {
-                                    DriveId = customerGroup.groupDrive.Id,
+                                    DriveId = customerGroup.groupDriveId,
                                     Id = channelFolder.Id,
                                 },
                                 Name = templateItem.Name,
@@ -264,7 +264,7 @@ namespace Orders
 
                             if (!onenoteTab)
                             {
-                                DriveItem onenotefile = await msgraph.FindItem(customerGroup.groupDrive, channelFolder.Id, "ProjectMeetingNotes", false);
+                                DriveItem onenotefile = await msgraph.FindItem(customerGroup.groupDriveId, channelFolder.Id, "ProjectMeetingNotes", false);
 
                                 if (onenotefile != null)
                                 {

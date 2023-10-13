@@ -56,12 +56,12 @@ namespace CreateTeam
                 FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer);
 
                 //if the group was found
-                if (findCustomerGroup.Success && findCustomerGroup.group != null && findCustomerGroup.group != default(Group))
+                if (findCustomerGroup.Success && !string.IsNullOrEmpty(findCustomerGroup.groupId))
                 {
                     try
                     {
                         //Create custom document library columns
-                        await CreateColumn(settings, msGraph, common, findCustomerGroup.group, customer);
+                        await CreateColumn(settings, msGraph, common, findCustomerGroup.groupId, customer);
                         customer.CreatedColumnAdditionalInfo = true;
                         customer.CreatedColumnKundnummer = true;
                         customer.CreatedColumnNAVid = true;
@@ -88,9 +88,9 @@ namespace CreateTeam
             return new OkObjectResult(JsonConvert.SerializeObject(Message));
         }
 
-        public async Task CreateColumn(Settings settings, Graph msGraph, Common common, Group group, Customer customer)
+        public async Task CreateColumn(Settings settings, Graph msGraph, Common common, string groupId, Customer customer)
         {
-            var drive = await msGraph.GetGroupDrive(group);
+            var drive = await msGraph.GetGroupDrive(groupId);
 
             if (drive == null)
             {

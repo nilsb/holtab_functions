@@ -138,7 +138,7 @@ namespace Jobs
                             }
                         }
 
-                        log?.LogTrace($"Unable to find order folder for {orderNo} in group {orderFolder.orderGroup.DisplayName}");
+                        log?.LogTrace($"Unable to find order folder for {orderNo} in group {orderFolder.orderGroupId}");
                     }
                 }
             }
@@ -156,16 +156,16 @@ namespace Jobs
                         log?.LogTrace($"Found customer {dbCustomer.Name} in CDN");
                         FindCustomerGroupResult customerGroupResult = common.FindCustomerGroupAndDrive(dbCustomer.Name, dbCustomer.ExternalId, dbCustomer.Type);
 
-                        if (customerGroupResult.Success && customerGroupResult.group != null)
+                        if (customerGroupResult.Success && !string.IsNullOrEmpty(customerGroupResult.groupId))
                         {
                             log?.LogTrace($"Found customer group and drive for {dbCustomer.Name}");
                             //find email destination folder
-                            DriveItem email_folder = await msGraph.FindItem(customerGroupResult.groupDrive, "General/E-Post", false);
+                            DriveItem email_folder = await msGraph.FindItem(customerGroupResult.groupDriveId, "General/E-Post", false);
 
                             //Destination folder for emails missing, create it
                             if (email_folder == null)
                             {
-                                await msGraph.CreateFolder(customerGroupResult.group.Id, customerGroupResult.generalFolder.Id, "E-Post");
+                                await msGraph.CreateFolder(customerGroupResult.groupId, customerGroupResult.generalFolder.Id, "E-Post");
                                 log?.LogTrace($"Created email folder in {dbCustomer.Name}");
                             }
                             else
@@ -196,7 +196,7 @@ namespace Jobs
                                             //move the order file
                                             if (await msGraph.MoveFile(
                                                 new CopyItem(settings.CDNTeamID, emailFolder.Id, foundOrderFiles.file.Name, foundOrderFiles.file.Id),
-                                                new CopyItem(customerGroupResult.group.Id, email_folder.Id, foundOrderFiles.file.Name, "")
+                                                new CopyItem(customerGroupResult.groupId, email_folder.Id, foundOrderFiles.file.Name, "")
                                                 ))
                                             {
                                                 //move corresponding files
@@ -205,7 +205,7 @@ namespace Jobs
                                                     log?.LogTrace($"Move corresponding file: {correspondingFile.Name}");
                                                     await msGraph.MoveFile(
                                                         new CopyItem(settings.CDNTeamID, emailFolder.Id, correspondingFile.Name, correspondingFile.Id),
-                                                        new CopyItem(customerGroupResult.group.Id, email_folder.Id, correspondingFile.Name, "")
+                                                        new CopyItem(customerGroupResult.groupId, email_folder.Id, correspondingFile.Name, "")
                                                     );
                                                 }
                                             }
@@ -276,7 +276,7 @@ namespace Jobs
                     //move the order file
                     if (await msgraph.MoveFile(
                         new CopyItem(CDNTeamID, emailFolder.Id, foundOrderFiles.file.Name, foundOrderFiles.file.Id),
-                        new CopyItem(orderFolder.orderGroup.Id, orderFolder.orderFolder.Id, foundOrderFiles.file.Name, "")
+                        new CopyItem(orderFolder.orderGroupId, orderFolder.orderFolder.Id, foundOrderFiles.file.Name, "")
                         ))
                     {
                         //move corresponding files
@@ -285,7 +285,7 @@ namespace Jobs
                             log?.LogTrace($"Move corresponding file: {correspondingFile.Name}");
                             await msgraph.MoveFile(
                                 new CopyItem(CDNTeamID, emailFolder.Id, correspondingFile.Name, correspondingFile.Id),
-                                new CopyItem(orderFolder.orderGroup.Id, orderFolder.orderFolder.Id, correspondingFile.Name, "")
+                                new CopyItem(orderFolder.orderGroupId, orderFolder.orderFolder.Id, correspondingFile.Name, "")
                             );
                         }
                     }
