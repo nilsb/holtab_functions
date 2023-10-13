@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
+using StackExchange.Redis;
 using ExecutionContext = Microsoft.Azure.WebJobs.ExecutionContext;
 
 namespace Shared.Models
@@ -28,6 +29,7 @@ namespace Shared.Models
                     this.ProductionChoicesListID = config["ProductionChoicesID"];
                     this.Admins = config["Admins"];
                     this.SqlConnectionString = config["SqlConnectionString"];
+                    this.redisConnectionString = config["redisConnectionString"];
 
                     if (!string.IsNullOrEmpty(this.TenantID) && !string.IsNullOrEmpty(this.ClientID) && !string.IsNullOrEmpty(this.ClientSecret))
                     {
@@ -44,6 +46,11 @@ namespace Shared.Models
                         var scopes = new[] { "https://graph.microsoft.com/.default" };
                         this.GraphClient = new GraphServiceClient(clientSecretCredential, scopes);
                     }
+
+                    if (!string.IsNullOrEmpty(this.redisConnectionString))
+                    {
+                        this.redis = ConnectionMultiplexer.Connect(this.redisConnectionString);
+                    }
                 }
             }
 
@@ -54,6 +61,7 @@ namespace Shared.Models
         }
 
         public GraphServiceClient? GraphClient { get; set; }
+        public ConnectionMultiplexer? redis { get; set; }
         public string TenantID { get; set; } = "";
         public string ClientID { get; set; } = "";
         public string ClientSecret { get; set; } = "";
@@ -64,6 +72,7 @@ namespace Shared.Models
         public string SqlConnectionString { get; set; } = "";
         public string Admins { get; set; } = "";
         public string ProductionChoicesListID { get; set; } = "";
+        public string redisConnectionString { get; set; } = "";
         public IConfiguration config { get; set; }
         public ExecutionContext? context { get; set; }
         public ILogger? log { get; set; }

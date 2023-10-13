@@ -3,6 +3,8 @@ using Microsoft.Graph;
 using Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
 using Microsoft.Graph.Models;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+using Newtonsoft.Json;
 
 namespace Shared
 {
@@ -14,6 +16,9 @@ namespace Shared
         private readonly Settings? settings;
         private readonly int maxUploadChunkSize = 320 * 1024;
         private readonly string? SqlConnectionString;
+        private readonly string? redisConnectionString;
+        private readonly ConnectionMultiplexer? redis;
+        private readonly IDatabase redisDB;
 
         public Graph(Settings _settings)
         {
@@ -23,10 +28,21 @@ namespace Shared
                 graphClient = _settings.GraphClient;
                 log = _settings.log;
                 SqlConnectionString = _settings.SqlConnectionString;
+                redisConnectionString = _settings.redisConnectionString;
 
                 if (!string.IsNullOrEmpty(SqlConnectionString))
                 {
                     services = new Services(SqlConnectionString, log);
+                }
+
+                if (!string.IsNullOrEmpty(redisConnectionString))
+                {
+                    redis = ConnectionMultiplexer.Connect(redisConnectionString);
+
+                    if(redis != null)
+                    {
+                        redisDB = redis.GetDatabase();
+                    }
                 }
             }
         }
@@ -135,34 +151,42 @@ namespace Shared
             User? memberToAdd = default(User);
             bool returnValue = false;
 
-            if (!string.IsNullOrEmpty(userEmail) && graphClient != null)
+            if (!string.IsNullOrEmpty(userEmail) && graphClient != null && redis != null)
             {
-                try
+                RedisValue cachedValue = redisDB.StringGet(userEmail);
+
+                if (cachedValue.IsNullOrEmpty)
                 {
-                    log?.LogInformation($"Trying to find member {userEmail}");
-
-                    memberToAdd = await graphClient.Users[userEmail].GetAsync();
+                    try
+                    {
+                        log?.LogInformation($"Trying to find member {userEmail}");
+                        memberToAdd = await graphClient.Users[userEmail].GetAsync();
+                    }
+                    catch (Exception)
+                    {
+                        log?.LogInformation($"Unable to find member {userEmail}");
+                    }
                 }
-                catch (Exception)
+
+                if (cachedValue.IsNullOrEmpty)
                 {
-                    log?.LogInformation($"Unable to find member {userEmail}");
+                    cachedValue = redisDB.StringSetAndGet(userEmail, memberToAdd?.Id);
                 }
 
-
-                if (memberToAdd != default(User))
+                if (cachedValue.HasValue)
                 {
                     log?.LogInformation($"Adding member {userEmail} to team");
 
                     var conversationMember = new AadUserConversationMember
                     {
                         Roles = new List<String>()
-                                {
-                                    role
-                                },
+                        {
+                            role
+                        },
                         AdditionalData = new Dictionary<string, object>()
-                                {
-                                    {"user@odata.bind", "https://graph.microsoft.com/v1.0/users('" + memberToAdd.Id + "')"}
-                                }
+                        {
+                            {"user@odata.bind", "https://graph.microsoft.com/v1.0/users('" + cachedValue.ToString() + "')"}
+                        }
                     };
 
                     try
@@ -183,6 +207,10 @@ namespace Shared
         public async Task<Team?> GetTeamFromGroup(Group group)
         {
             Team? foundTeam = null;
+            RedisValue cachedValue = redisDB.StringGet($"Team for: {group.Id}");
+
+            if (!cachedValue.IsNullOrEmpty)
+                return JsonConvert.DeserializeObject<Team>(cachedValue);
 
             if (graphClient == null)
             {
@@ -197,12 +225,18 @@ namespace Shared
             {
             }
 
+            redisDB.StringSet($"Team for: {group.Id}", JsonConvert.SerializeObject(foundTeam));
+
             return foundTeam;
         }
 
         public async Task<Team?> GetTeamFromGroup(string groupId)
         {
             Team? foundTeam = null;
+            RedisValue cachedValue = redisDB.StringGet($"Team for: {groupId}");
+
+            if (!cachedValue.IsNullOrEmpty)
+                return JsonConvert.DeserializeObject<Team>(cachedValue);
 
             if (graphClient == null)
             {
@@ -216,6 +250,8 @@ namespace Shared
             catch (Exception)
             {
             }
+
+            redisDB.StringSet($"Team for: {groupId}", JsonConvert.SerializeObject(foundTeam));
 
             return foundTeam;
         }
@@ -231,7 +267,7 @@ namespace Shared
 
             try
             {
-                createdTeam = await graphClient.Groups[group.Id].Team.GetAsync();
+                createdTeam = await this.GetTeamFromGroup(group);
             }
             catch (Exception)
             {
@@ -282,35 +318,14 @@ namespace Shared
         {
             TeamsApp? returnValue = null;
 
-            if(graphClient == null)
+            if(graphClient == null && team.Id != null)
             {
                 return returnValue;
             }
 
             try
             {
-                var result = await graphClient.Teams[team.Id].InstalledApps.GetAsync(request => { request.QueryParameters.Expand = new string[] { "teamsApp" }; });
-
-                if (result?.Value?.Count > 0)
-                {
-
-                    foreach (var app in result.Value)
-                    {
-                        if (app.TeamsApp?.Id == appId)
-                        {
-                            returnValue = app.TeamsApp;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                log?.LogError(ex.Message);
-            }
-
-            if (returnValue == null)
-            {
-                try
+                if(string.IsNullOrEmpty(await this.IsTeamInstalledApp(team.Id, "", appId)))
                 {
                     log?.LogInformation("Add app to team " + team.DisplayName);
                     var teamsAppInstallation = new TeamsAppInstallation
@@ -329,9 +344,56 @@ namespace Shared
                     }
 
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                log?.LogError(ex.Message);
+            }
+
+            return returnValue;
+        }
+
+        public async Task<string?> IsTeamInstalledApp(string teamId, string appName, string appId)
+        {
+            string? returnValue = "";
+
+            if (!string.IsNullOrEmpty(appName))
+            {
+                RedisValue cachedValue = redisDB.StringGet($"App: {appName} for: {teamId}");
+
+                if(cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
                 {
-                    log?.LogError(ex.Message);
+                    return cachedValue;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(appId))
+            {
+                RedisValue cachedValue = redisDB.StringGet($"App: {appId} for: {teamId}");
+
+                if (cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
+                {
+                    return cachedValue;
+                }
+            }
+
+            if (graphClient == null)
+            {
+                return returnValue;
+            }
+
+            var apps = await graphClient.Teams[teamId].InstalledApps.GetAsync();
+
+            if (apps?.Value?.Count > 0)
+            {
+                if (!string.IsNullOrEmpty(appName))
+                {
+                    returnValue = apps.Value.FirstOrDefault(a => a.TeamsAppDefinition?.DisplayName == appName).TeamsApp?.Id;
+                }
+
+                if (!string.IsNullOrEmpty(appId))
+                {
+                    returnValue = apps.Value.FirstOrDefault(a => a.TeamsAppDefinition?.TeamsAppId == appId)?.TeamsApp?.Id;
                 }
             }
 
@@ -1332,6 +1394,7 @@ namespace Shared
                             }
                         }
                     };
+                    
                     var fileUploadSession = await graphClient.Drives[groupDrive.Id].Items[FolderID].ItemWithPath(FileName).CreateUploadSession.PostAsync(uploadRequest);
 
                     if (fileUploadSession != null)
