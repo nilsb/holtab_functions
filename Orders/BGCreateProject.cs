@@ -70,7 +70,7 @@ namespace Orders
                                 if(groupTeam != null)
                                 {
                                     log.LogInformation("Found team for customer, adding tabs");
-                                    _ = await CreateProjectTabs(settings, groupDrive, groupTeam, orderFolder, order, log, msGraph);
+                                    _ = await CreateProjectTabs(settings, groupDrive, groupTeam.Id, orderFolder, order, log, msGraph);
                                 }
                             }
                             else
@@ -92,13 +92,13 @@ namespace Orders
         public async Task<List<DriveItem>> GetProjectTemplates(ILogger log, Graph msgraph, string CDNSiteID)
         {
             List<DriveItem> foldersToCreate = new List<DriveItem>();
-            var cdnDrive = await msgraph.GetSiteDrive(CDNSiteID);
+            string cdnDriveId = await msgraph.GetSiteDrive(CDNSiteID);
 
-            if (cdnDrive != null)
+            if (!string.IsNullOrEmpty(cdnDriveId))
             {
                 log.LogInformation("Get templates source folder");
-                DriveItem folder = await msgraph.FindItem(cdnDrive, "Dokumentstruktur Projektkanal", false);
-                List<DriveItem> folderChildren = await msgraph.GetDriveFolderChildren(cdnDrive, folder, true);
+                DriveItem folder = await msgraph.FindItem(cdnDriveId, "Dokumentstruktur Projektkanal", false);
+                List<DriveItem> folderChildren = await msgraph.GetDriveFolderChildren(cdnDriveId, folder.Id, true);
 
                 foreach (DriveItem folderChild in folderChildren)
                 {
@@ -109,17 +109,17 @@ namespace Orders
             return foldersToCreate;
         }
 
-        public async Task<bool> CreateProjectTabs(Settings settings, FindCustomerGroupResult customerGroup, Team orderTeam, DriveItem orderFolder, Order order, ILogger log, Graph msgraph)
+        public async Task<bool> CreateProjectTabs(Settings settings, FindCustomerGroupResult customerGroup, string orderTeamId, DriveItem orderFolder, Order order, ILogger log, Graph msgraph)
         {
             bool returnValue = false;
-            var channel = await msgraph.FindChannel(orderTeam, "Projekt " + order.ExternalId);
+            var channel = await msgraph.FindChannel(orderTeamId, "Projekt " + order.ExternalId);
 
             if (channel == null)
             {
                 try
                 {
                     _ = await msgraph.CreateFolder(customerGroup.groupId, "Projekt " + order.ExternalId);
-                    channel = await msgraph.AddChannel(orderTeam, "Projekt " + order.ExternalId, "Projekt " + order.ExternalId, ChannelMembershipType.Standard);
+                    channel = await msgraph.AddChannel(orderTeamId, "Projekt " + order.ExternalId, "Projekt " + order.ExternalId, ChannelMembershipType.Standard);
                 }
                 catch (Exception ex)
                 {
@@ -134,12 +134,12 @@ namespace Orders
             {
                 try
                 {
-                    var orderFolderTab = await msgraph.TabExists(orderTeam, channel, "Order");
+                    var orderFolderTab = await msgraph.TabExists(orderTeamId, channel, "Order");
 
                     if (!orderFolderTab)
                     {
-                        log.LogInformation("Add tab with url " + orderFolder.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
-                        await msgraph.AddChannelWebApp(orderTeam, channel, "Order", orderFolder.WebUrl, orderFolder.WebUrl);
+                        log.LogInformation("Add tab with url " + orderFolder.WebUrl + " to channel " + channel + " in team " + orderTeamId);
+                        await msgraph.AddChannelWebApp(orderTeamId, channel, "Order", orderFolder.WebUrl, orderFolder.WebUrl);
                     }
                 }
                 catch (Exception ex)
@@ -149,14 +149,14 @@ namespace Orders
 
                 try
                 {
-                    var offerFolderTab = await msgraph.TabExists(orderTeam, channel, "Offert");
+                    var offerFolderTab = await msgraph.TabExists(orderTeamId, channel, "Offert");
 
                     if (!offerFolderTab)
                     {
                         DriveItem offerParent = await msgraph.FindItem(customerGroup.groupDriveId, customerGroup.customer.GeneralFolderID, "Offert", true);
 
-                        log.LogInformation("Add tab with url " + offerParent.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
-                        await msgraph.AddChannelWebApp(orderTeam, channel, "Offert", offerParent.WebUrl, offerParent.WebUrl);
+                        log.LogInformation("Add tab with url " + offerParent.WebUrl + " to channel " + channel + " in team " + orderTeamId);
+                        await msgraph.AddChannelWebApp(orderTeamId, channel, "Offert", offerParent.WebUrl, offerParent.WebUrl);
                     }
                 }
                 catch (Exception ex)
@@ -170,7 +170,7 @@ namespace Orders
                     string tabName = "Checklista - Projekt " + order.ExternalId;
 
                     //try adding checklist
-                    var checklistFolderTab = await msgraph.TabExists(orderTeam, channel, tabName);
+                    var checklistFolderTab = await msgraph.TabExists(orderTeamId, channel, tabName);
 
                     if (!checklistFolderTab)
                     {
@@ -240,17 +240,17 @@ namespace Orders
                             };
 
                             log.LogInformation($"Copy template item {templateItem.Name} to project folder for {order.ExternalId}.");
-                            Drive siteDrive = await msgraph.GetSiteDrive(settings.cdnSiteId);
-                            var result = await settings.GraphClient.Drives[siteDrive.Id].Items[templateItem.Id].Copy.PostAsync(requestBody);
+                            string siteDriveId = await msgraph.GetSiteDrive(settings.cdnSiteId);
+                            var result = await settings.GraphClient.Drives[siteDriveId].Items[templateItem.Id].Copy.PostAsync(requestBody);
                         }
 
                         try
                         {
-                            var notesTab = await msgraph.GetTab(orderTeam, channel, "Notes");
+                            var notesTab = await msgraph.GetTab(orderTeamId, channel, "Notes");
 
-                            if (notesTab != default(TeamsTab))
+                            if (!string.IsNullOrEmpty(notesTab))
                             {
-                                await msgraph.RemoveTab(orderTeam, channel, notesTab.Id);
+                                await msgraph.RemoveTab(orderTeamId, channel, notesTab);
                             }
                         }
                         catch (Exception ex)
@@ -260,7 +260,7 @@ namespace Orders
 
                         try
                         {
-                            var onenoteTab = await msgraph.TabExists(orderTeam, channel, "Anteckningar");
+                            var onenoteTab = await msgraph.TabExists(orderTeamId, channel, "Anteckningar");
 
                             if (!onenoteTab)
                             {
@@ -268,8 +268,8 @@ namespace Orders
 
                                 if (onenotefile != null)
                                 {
-                                    log.LogInformation("Add onenotetab with url " + onenotefile.WebUrl + " to channel " + channel.DisplayName + " in team " + orderTeam.DisplayName);
-                                    await msgraph.AddChannelWebApp(orderTeam, channel, "Anteckningar", onenotefile.WebUrl, onenotefile.WebUrl);
+                                    log.LogInformation("Add onenotetab with url " + onenotefile.WebUrl + " to channel " + channel + " in team " + orderTeamId);
+                                    await msgraph.AddChannelWebApp(orderTeamId, channel, "Anteckningar", onenotefile.WebUrl, onenotefile.WebUrl);
                                 }
                             }
                         }

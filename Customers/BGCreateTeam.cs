@@ -52,7 +52,7 @@ namespace CreateTeam
                 result = await msGraph.GetGroupById(customer.GroupID);
 
                 //if the group was found
-                if (result.Success && result.group != null && result.group != default(Group))
+                if (result.Success && result.group != null && !string.IsNullOrEmpty(result.group))
                 {
                     try
                     {

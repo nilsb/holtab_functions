@@ -90,22 +90,23 @@ namespace CreateTeam
 
         public async Task CreateColumn(Settings settings, Graph msGraph, Common common, string groupId, Customer customer)
         {
-            var drive = await msGraph.GetGroupDrive(groupId);
+            string driveId = await msGraph.GetGroupDrive(groupId);
+            string driveUrl = await msGraph.GetGroupDriveUrl(groupId);
 
-            if (drive == null)
+            if (string.IsNullOrEmpty(driveId))
             {
                 return;
             }
 
-            var root = await settings.GraphClient.Drives[drive.Id].Root.GetAsync();
-            var list = await settings.GraphClient.Drives[drive.Id].List.GetAsync();
+            var root = await settings.GraphClient.Drives[driveId].Root.GetAsync();
+            var list = await settings.GraphClient.Drives[driveId].List.GetAsync();
 
             if(root == null || list == null)
             {
                 return;
             }
 
-            string siteUrl = drive.WebUrl.Substring(0, drive.WebUrl.LastIndexOf("/"));
+            string siteUrl = driveUrl.Substring(0, driveUrl.LastIndexOf("/"));
             var groupsite = await settings.GraphClient.Sites[list?.ParentReference?.SiteId].GetAsync();
             var columns = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.GetAsync();
 

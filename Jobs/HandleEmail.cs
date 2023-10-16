@@ -88,17 +88,17 @@ namespace Jobs
                     log?.LogTrace($"Found order group: {orderFolder.orderTeam.DisplayName} for order no: {orderNo}");
 
                     //get drive for cdn group
-                    Drive cdnDrive = await msGraph.GetGroupDrive(settings.CDNTeamID);
+                    string cdnDriveId = await msGraph.GetGroupDrive(settings.CDNTeamID);
 
-                    if (cdnDrive != null)
+                    if (!string.IsNullOrEmpty(cdnDriveId))
                     {
                         log?.LogTrace($"Found CDN team and drive");
                             
                         //Loop through email folders
                         for(int i = 0; i <= historyMonths; i++)
                         {
-                            await ProcessCDNFiles("General", msGraph, cdnDrive, data, orderNo, i, settings.CDNTeamID, orderFolder, log);
-                            await ProcessCDNFiles("Salesemails", msGraph, cdnDrive, data, orderNo, i, settings.CDNTeamID, orderFolder, log);
+                            await ProcessCDNFiles("General", msGraph, cdnDriveId, data, orderNo, i, settings.CDNTeamID, orderFolder, log);
+                            await ProcessCDNFiles("Salesemails", msGraph, cdnDriveId, data, orderNo, i, settings.CDNTeamID, orderFolder, log);
                         }
                     }
                 }
@@ -174,21 +174,21 @@ namespace Jobs
                             }
 
                             //get drive for cdn group
-                            Drive cdnDrive = await msGraph.GetGroupDrive(settings.CDNTeamID);
+                            string cdnDriveId = await msGraph.GetGroupDrive(settings.CDNTeamID);
 
-                            if (cdnDrive != null)
+                            if (!string.IsNullOrEmpty(cdnDriveId))
                             {
                                 log?.LogTrace($"Found CDN team and drive");
                                 //Loop through email folders 
                                 for(int i = 0; i <= historyMonths; i++)
                                 {
                                     //get current email folder
-                                    DriveItem emailFolder = await msGraph.FindItem(cdnDrive, "General/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString(), false);
+                                    DriveItem emailFolder = await msGraph.FindItem(cdnDriveId, "General/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString(), false);
 
                                     if (emailFolder != default(DriveItem))
                                     {
                                         log?.LogTrace($"Found CDN email folder General/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString());
-                                        OrderFiles foundOrderFiles = await GetOrderFiles(cdnDrive, emailFolder, data, customerNo, msGraph);
+                                        OrderFiles foundOrderFiles = await GetOrderFiles(cdnDriveId, emailFolder, data, customerNo, msGraph);
 
                                         if (foundOrderFiles.file != null)
                                         {
@@ -259,15 +259,15 @@ namespace Jobs
             }
         }
 
-        public async Task<bool> ProcessCDNFiles(string root, Graph msgraph, Drive cdnDrive, HandleEmailMessage data, string orderNo, int i, string CDNTeamID, FindOrderGroupAndFolder orderFolder, ILogger log)
+        public async Task<bool> ProcessCDNFiles(string root, Graph msgraph, string cdnDriveId, HandleEmailMessage data, string orderNo, int i, string CDNTeamID, FindOrderGroupAndFolder orderFolder, ILogger log)
         {
             //get current email folder
-            DriveItem emailFolder = await msgraph.FindItem(cdnDrive, root + "/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString(), false);
+            DriveItem emailFolder = await msgraph.FindItem(cdnDriveId, root + "/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString(), false);
 
             if (emailFolder != default(DriveItem))
             {
                 log?.LogTrace($"Found CDN email folder General/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString());
-                OrderFiles foundOrderFiles = await GetOrderFiles(cdnDrive, emailFolder, data, orderNo, msgraph);
+                OrderFiles foundOrderFiles = await GetOrderFiles(cdnDriveId, emailFolder, data, orderNo, msgraph);
 
                 if (foundOrderFiles.file != null)
                 {
@@ -295,11 +295,11 @@ namespace Jobs
             return true;
         }
 
-        public async Task<OrderFiles> GetOrderFiles(Drive cdnDrive, DriveItem emailFolder, HandleEmailMessage data, string orderNo, Graph msgraph)
+        public async Task<OrderFiles> GetOrderFiles(string cdnDriveId, DriveItem emailFolder, HandleEmailMessage data, string orderNo, Graph msgraph)
         {
             OrderFiles returnValue = new OrderFiles();
             returnValue.associated = new List<DriveItem>();
-            var emailChildren = await msgraph.GetDriveFolderChildren(cdnDrive, emailFolder, false);
+            var emailChildren = await msgraph.GetDriveFolderChildren(cdnDriveId, emailFolder.Id, false);
 
             if (String.IsNullOrEmpty(data.Title))
             {

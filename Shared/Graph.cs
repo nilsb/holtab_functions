@@ -6,6 +6,8 @@ using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Newtonsoft.Json;
 using System.Reflection.Metadata;
+using System.Linq;
+using System.Dynamic;
 
 namespace Shared
 {
@@ -205,38 +207,38 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<Team?> GetTeamFromGroup(Group group)
-        {
-            Team? foundTeam = null;
-            RedisValue cachedValue = redisDB.StringGet($"Team for: {group.Id}");
+        //public async Task<Team?> GetTeamFromGroup(Group group)
+        //{
+        //    Team? foundTeam = null;
+        //    RedisValue cachedValue = redisDB.StringGet($"Team for: {group.Id}");
 
-            if (!cachedValue.IsNullOrEmpty)
-                return JsonConvert.DeserializeObject<Team>(cachedValue);
+        //    if (!cachedValue.IsNullOrEmpty)
+        //        return JsonConvert.DeserializeObject<Team>(cachedValue);
 
-            if (graphClient == null)
-            {
-                return foundTeam;
-            }
+        //    if (graphClient == null)
+        //    {
+        //        return foundTeam;
+        //    }
 
-            try
-            {
-                foundTeam = await graphClient.Groups[group.Id].Team.GetAsync();
-            }
-            catch (Exception)
-            {
-            }
+        //    try
+        //    {
+        //        foundTeam = await graphClient.Groups[group.Id].Team.GetAsync();
+        //    }
+        //    catch (Exception)
+        //    {
+        //    }
 
-            redisDB.StringSet($"Team for: {group.Id}", JsonConvert.SerializeObject(foundTeam));
+        //    redisDB.StringSet($"Team for: {group.Id}", JsonConvert.SerializeObject(foundTeam));
 
-            return foundTeam;
-        }
+        //    return foundTeam;
+        //}
 
         public async Task<Team?> GetTeamFromGroup(string groupId)
         {
             Team? foundTeam = null;
             RedisValue cachedValue = redisDB.StringGet($"Team for: {groupId}");
 
-            if (!cachedValue.IsNullOrEmpty)
+            if (cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
                 return JsonConvert.DeserializeObject<Team>(cachedValue);
 
             if (graphClient == null)
@@ -257,7 +259,7 @@ namespace Shared
             return foundTeam;
         }
 
-        public async Task<Team?> CreateTeamFromGroup(Group group)
+        public async Task<Team?> CreateTeamFromGroup(string groupId)
         {
             Team? createdTeam = null;
 
@@ -268,7 +270,7 @@ namespace Shared
 
             try
             {
-                createdTeam = await this.GetTeamFromGroup(group);
+                createdTeam = await this.GetTeamFromGroup(groupId);
             }
             catch (Exception)
             {
@@ -276,7 +278,7 @@ namespace Shared
 
             if (createdTeam == null)
             {
-                log?.LogInformation("Creating team for group " + group.DisplayName);
+                log?.LogInformation("Creating team for group " + groupId);
 
                 try
                 {
@@ -300,7 +302,7 @@ namespace Shared
                     };
 
                     //create a team from newly created group
-                    createdTeam = await graphClient.Groups[group.Id].Team.PutAsync(teamSettings);
+                    createdTeam = await graphClient.Groups[groupId].Team.PutAsync(teamSettings);
 
                     log?.LogInformation("Waiting 60s for team to be created");
                     //wait for team to be created
@@ -315,20 +317,20 @@ namespace Shared
             return createdTeam;
         }
 
-        public async Task<TeamsApp?> AddTeamApp(Team team, string appId)
+        public async Task<string?> AddTeamApp(string teamId, string appId)
         {
-            TeamsApp? returnValue = null;
+            string? returnValue = "";
 
-            if(graphClient == null && team != null && team.Id != null)
+            if(graphClient == null || !string.IsNullOrEmpty(teamId))
             {
                 return returnValue;
             }
 
             try
             {
-                if(string.IsNullOrEmpty(await this.IsTeamInstalledApp(team.Id, "", appId)))
+                if(string.IsNullOrEmpty(await this.IsTeamInstalledApp(teamId, "", appId)))
                 {
-                    log?.LogInformation("Add app to team " + team.DisplayName);
+                    log?.LogInformation("Add app to team " + teamId);
                     var teamsAppInstallation = new TeamsAppInstallation
                     {
                         AdditionalData = new Dictionary<string, object>()
@@ -337,13 +339,8 @@ namespace Shared
                     }
                     };
 
-                    var installation = await graphClient.Teams[team.Id].InstalledApps.PostAsync(teamsAppInstallation);
-
-                    if (installation != null)
-                    {
-                        returnValue = installation.TeamsApp;
-                    }
-
+                    var installation = await graphClient.Teams[teamId].InstalledApps.PostAsync(teamsAppInstallation);
+                    returnValue = installation?.TeamsApp?.Id;
                 }
             }
             catch (Exception ex)
@@ -430,7 +427,43 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<bool> TabExists(Team team, Channel channel, string tabName)
+        public async Task<bool> TabExistsById(string teamId, string channelId, string tabId)
+        {
+            bool returnValue = false;
+
+            if (graphClient == null)
+            {
+                return false;
+            }
+
+            if (LookupCacheList($"Tabids for team: {teamId} and channel: {channelId}", tabId))
+            {
+                returnValue = true;
+            }
+            else
+            {
+                try
+                {
+                    var tabs = await graphClient.Teams[teamId].Channels[channelId].Tabs.GetAsync();
+
+                    List<string> tabsCache = new List<string>();
+
+                    if (tabs?.Value?.Count > 0)
+                    {
+                        AddCacheList($"Tabids for team: {teamId} and channel: {channelId}", tabs.Value.Select(i => i.Id).ToList());
+                        returnValue = tabs.Value.Any(t => t.Id == tabId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.Message);
+                }
+            }
+
+            return returnValue;
+        }
+
+        public async Task<bool> TabExists(string teamId, string channelId, string tabName)
         {
             bool returnValue = false;
 
@@ -439,30 +472,19 @@ namespace Shared
                 return false;
             }
 
-            var cachedValue = redisDB.StringGet($"Tabnames for team: {team.Id} and channel: {channel.DisplayName}");
-
-            if(cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
+            if(LookupCacheList($"Tabnames for team: {teamId} and channel: {channelId}", tabName))
             {
-                var values = JsonConvert.DeserializeObject<List<string>>(cachedValue);
-
-                if(values != null && values.Any(t => t == tabName))
-                {
-                    returnValue = true;
-                }
+                returnValue = true;
             }
             else
             {
                 try
                 {
-                    var tabs = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.GetAsync();
-                    
-                    List<string> tabsCache = new List<string>();
-                    tabsCache.AddRange(tabs?.Value?.Select(i => i.DisplayName));
-
-                    redisDB.StringSet($"Tabnames for team: {team.Id} and channel: {channel.DisplayName}", JsonConvert.SerializeObject(tabsCache));
+                    var tabs = await graphClient.Teams[teamId].Channels[channelId].Tabs.GetAsync();
 
                     if (tabs?.Value?.Count > 0)
                     {
+                        AddCacheList($"Tabnames for team: {teamId} and channel: {channelId}", tabs.Value.Select(i => i.DisplayName).ToList());
                         returnValue = tabs.Value.Any(t => t.DisplayName == tabName);
                     }
                 }
@@ -475,22 +497,30 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<TeamsTab?> GetTab(Team team, Channel channel, string tabName)
+        public async Task<dynamic?> GetTab(string teamId, string channelId, string tabName)
         {
-            TeamsTab? returnValue = default(TeamsTab);
+            dynamic? returnValue = null;
 
             if (graphClient == null)
             {
                 return returnValue;
             }
 
+            var tab = LookupCacheList($"Tabs for team: {teamId} and channel: {channelId}", item => item.name == tabName);
+
+            if(tab != null)
+            {
+                returnValue = new { id = tab.id, name = tab.name };
+            }
+
             try
             {
-                var tabs = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.GetAsync();
+                var tabs = await graphClient.Teams[teamId].Channels[channelId].Tabs.GetAsync();
 
-                if (tabs?.Value?.Count > 0)
+                if (tabs != null && tabs.Value != null && tabs.Value.Any(t => t.DisplayName == tabName))
                 {
-                    returnValue = tabs.Value.FirstOrDefault(t => t.DisplayName == tabName);
+                    AddCacheList($"Tabs for team: {teamId} and channel: {channelId}", tabs.Value.Select(i => new { id = i.Id, name = i.DisplayName }).ToList<dynamic?>());
+                    returnValue = tabs?.Value?.FirstOrDefault(t => t.DisplayName == tabName)?.Id;
                 }
             }
             catch (Exception ex)
@@ -501,13 +531,13 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task RemoveTab(Team team, Channel channel, string TabId)
+        public async Task RemoveTab(string teamId, string channelId, string TabId)
         {
-            if (graphClient != null)
+            if (graphClient != null && await TabExists(teamId, channelId, TabId))
             {
                 try
                 {
-                    await graphClient.Teams[team.Id].Channels[channel.Id].Tabs[TabId].DeleteAsync();
+                    await graphClient.Teams[teamId].Channels[channelId].Tabs[TabId].DeleteAsync();
                 }
                 catch (Exception ex)
                 {
@@ -516,11 +546,11 @@ namespace Shared
             }
         }
 
-        public async Task<bool> AddChannelWebApp(Team team, Channel channel, string tabName, string contentUrl, string webUrl)
+        public async Task<bool> AddChannelWebApp(string teamId, string channelId, string tabName, string contentUrl, string webUrl)
         {
             bool returnValue = false;
 
-            if (!(await TabExists(team, channel, tabName)))
+            if (!(await TabExists(teamId, channelId, tabName)))
             {
                 try
                 {
@@ -542,7 +572,8 @@ namespace Shared
 
                     if (graphClient != null)
                     {
-                        var tab = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.PostAsync(infotab);
+                        var tab = await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(infotab);
+
                         returnValue = true;
                     }
                 }
@@ -555,11 +586,11 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<bool> AddChannelApp(Team team, TeamsApp app, Channel channel, string tabName, string entityId, string contentUrl, string webUrl, string removeUrl)
+        public async Task<bool> AddChannelApp(string teamId, string appId, string channelId, string tabName, string entityId, string contentUrl, string webUrl, string removeUrl)
         {
             bool returnValue = false;
 
-            if(!(await TabExists(team, channel, tabName)))
+            if(!(await TabExists(teamId, channelId, tabName)))
             {
                 try
                 {
@@ -570,7 +601,7 @@ namespace Shared
                         DisplayName = tabName,
                         AdditionalData = new Dictionary<string, object>()
                         {
-                            { "teamsApp@odata.bind", "https://graph.microsoft.com/v1.0/appCatalogs/teamsApps/" + app.Id }
+                            { "teamsApp@odata.bind", "https://graph.microsoft.com/v1.0/appCatalogs/teamsApps/" + appId }
                         },
                         Configuration = new TeamsTabConfiguration()
                         {
@@ -590,8 +621,12 @@ namespace Shared
 
                     if(graphClient != null)
                     {
-                        var tab = await graphClient.Teams[team.Id].Channels[channel.Id].Tabs.PostAsync(infotab);
-                        returnValue = true;
+                        var tab = await graphClient.Teams[teamId].Channels[channelId].Tabs.PostAsync(infotab);
+
+                        if(tab != null)
+                        {
+                            returnValue = true;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -603,10 +638,10 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<Channel?> FindChannel(Team team, string channelName)
+        public async Task<string?> FindChannel(string teamId, string channelName)
         {
-            Channel? returnValue = null;
-
+            string? returnValue = null;
+            
             if(graphClient == null)
             {
                 return returnValue;
@@ -614,14 +649,14 @@ namespace Shared
 
             try
             {
-                log?.LogInformation("Find channel " + channelName + " in team " + team.DisplayName);
+                log?.LogInformation("Find channel " + channelName + " in team " + teamId);
 
-                var channels = await graphClient.Teams[team.Id].Channels.GetAsync();
+                var channels = await graphClient.Teams[teamId].Channels.GetAsync();
 
                 if(channels?.Value?.Count() > 0)
                 {
-                    returnValue = channels.Value.FirstOrDefault(c => c.DisplayName == channelName);
-                    log?.LogInformation("Channel " + channelName + " found in team " + team.DisplayName);
+                    returnValue = channels.Value.FirstOrDefault(c => c.DisplayName == channelName)?.Id;
+                    log?.LogInformation("Channel " + channelName + " found in team " + teamId);
                 }
             }
             catch (Exception ex)
@@ -632,31 +667,43 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<Channel?> AddChannel(Team team, string channelName, string channelDescription, ChannelMembershipType type)
+        public async Task<string?> AddChannel(string teamId, string channelName, string channelDescription, ChannelMembershipType type)
         {
-            Channel? returnValue = null;
+            string? returnValue = "";
 
             if(graphClient == null)
             {
                 return returnValue;
             }
 
-            try
+            if(!string.IsNullOrEmpty(await FindChannel(teamId, channelName)))
             {
-                log?.LogInformation("Add channel " + channelName + " to team " + team.DisplayName);
-
-                var channel = new Channel
+                try
                 {
-                    DisplayName = channelName,
-                    Description = channelDescription,
-                    MembershipType = type
-                };
+                    log?.LogInformation("Add channel " + channelName + " to team " + teamId);
 
-                returnValue = await graphClient.Teams[team.Id].Channels.PostAsync(channel);
+                    var channel = new Channel
+                    {
+                        DisplayName = channelName,
+                        Description = channelDescription,
+                        MembershipType = type
+                    };
+
+                    Channel? createdChannel = await graphClient.Teams[teamId].Channels.PostAsync(channel);
+                    
+                    if(createdChannel != null)
+                    {
+                        returnValue = createdChannel.Id;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.Message);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                log?.LogError(ex.Message);
+                log?.LogInformation("Add channel " + channelName + " to team " + teamId);
             }
 
             return returnValue;
@@ -702,26 +749,34 @@ namespace Shared
         #region Groups
         public async Task<bool> AddGroupOwner(string userEmail, string GroupId)
         {
-            User? memberToAdd = default(User);
+            string? memberToAdd = "";
             bool returnValue = true;
+            var cacheValue = redisDB.StringGet(userEmail);
 
             if (!string.IsNullOrEmpty(userEmail) && graphClient != null)
             {
-                try
+                if(!cacheValue.IsNullOrEmpty && cacheValue.HasValue)
                 {
-                    log?.LogInformation($"Trying to find member {userEmail}");
-                    memberToAdd = await graphClient.Users[userEmail].GetAsync();
+                    memberToAdd = cacheValue;
                 }
-                catch (Exception)
-                {
-                    log?.LogInformation($"Unable to find member {userEmail}");
+                else {
+                    try
+                    {
+                        log?.LogInformation($"Trying to find member {userEmail}");
+                        memberToAdd = (await graphClient.Users[userEmail].GetAsync())?.Id;
+                        redisDB.StringSet(userEmail, memberToAdd);
+                    }
+                    catch (Exception)
+                    {
+                        log?.LogInformation($"Unable to find member {userEmail}");
+                    }
                 }
 
-                if (memberToAdd != default(User))
+                if (!string.IsNullOrEmpty(memberToAdd))
                 {
                     var directoryObject = new ReferenceCreate
                     {
-                        OdataId = "https://graph.microsoft.com/v1.0/directoryObjects/" + memberToAdd.Id
+                        OdataId = "https://graph.microsoft.com/v1.0/directoryObjects/" + memberToAdd
                     };
 
                     bool ownerExists = false;
@@ -734,7 +789,7 @@ namespace Shared
                         {
                             foreach (var owner in owners.Value)
                             {
-                                if (owner.Id == memberToAdd.Id)
+                                if (owner.Id == memberToAdd)
                                 {
                                     ownerExists = true;
                                 }
@@ -742,14 +797,14 @@ namespace Shared
 
                             if (!ownerExists)
                             {
-                                log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
+                                log?.LogInformation($"Adding owner {userEmail}: {memberToAdd} to group");
                                 await graphClient.Groups[GroupId].Owners.Ref.PostAsync(directoryObject);
                                 ownerExists = true;
                             }
                         }
                         else
                         {
-                            log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
+                            log?.LogInformation($"Adding owner {userEmail}: {memberToAdd} to group");
                             await graphClient.Groups[GroupId].Owners.Ref.PostAsync(directoryObject);
                             ownerExists = true;
                         }
@@ -773,26 +828,35 @@ namespace Shared
 
         public async Task<bool> AddGroupMember(string userEmail, string GroupId)
         {
-            User? memberToAdd = default(User);
+            string? memberToAdd = "";
             bool returnValue = true;
+            var cacheValue = redisDB.StringGet(userEmail);
 
             if (!string.IsNullOrEmpty(userEmail) && graphClient != null)
             {
-                try
+                if (!cacheValue.IsNullOrEmpty && cacheValue.HasValue)
                 {
-                    log?.LogInformation($"Trying to find member {userEmail}");
-                    memberToAdd = await graphClient.Users[userEmail].GetAsync();
+                    memberToAdd = cacheValue;
                 }
-                catch (Exception)
+                else
                 {
-                    log?.LogInformation($"Unable to find member {userEmail}");
+                    try
+                    {
+                        log?.LogInformation($"Trying to find member {userEmail}");
+                        memberToAdd = (await graphClient.Users[userEmail].GetAsync())?.Id;
+                        redisDB.StringSet(userEmail, memberToAdd);
+                    }
+                    catch (Exception)
+                    {
+                        log?.LogInformation($"Unable to find member {userEmail}");
+                    }
                 }
 
-                if (memberToAdd != default(User))
+                if (!string.IsNullOrEmpty(memberToAdd))
                 {
                     var directoryObject = new ReferenceCreate
                     {
-                        OdataId = "https://graph.microsoft.com/v1.0/directoryObjects/" + memberToAdd.Id
+                        OdataId = "https://graph.microsoft.com/v1.0/directoryObjects/" + memberToAdd
                     };
 
                     bool memberExists = false;
@@ -805,7 +869,7 @@ namespace Shared
                         {
                             foreach(var member in members.Value)
                             {
-                                if(member.Id == memberToAdd.Id)
+                                if(member.Id == memberToAdd)
                                 {
                                     memberExists = true;
                                 }
@@ -813,14 +877,14 @@ namespace Shared
 
                             if(!memberExists)
                             {
-                                log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
+                                log?.LogInformation($"Adding owner {userEmail}: {memberToAdd} to group");
                                 await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
                                 memberExists = true;
                             }
                         }
                         else
                         {
-                            log?.LogInformation($"Adding owner {userEmail}: {memberToAdd.Id} to group");
+                            log?.LogInformation($"Adding owner {userEmail}: {memberToAdd} to group");
                             await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
                             memberExists = true;
                         }
@@ -973,7 +1037,7 @@ namespace Shared
 
             try
             {
-                Group? group = await graphClient.Groups[id].GetAsync();
+                string? group = (await graphClient.Groups[id].GetAsync())?.Id;
 
                 if (group != null)
                 {
@@ -1040,13 +1104,13 @@ namespace Shared
             {
                 returnValue.Success = true;
                 returnValue.Count = foundGroups.Value.Count;
-                returnValue.groups = foundGroups.Value;
+                returnValue.groups = foundGroups.Value.Select(g => g.Id).ToList<string?>();
             }
             else if(foundGroups?.Value?.Count > 0)
             {
                 returnValue.Success = true;
                 returnValue.Count = 1;
-                returnValue.group = foundGroups.Value[0];
+                returnValue.group = foundGroups.Value[0].Id;
             }
             else
             {
@@ -1079,75 +1143,124 @@ namespace Shared
             return groupDrive;
         }
 
-        public async Task<Drive?> GetGroupDrive(string? GroupId)
+        public async Task<string?> GetGroupDrive(string? GroupId)
         {
-            Drive? groupDrive = null;
+            string? groupDrive = "";
 
             if (graphClient == null || string.IsNullOrEmpty(GroupId))
             {
                 return null;
             }
 
-            try
+            var cachedValue = redisDB.StringGet($"Drive for group: {GroupId}");
+
+            if(!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
             {
-                groupDrive = await graphClient.Groups[GroupId].Drive.GetAsync();
+                groupDrive = cachedValue;
             }
-            catch (Exception ex)
+            else
             {
-                log?.LogError(ex.ToString());
+                try
+                {
+                    groupDrive = (await graphClient.Groups[GroupId].Drive.GetAsync())?.Id;
+                    redisDB.StringSet($"Drive for group: {GroupId}", groupDrive);
+                }
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.ToString());
+                }
             }
 
             return groupDrive;
         }
 
-        public async Task<Site?> GetGroupSite(string? GroupId)
+        public async Task<string?> GetGroupDriveUrl(string? GroupId)
         {
-            Site? returnValue = null;
+            string? groupDriveUrl = "";
 
             if (graphClient == null || string.IsNullOrEmpty(GroupId))
             {
                 return null;
+            }
+
+            var cachedValue = redisDB.StringGet($"DriveUrl for group: {GroupId}");
+
+            if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
+            {
+                groupDriveUrl = cachedValue;
+            }
+            else
+            {
+                try
+                {
+                    groupDriveUrl = (await graphClient.Groups[GroupId].Drive.GetAsync())?.WebUrl;
+                    redisDB.StringSet($"DriveUrl for group: {GroupId}", groupDriveUrl);
+                }
+                catch (Exception ex)
+                {
+                    log?.LogError(ex.ToString());
+                }
+            }
+
+            return groupDriveUrl;
+        }
+
+        public async Task<string?> GetGroupSite(string? GroupId)
+        {
+            string? returnValue = "";
+
+            if (graphClient == null || string.IsNullOrEmpty(GroupId))
+            {
+                return null;
+            }
+
+            var cachedValue = redisDB.StringGet($"Site for group: {GroupId}");
+            
+            if(!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
+            {
+                return cachedValue;
             }
 
             FindGroupResult? findGroup = await GetGroupById(GroupId);
 
             if(findGroup?.Success == true && findGroup?.group != null)
             {
-                var sites = await graphClient.Groups[findGroup.group.Id].Sites.GetAsync();
+                var sites = await graphClient.Groups[findGroup.group].Sites.GetAsync();
 
                 if(sites?.Value?.Count > 0)
                 {
-                    returnValue = sites?.Value[0];
+                    returnValue = sites?.Value[0].Id;
+                    redisDB.StringSet($"Site for group: {GroupId}", returnValue);
                 }
             }
 
             return returnValue;
         }
 
-        public async Task<Drive?> GetSiteDrive(Site? site)
+        //public async Task<Drive?> GetSiteDrive(Site? site)
+        //{
+        //    Drive? groupDrive = null;
+
+        //    if (graphClient == null || site == null)
+        //    {
+        //        return null;
+        //    }
+
+        //    try
+        //    {
+        //        groupDrive = await graphClient.Sites[site.Id].Drive.GetAsync();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        log?.LogError(ex.ToString());
+        //    }
+
+        //    return groupDrive;
+        //}
+
+        public async Task<string?> GetSiteDrive(string? SiteId)
         {
-            Drive? groupDrive = null;
-
-            if (graphClient == null || site == null)
-            {
-                return null;
-            }
-
-            try
-            {
-                groupDrive = await graphClient.Sites[site.Id].Drive.GetAsync();
-            }
-            catch (Exception ex)
-            {
-                log?.LogError(ex.ToString());
-            }
-
-            return groupDrive;
-        }
-
-        public async Task<Drive?> GetSiteDrive(string? SiteId)
-        {
-            Drive? groupDrive = null;
+            string? groupDrive = "";
 
             if (graphClient == null || string.IsNullOrEmpty(SiteId))
             {
@@ -1156,7 +1269,7 @@ namespace Shared
 
             try
             {
-                groupDrive = await graphClient.Sites[SiteId].Drive.GetAsync();
+                groupDrive = (await graphClient.Sites[SiteId].Drive.GetAsync())?.Id;
             }
             catch (Exception ex)
             {
@@ -1246,13 +1359,13 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<List<DriveItem>> GetDriveFolderChildren(Drive? groupDrive, DriveItem? parent, bool recursive = false)
+        public async Task<List<DriveItem>> GetDriveFolderChildren(string? groupDriveId, string? parentId, bool recursive = false)
         {
             List<DriveItem> returnValue = new List<DriveItem>();
 
-            if (groupDrive != null && graphClient != null && parent != null)
+            if (!string.IsNullOrEmpty(groupDriveId) && graphClient != null && !string.IsNullOrEmpty(parentId))
             {
-                var folderChildren = await graphClient.Drives[groupDrive.Id].Items[parent.Id].Children.GetAsync();
+                var folderChildren = await graphClient.Drives[groupDriveId].Items[parentId].Children.GetAsync();
 
                 if (folderChildren?.Value?.Count > 0)
                 {
@@ -1260,7 +1373,7 @@ namespace Shared
                     {
                         foreach(var child in folderChildren.Value)
                         {
-                            var subchildren = await GetDriveFolderChildren(groupDrive, child, recursive);
+                            var subchildren = await GetDriveFolderChildren(groupDriveId, child.Id, recursive);
 
                             if(subchildren?.Count > 0)
                             {
@@ -1276,35 +1389,35 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<List<DriveItem>> GetDriveFolderChildren(string? groupDriveId, DriveItem? parent, bool recursive = false)
-        {
-            List<DriveItem> returnValue = new List<DriveItem>();
+        //public async Task<List<DriveItem>> GetDriveFolderChildren(string? groupDriveId, string? parentId, bool recursive = false)
+        //{
+        //    List<DriveItem> returnValue = new List<DriveItem>();
 
-            if (!string.IsNullOrEmpty(groupDriveId) && graphClient != null && parent != null)
-            {
-                var folderChildren = await graphClient.Drives[groupDriveId].Items[parent.Id].Children.GetAsync();
+        //    if (!string.IsNullOrEmpty(groupDriveId) && graphClient != null && !string.IsNullOrEmpty(parentId))
+        //    {
+        //        var folderChildren = await graphClient.Drives[groupDriveId].Items[parentId].Children.GetAsync();
 
-                if (folderChildren?.Value?.Count > 0)
-                {
-                    if (recursive)
-                    {
-                        foreach (var child in folderChildren.Value)
-                        {
-                            var subchildren = await GetDriveFolderChildren(groupDriveId, child, recursive);
+        //        if (folderChildren?.Value?.Count > 0)
+        //        {
+        //            if (recursive)
+        //            {
+        //                foreach (var child in folderChildren.Value)
+        //                {
+        //                    var subchildren = await GetDriveFolderChildren(groupDriveId, child.Id, recursive);
 
-                            if (subchildren?.Count > 0)
-                            {
-                                child.Children = subchildren;
-                            }
-                        }
-                    }
+        //                    if (subchildren?.Count > 0)
+        //                    {
+        //                        child.Children = subchildren;
+        //                    }
+        //                }
+        //            }
 
-                    returnValue = folderChildren.Value;
-                }
-            }
+        //            returnValue = folderChildren.Value;
+        //        }
+        //    }
 
-            return returnValue;
-        }
+        //    return returnValue;
+        //}
 
         public async Task<DriveItem?> FindItem(Drive? groupDrive, string? Path, bool withRetry = false)
         {
@@ -1506,13 +1619,13 @@ namespace Shared
 
             try
             {
-                Drive? groupDrive = await GetGroupDrive(GroupID);
+                string? groupDriveId = await GetGroupDrive(GroupID);
 
-                if(groupDrive != null)
+                if(!string.IsNullOrEmpty(groupDriveId))
                 {
                     //download order file content
                     returnValue.Contents = Stream.Null;
-                    (await graphClient.Drives[groupDrive.Id].Items[FolderID].ItemWithPath(FileName).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
+                    (await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
                     returnValue.Success = true;
                 }
             }
@@ -1566,9 +1679,9 @@ namespace Shared
 
             try
             {
-                Drive? groupDrive = await GetGroupDrive(GroupID);
+                string? groupDriveId = await GetGroupDrive(GroupID);
 
-                if(groupDrive != null)
+                if(!string.IsNullOrEmpty(groupDriveId))
                 {
                     CreateUploadSessionPostRequestBody uploadRequest = new CreateUploadSessionPostRequestBody
                     {
@@ -1581,7 +1694,7 @@ namespace Shared
                         }
                     };
                     
-                    var fileUploadSession = await graphClient.Drives[groupDrive.Id].Items[FolderID].ItemWithPath(FileName).CreateUploadSession.PostAsync(uploadRequest);
+                    var fileUploadSession = await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).CreateUploadSession.PostAsync(uploadRequest);
 
                     if (fileUploadSession != null)
                     {
@@ -1623,9 +1736,9 @@ namespace Shared
 
             try
             {
-                Drive? groupDrive = await GetGroupDrive(Group.Id);
+                string? groupDriveId = await GetGroupDrive(Group.Id);
 
-                if (groupDrive != null)
+                if (!string.IsNullOrEmpty(groupDriveId))
                 {
                     CreateUploadSessionPostRequestBody uploadRequest = new CreateUploadSessionPostRequestBody
                     {
@@ -1637,7 +1750,7 @@ namespace Shared
                             }
                         }
                     };
-                    var fileUploadSession = await graphClient.Drives[groupDrive.Id].Items[Folder.Id].ItemWithPath(Path).CreateUploadSession.PostAsync(uploadRequest);
+                    var fileUploadSession = await graphClient.Drives[groupDriveId].Items[Folder.Id].ItemWithPath(Path).CreateUploadSession.PostAsync(uploadRequest);
 
                     if (fileUploadSession != null)
                     {
@@ -1705,11 +1818,11 @@ namespace Shared
                     {
                         try
                         {
-                            Drive? groupDrive = await GetGroupDrive(source.GroupId);
+                            string? groupDriveId = await GetGroupDrive(source.GroupId);
 
-                            if(groupDrive != null)
+                            if(!string.IsNullOrEmpty(groupDriveId))
                             {
-                                await graphClient.Drives[groupDrive.Id].Items[source.FileId].DeleteAsync();
+                                await graphClient.Drives[groupDriveId].Items[source.FileId].DeleteAsync();
                                 returnValue = true;
                             }
                         }
@@ -1843,10 +1956,10 @@ namespace Shared
             DriveItem? createdFolder = null;
 
             //first check if folder exists
-            var drive = this.GetGroupDrive(GroupId).Result;
-            var existingFolder = this.FindItem(drive, ParentId, FolderName, false).Result;
+            var driveId = this.GetGroupDrive(GroupId).Result;
+            var existingFolder = this.FindItem(driveId, ParentId, FolderName, false).Result;
 
-            if(existingFolder == null && graphClient != null && drive != null)
+            if(existingFolder == null && graphClient != null && !string.IsNullOrEmpty(driveId))
             {
                 //if not, create it. fail operation if folder does exist
                 try
@@ -1863,7 +1976,7 @@ namespace Shared
                         }
                     };
 
-                    createdFolder = await graphClient.Drives[drive.Id].Items[ParentId].Children.PostAsync(driveItemFolder);
+                    createdFolder = await graphClient.Drives[driveId].Items[ParentId].Children.PostAsync(driveItemFolder);
 
                     if (createdFolder != null)
                     {
@@ -1895,10 +2008,10 @@ namespace Shared
             DriveItem? createdFolder = null;
 
             //first check if folder exists
-            var drive = this.GetGroupDrive(GroupId).Result;
-            var existingFolder = this.FindItem(drive, FolderName, false).Result;
+            var driveId = this.GetGroupDrive(GroupId).Result;
+            var existingFolder = this.FindItem(driveId, FolderName, false).Result;
 
-            if (existingFolder == null && drive != null && graphClient != null)
+            if (existingFolder == null && !string.IsNullOrEmpty(driveId) && graphClient != null)
             {
                 //if not, create it. fail operation if folder does exist
                 try
@@ -1915,11 +2028,11 @@ namespace Shared
                     }
                     };
 
-                    var rootItem = await graphClient.Drives[drive.Id].Root.GetAsync();
+                    var rootItem = await graphClient.Drives[driveId].Root.GetAsync();
                     
                     if(rootItem != null)
                     {
-                        createdFolder = await graphClient.Drives[drive.Id].Items[rootItem.Id].Children.PostAsync(driveItemFolder);
+                        createdFolder = await graphClient.Drives[driveId].Items[rootItem.Id].Children.PostAsync(driveItemFolder);
 
                         if (createdFolder != null)
                         {
@@ -1981,17 +2094,17 @@ namespace Shared
 
                 if(group.Success)
                 {
-                    var drive = await GetGroupDrive(groupId);
+                    var driveId = await GetGroupDrive(groupId);
 
-                    if(drive != null)
+                    if(!string.IsNullOrEmpty(driveId))
                     {
-                        var list = await graphClient.Drives[drive.Id].List.GetAsync();
+                        var list = await graphClient.Drives[driveId].List.GetAsync();
                         var site = await GetGroupSite(groupId);
 
                         if(list != null && site != null)
                         {
                             log?.LogInformation($"Adding column: {def.Description}");
-                            var col = await graphClient.Sites[site.Id].Lists[list.Id].Columns.PostAsync(def);
+                            var col = await graphClient.Sites[site].Lists[list.Id].Columns.PostAsync(def);
                         }
                     }
                 }
@@ -2188,5 +2301,126 @@ namespace Shared
         }
 
         #endregion
+
+        public bool SearchTabs(dynamic item, string value)
+        {
+            return (item.id == value || item.name == value);
+        }
+
+        public bool LookupCacheList(string key, string lookup)
+        {
+            RedisValue cachedValue = redisDB.StringGet(key);
+
+            if(cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
+            {
+                List<string>? values = JsonConvert.DeserializeObject<List<string>>(cachedValue);
+                
+                if(values?.Count > 0)
+                {
+                    return values.Any(v => v == lookup);
+                }
+            }
+
+            return false;
+        }
+
+        public dynamic? LookupCacheList(string key, Func<dynamic, bool> searchFunction)
+        {
+            RedisValue cachedValue = redisDB.StringGet(key);
+
+            if (cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
+            {
+                List<dynamic> values = JsonConvert.DeserializeObject<List<dynamic>>(cachedValue);
+
+                if (values?.Count > 0)
+                {
+                    values.Find(item => searchFunction(item));
+                }
+            }
+
+            return null;
+        }
+
+        public bool AddCacheList(string key, string value)
+        {
+            RedisValue cachedValue = redisDB.StringGet(key);
+
+            if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
+            {
+                List<string>? values = JsonConvert.DeserializeObject<List<string>>(cachedValue);
+
+                if (values != null)
+                {
+                    values.Add(value);
+
+                    return true;
+                }
+            } 
+            else 
+            {
+                List<string> values = new List<string>();
+
+                values.Add(value);
+                redisDB.StringSet(key, JsonConvert.SerializeObject(values));
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool AddCacheList(string key, List<string?> value)
+        {
+            RedisValue cachedValue = redisDB.StringGet(key);
+
+            if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
+            {
+                List<string?> values = JsonConvert.DeserializeObject<List<string?>>(cachedValue);
+
+                if (values != null)
+                {
+                    values.AddRange(value);
+
+                    return true;
+                }
+            }
+            else
+            {
+                List<string?> values = new List<string?>();
+
+                values.AddRange(value);
+                redisDB.StringSet(key, JsonConvert.SerializeObject(values));
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool AddCacheList(string key, List<dynamic?> value)
+        {
+            RedisValue cachedValue = redisDB.StringGet(key);
+
+            if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
+            {
+                List<dynamic?> values = JsonConvert.DeserializeObject<List<dynamic?>>(cachedValue);
+
+                if (values != null)
+                {
+                    values.AddRange(value);
+
+                    return true;
+                }
+            }
+            else
+            {
+                List<dynamic?> values = new List<dynamic?>();
+
+                values.AddRange(value);
+                redisDB.StringSet(key, JsonConvert.SerializeObject(values));
+                return true;
+            }
+
+            return false;
+        }
     }
 }

@@ -132,7 +132,7 @@ namespace CreateTeam
                             //try to create the general folder;
                             try
                             {
-                                CreateFolderResult generalFolder = await msGraph.CreateFolder(result.group.Id, "General");
+                                CreateFolderResult generalFolder = await msGraph.CreateFolder(result.group, "General");
 
                                 if (generalFolder.Success && generalFolder?.folder != null)
                                 {

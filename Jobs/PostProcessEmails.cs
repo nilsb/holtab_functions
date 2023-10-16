@@ -30,11 +30,11 @@ namespace Jobs
             Common common = new Common(settings, msGraph);
             string orderNo = "";
             List<OrderFiles> orderFiles = new List<OrderFiles>();
-            var groupDrive = await msGraph.GetGroupDrive(settings.CDNTeamID);
+            string groupDriveId = await msGraph.GetGroupDrive(settings.CDNTeamID);
             DriveItem emailMessagesFolder = await common.GetEmailsFolder("General", DateTime.Now.Month.ToString(), DateTime.Now.Year.ToString());
-            var emailMessagesChildren = await msGraph.GetDriveFolderChildren(groupDrive, emailMessagesFolder, false);
+            var emailMessagesChildren = await msGraph.GetDriveFolderChildren(groupDriveId, emailMessagesFolder.Id, false);
             emailMessagesFolder = await common.GetEmailsFolder("Salesemails", DateTime.Now.Month.ToString(), DateTime.Now.Year.ToString());
-            var salesEmailMessagesChildren = await msGraph.GetDriveFolderChildren(groupDrive, emailMessagesFolder, false);
+            var salesEmailMessagesChildren = await msGraph.GetDriveFolderChildren(groupDriveId, emailMessagesFolder.Id, false);
 
             if(emailMessagesChildren != null && salesEmailMessagesChildren != null)
             {
