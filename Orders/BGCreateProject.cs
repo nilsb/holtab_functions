@@ -65,12 +65,12 @@ namespace Orders
                             if (orderFolder != null)
                             {
                                 log.LogInformation("Found order folder, fetching team for customer");
-                                Team groupTeam = await msGraph.GetTeamFromGroup(groupDrive.groupId);
+                                string groupTeamId = await msGraph.GetTeamFromGroup(groupDrive.groupId);
 
-                                if(groupTeam != null)
+                                if(!string.IsNullOrEmpty(groupTeamId))
                                 {
                                     log.LogInformation("Found team for customer, adding tabs");
-                                    _ = await CreateProjectTabs(settings, groupDrive, groupTeam.Id, orderFolder, order, log, msGraph);
+                                    _ = await CreateProjectTabs(settings, groupDrive, groupTeamId, orderFolder, order, log, msGraph);
                                 }
                             }
                             else

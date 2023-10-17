@@ -233,13 +233,13 @@ namespace Shared
         //    return foundTeam;
         //}
 
-        public async Task<Team?> GetTeamFromGroup(string groupId)
+        public async Task<string?> GetTeamFromGroup(string groupId)
         {
-            Team? foundTeam = null;
-            RedisValue cachedValue = redisDB.StringGet($"Team for: {groupId}");
+            string? foundTeam = null;
+            RedisValue cachedValue = redisDB.StringGet($"TeamId for: {groupId}");
 
             if (cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
-                return JsonConvert.DeserializeObject<Team>(cachedValue);
+                return cachedValue;
 
             if (graphClient == null)
             {
@@ -248,13 +248,13 @@ namespace Shared
 
             try
             {
-                foundTeam = await graphClient.Groups[groupId].Team.GetAsync();
+                foundTeam = (await graphClient.Groups[groupId].Team.GetAsync())?.Id;
             }
             catch (Exception)
             {
             }
 
-            redisDB.StringSet($"Team for: {groupId}", JsonConvert.SerializeObject(foundTeam));
+            redisDB.StringSet($"TeamId for: {groupId}", foundTeam);
 
             return foundTeam;
         }
@@ -262,6 +262,7 @@ namespace Shared
         public async Task<Team?> CreateTeamFromGroup(string groupId)
         {
             Team? createdTeam = null;
+            string? createdTeamId = "";
 
             if(graphClient == null)
             {
@@ -270,13 +271,13 @@ namespace Shared
 
             try
             {
-                createdTeam = await this.GetTeamFromGroup(groupId);
+                createdTeamId = await this.GetTeamFromGroup(groupId);
             }
             catch (Exception)
             {
             }
 
-            if (createdTeam == null)
+            if (!string.IsNullOrEmpty(createdTeamId))
             {
                 log?.LogInformation("Creating team for group " + groupId);
 
@@ -303,7 +304,7 @@ namespace Shared
 
                     //create a team from newly created group
                     createdTeam = await graphClient.Groups[groupId].Team.PutAsync(teamSettings);
-
+                    redisDB.StringSet($"TeamId for: {groupId}", createdTeam?.Id);
                     log?.LogInformation("Waiting 60s for team to be created");
                     //wait for team to be created
                     Thread.Sleep(60000);
@@ -386,7 +387,7 @@ namespace Shared
             {
                 if (!string.IsNullOrEmpty(appName))
                 {
-                    returnValue = apps.Value.FirstOrDefault(a => a.TeamsAppDefinition?.DisplayName == appName).TeamsApp?.Id;
+                    returnValue = apps.Value.FirstOrDefault(a => a.TeamsAppDefinition?.DisplayName == appName)?.TeamsApp?.Id;
                     redisDB.StringSet($"App: {appId} for: {teamId}", appId);
                 }
 
@@ -2321,7 +2322,7 @@ namespace Shared
 
             if(cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
             {
-                List<string>? values = JsonConvert.DeserializeObject<List<string>>(cachedValue);
+                List<string> values = JsonConvert.DeserializeObject<List<string>>(cachedValue);
                 
                 if(values?.Count > 0)
                 {

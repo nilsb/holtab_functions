@@ -85,7 +85,7 @@ namespace Jobs
 
                 if (orderFolder.Success && orderFolder.orderFolder != null)
                 {
-                    log?.LogTrace($"Found order group: {orderFolder.orderTeam.DisplayName} for order no: {orderNo}");
+                    log?.LogTrace($"Found order group: {orderFolder.orderTeamId} for order no: {orderNo}");
 
                     //get drive for cdn group
                     string cdnDriveId = await msGraph.GetGroupDrive(settings.CDNTeamID);

@@ -618,13 +618,14 @@ namespace Shared
 
                         try
                         {
-                            returnValue.orderTeam = await msGraph.GetTeamFromGroup(returnValue.customer.GroupID);
+                            returnValue.orderTeamId = await msGraph.GetTeamFromGroup(returnValue.customer.GroupID);
 
-                            if (returnValue.orderTeam != null)
+                            if (returnValue.orderTeamId != null)
                             {
                                 returnValue.customer.TeamCreated = true;
-                                returnValue.customer.TeamID = returnValue.orderTeam.Id ?? "";
+                                returnValue.customer.TeamID = returnValue.orderTeamId ?? "";
                             }
+
                             UpdateCustomer(returnValue.customer, "team info");
                             log?.LogTrace($"Found team for {returnValue.customer.Name} and order {order.ExternalId}.");
                         }
@@ -1091,32 +1092,29 @@ namespace Shared
                 try
                 {
                     string ContentUrl = "https://holtabcustomercard.azurewebsites.net/Home/Index?id=" + team.Id;
+                    string? teamId = team?.Id;
 
                     if (!customer.InstalledApp && !string.IsNullOrEmpty(groupId) && !string.IsNullOrEmpty(appId))
                     {
-                        string? groupDriveId = await msGraph.GetGroupDrive(groupId);
+                        //string? groupDriveId = await msGraph.GetGroupDrive(groupId);
+                        string? rootUrl = await msGraph.GetGroupDriveUrl(groupId);
 
-                        if (!string.IsNullOrEmpty(groupDriveId))
+                        if (!string.IsNullOrEmpty(rootUrl) && !string.IsNullOrEmpty(teamId))
                         {
-                            var root = await settings.GraphClient.Drives[groupDriveId].Root.GetAsync();
+                            var channelSwedish = await msGraph.FindChannel(teamId, "Allmänt");
+                            var channelEnglish = await msGraph.FindChannel(teamId, "General");
+                            string? channel = channelSwedish ?? channelEnglish;
 
-                            if (root != null)
+                            if (!string.IsNullOrEmpty(channel) && !string.IsNullOrEmpty(rootUrl))
                             {
-                                var channelSwedish = await msGraph.FindChannel(team.Id, "Allmänt");
-                                var channelEnglish = await msGraph.FindChannel(team.Id, "General");
-                                string? channel = channelSwedish ?? channelEnglish;
+                                var app = await msGraph.AddTeamApp(teamId, appId);
 
-                                if (!string.IsNullOrEmpty(channel))
+                                if (app != null)
                                 {
-                                    var app = await msGraph.AddTeamApp(team.Id, appId);
-
-                                    if (app != null)
-                                    {
-                                        log?.LogTrace($"Adding channel for app {app} to {customer.Name}");
-                                        await msGraph.AddChannelApp(team.Id, app, channel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, root.WebUrl, "");
-                                        log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
-                                        customer.InstalledApp = true;
-                                    }
+                                    log?.LogTrace($"Adding channel for app {app} to {customer.Name}");
+                                    await msGraph.AddChannelApp(teamId, app, channel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, rootUrl, "");
+                                    log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
+                                    customer.InstalledApp = true;
                                 }
                             }
                         }
@@ -1221,7 +1219,7 @@ namespace Shared
                 customer.GroupCreated = true;
                 UpdateCustomer(customer, "group and drive info");
 
-                var team = await msGraph.CreateTeamFromGroup(group);
+                var team = await msGraph.CreateTeamFromGroup(customer.GroupID);
                 log?.LogTrace($"Created team for {customer.Name} ({customer.ExternalId})");
 
                 if (team != null)
@@ -1233,30 +1231,28 @@ namespace Shared
 
                     try
                     {
-                        string ContentUrl = "https://holtabcustomercard.azurewebsites.net/Home/Index?id=" + team.Id;
+                        string ContentUrl = "https://holtabcustomercard.azurewebsites.net/Home/Index?id=" + customer.TeamID;
 
                         if (!string.IsNullOrEmpty(group))
                         {
                             string? groupDriveId = await msGraph.GetGroupDrive(group);
+                            string? rootUrl = await msGraph.GetGroupDriveUrl(group);
 
-                            if (!string.IsNullOrEmpty(groupDriveId))
+                            if (!string.IsNullOrEmpty(groupDriveId) && !string.IsNullOrEmpty(rootUrl))
                             {
-                                var root = await settings.GraphClient.Drives[groupDriveId].Root.GetAsync();
+                                var generalChannelSwedish = await msGraph.FindChannel(customer.TeamID, "Allmänt");
+                                var generalChannelEnglish = await msGraph.FindChannel(customer.TeamID, "General");
+                                string? generalChannel = generalChannelSwedish ?? generalChannelEnglish;
 
-                                if (root != null)
+                                if (!string.IsNullOrEmpty(generalChannel))
                                 {
-                                    var channels = await settings.GraphClient.Teams[team.Id].Channels.GetAsync();
-
-                                    if (channels?.Value?.Count > 0 && !string.IsNullOrEmpty(root.WebUrl))
-                                    {
-                                        var app = await msGraph.AddTeamApp(team.Id, "e2cb3981-47e7-47b3-a0e1-f9078d342253");
+                                    var app = await msGraph.AddTeamApp(customer.TeamID, "e2cb3981-47e7-47b3-a0e1-f9078d342253");
                                         
-                                        if(app != null)
-                                        {
-                                            await msGraph.AddChannelApp(team.Id, app, channels.Value[0].Id, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, root.WebUrl, "");
-                                            log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
-                                            customer.InstalledApp = true;
-                                        }
+                                    if(app != null)
+                                    {
+                                        await msGraph.AddChannelApp(customer.TeamID, app, generalChannel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, rootUrl, "");
+                                        log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
+                                        customer.InstalledApp = true;
                                     }
                                 }
                             }
