@@ -657,7 +657,11 @@ namespace Shared
                 if(channels?.Value?.Count() > 0)
                 {
                     returnValue = channels.Value.FirstOrDefault(c => c.DisplayName == channelName)?.Id;
-                    log?.LogInformation("Channel " + channelName + " found in team " + teamId);
+
+                    if(returnValue != null)
+                    {
+                        log?.LogInformation("Channel " + channelName + " found in team " + teamId);
+                    }
                 }
             }
             catch (Exception ex)
@@ -677,7 +681,7 @@ namespace Shared
                 return returnValue;
             }
 
-            if(!string.IsNullOrEmpty(await FindChannel(teamId, channelName)))
+            if(string.IsNullOrEmpty(await FindChannel(teamId, channelName)))
             {
                 try
                 {
@@ -704,7 +708,7 @@ namespace Shared
             }
             else
             {
-                log?.LogInformation("Add channel " + channelName + " to team " + teamId);
+                log?.LogInformation("Channel " + channelName + " already existed in team " + teamId);
             }
 
             return returnValue;
