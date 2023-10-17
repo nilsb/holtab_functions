@@ -1260,23 +1260,31 @@ namespace Shared
 
         public async Task<string?> GetSiteDrive(string? SiteId)
         {
-            string? groupDrive = "";
+            string? groupDriveId = "";
 
             if (graphClient == null || string.IsNullOrEmpty(SiteId))
             {
                 return null;
             }
 
+            var cachedValue = redisDB.StringGet($"Drive for site: {SiteId}");
+
+            if(!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
+            {
+                groupDriveId = cachedValue;
+            }
+
             try
             {
-                groupDrive = (await graphClient.Sites[SiteId].Drive.GetAsync())?.Id;
+                groupDriveId = (await graphClient.Sites[SiteId].Drive.GetAsync())?.Id;
+                redisDB.StringSet($"Drive for site: {SiteId}", groupDriveId);
             }
             catch (Exception ex)
             {
                 log?.LogError(ex.ToString());
             }
 
-            return groupDrive;
+            return groupDriveId;
         }
 
         public async Task<List<DriveItem>> GetDriveRootItems(Drive? groupDrive)

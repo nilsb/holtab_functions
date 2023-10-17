@@ -576,7 +576,7 @@ namespace Shared
             FindOrderGroupAndFolder returnValue = new FindOrderGroupAndFolder();
             returnValue.Success = false;
 
-            if(settings == null || settings.GraphClient == null)
+            if(settings == null || settings.GraphClient == null || msGraph == null)
             {
                 return returnValue;
             }
@@ -618,7 +618,7 @@ namespace Shared
 
                         try
                         {
-                            returnValue.orderTeam = await settings.GraphClient.Groups[findCustomerGroupResult.groupId].Team.GetAsync();
+                            returnValue.orderTeam = await msGraph.GetTeamFromGroup(returnValue.customer.GroupID);
 
                             if (returnValue.orderTeam != null)
                             {
