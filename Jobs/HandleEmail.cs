@@ -47,7 +47,7 @@ namespace Jobs
 
                 if (!string.IsNullOrEmpty(orderNo))
                 {
-                    log?.LogTrace($"Found orderno: {orderNo} in filename: {data.Filename}");
+                    log?.LogInformation($"Found orderno: {orderNo} in filename: {data.Filename}");
                 }
                 else
                 {
@@ -55,7 +55,7 @@ namespace Jobs
 
                     if (!string.IsNullOrEmpty(customerNo))
                     {
-                        log?.LogTrace($"Found customer no: {customerNo} in filename: {data.Filename}");
+                        log?.LogInformation($"Found customer no: {customerNo} in filename: {data.Filename}");
                     }
                 }
             }
@@ -65,7 +65,7 @@ namespace Jobs
 
                 if (!string.IsNullOrEmpty(orderNo))
                 {
-                    log?.LogTrace($"Found orderno: {orderNo} in email subject: {data.Title}");
+                    log?.LogInformation($"Found orderno: {orderNo} in email subject: {data.Title}");
                 }
                 else
                 {
@@ -73,7 +73,7 @@ namespace Jobs
 
                     if (!string.IsNullOrEmpty(customerNo))
                     {
-                        log?.LogTrace($"Found customer no: {customerNo} in subject: {data.Title}");
+                        log?.LogInformation($"Found customer no: {customerNo} in subject: {data.Title}");
                     }
                 }
             }
@@ -85,14 +85,14 @@ namespace Jobs
 
                 if (orderFolder.Success && orderFolder.orderFolder != null)
                 {
-                    log?.LogTrace($"Found order group: {orderFolder.orderTeamId} for order no: {orderNo}");
+                    log?.LogInformation($"Found order group: {orderFolder.orderTeamId} for order no: {orderNo}");
 
                     //get drive for cdn group
                     string cdnDriveId = await msGraph.GetGroupDrive(settings.CDNTeamID);
 
                     if (!string.IsNullOrEmpty(cdnDriveId))
                     {
-                        log?.LogTrace($"Found CDN team and drive");
+                        log?.LogInformation($"Found CDN team and drive");
                             
                         //Loop through email folders
                         for(int i = 0; i <= historyMonths; i++)
@@ -120,7 +120,7 @@ namespace Jobs
                             }
                         }
 
-                        log?.LogTrace($"Unable to find order group for {orderNo}");
+                        log?.LogError($"Unable to find order group for {orderNo}");
                     }
                     else if (orderFolder.orderFolder == null)
                     {
@@ -138,7 +138,7 @@ namespace Jobs
                             }
                         }
 
-                        log?.LogTrace($"Unable to find order folder for {orderNo} in group {orderFolder.orderGroupId}");
+                        log?.LogError($"Unable to find order folder for {orderNo} in group {orderFolder.orderGroupId}");
                     }
                 }
             }
@@ -153,12 +153,12 @@ namespace Jobs
 
                     if(dbCustomer != null)
                     {
-                        log?.LogTrace($"Found customer {dbCustomer.Name} in CDN");
+                        log?.LogInformation($"Found customer {dbCustomer.Name} in CDN");
                         FindCustomerGroupResult customerGroupResult = common.FindCustomerGroupAndDrive(dbCustomer.Name, dbCustomer.ExternalId, dbCustomer.Type);
 
                         if (customerGroupResult.Success && !string.IsNullOrEmpty(customerGroupResult.groupId))
                         {
-                            log?.LogTrace($"Found customer group and drive for {dbCustomer.Name}");
+                            log?.LogInformation($"Found customer group and drive for {dbCustomer.Name}");
                             //find email destination folder
                             DriveItem email_folder = await msGraph.FindItem(customerGroupResult.groupDriveId, "General/E-Post", false);
 
@@ -166,11 +166,11 @@ namespace Jobs
                             if (email_folder == null)
                             {
                                 await msGraph.CreateFolder(customerGroupResult.groupId, customerGroupResult.generalFolder.Id, "E-Post");
-                                log?.LogTrace($"Created email folder in {dbCustomer.Name}");
+                                log?.LogInformation($"Created email folder in {dbCustomer.Name}");
                             }
                             else
                             {
-                                log?.LogTrace($"Found email folder in {dbCustomer.Name}");
+                                log?.LogInformation($"Found email folder in {dbCustomer.Name}");
                             }
 
                             //get drive for cdn group
@@ -178,7 +178,7 @@ namespace Jobs
 
                             if (!string.IsNullOrEmpty(cdnDriveId))
                             {
-                                log?.LogTrace($"Found CDN team and drive");
+                                log?.LogInformation($"Found CDN team and drive");
                                 //Loop through email folders 
                                 for(int i = 0; i <= historyMonths; i++)
                                 {
@@ -187,12 +187,12 @@ namespace Jobs
 
                                     if (emailFolder != default(DriveItem))
                                     {
-                                        log?.LogTrace($"Found CDN email folder General/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString());
+                                        log?.LogInformation($"Found CDN email folder General/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString());
                                         OrderFiles foundOrderFiles = await GetOrderFiles(cdnDriveId, emailFolder, data, customerNo, msGraph);
 
                                         if (foundOrderFiles.file != null)
                                         {
-                                            log?.LogTrace($"Move order file: {foundOrderFiles.file.Name}");
+                                            log?.LogInformation($"Move order file: {foundOrderFiles.file.Name}");
                                             //move the order file
                                             if (await msGraph.MoveFile(
                                                 new CopyItem(settings.CDNTeamID, emailFolder.Id, foundOrderFiles.file.Name, foundOrderFiles.file.Id),
@@ -202,7 +202,7 @@ namespace Jobs
                                                 //move corresponding files
                                                 foreach (var correspondingFile in foundOrderFiles.associated)
                                                 {
-                                                    log?.LogTrace($"Move corresponding file: {correspondingFile.Name}");
+                                                    log?.LogInformation($"Move corresponding file: {correspondingFile.Name}");
                                                     await msGraph.MoveFile(
                                                         new CopyItem(settings.CDNTeamID, emailFolder.Id, correspondingFile.Name, correspondingFile.Id),
                                                         new CopyItem(customerGroupResult.groupId, email_folder.Id, correspondingFile.Name, "")
@@ -230,7 +230,7 @@ namespace Jobs
                                 }
                             }
 
-                            log?.LogTrace($"Unable to find customer and group for no {customerNo} ");
+                            log?.LogError($"Unable to find customer and group for no {customerNo} ");
                         }
                     }
                     else
@@ -249,12 +249,12 @@ namespace Jobs
                             }
                         }
 
-                        log?.LogTrace($"Unable to find customer and group for no {customerNo} ");
+                        log?.LogError($"Unable to find customer and group for no {customerNo} ");
                     }
                 }
                 else
                 {
-                    log?.LogTrace($"Unable to find customer {customerNo} in CDN list");
+                    log?.LogError($"Unable to find customer {customerNo} in CDN list");
                 }
             }
         }
@@ -266,12 +266,12 @@ namespace Jobs
 
             if (emailFolder != default(DriveItem))
             {
-                log?.LogTrace($"Found CDN email folder General/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString());
+                log?.LogInformation($"Found CDN email folder General/EmailMessages_" + DateTime.Now.AddMonths(-i).Month.ToString() + "_" + DateTime.Now.AddMonths(-i).Year.ToString());
                 OrderFiles foundOrderFiles = await GetOrderFiles(cdnDriveId, emailFolder, data, orderNo, msgraph);
 
                 if (foundOrderFiles.file != null)
                 {
-                    log?.LogTrace($"Move order file: {foundOrderFiles.file.Name}");
+                    log?.LogInformation($"Move order file: {foundOrderFiles.file.Name}");
 
                     //move the order file
                     if (await msgraph.MoveFile(
@@ -282,7 +282,7 @@ namespace Jobs
                         //move corresponding files
                         foreach (var correspondingFile in foundOrderFiles.associated)
                         {
-                            log?.LogTrace($"Move corresponding file: {correspondingFile.Name}");
+                            log?.LogInformation($"Move corresponding file: {correspondingFile.Name}");
                             await msgraph.MoveFile(
                                 new CopyItem(CDNTeamID, emailFolder.Id, correspondingFile.Name, correspondingFile.Id),
                                 new CopyItem(orderFolder.orderGroupId, orderFolder.orderFolder.Id, correspondingFile.Name, "")
