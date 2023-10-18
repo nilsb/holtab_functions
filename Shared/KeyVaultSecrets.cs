@@ -23,6 +23,7 @@ namespace Shared
         public const string Admins = "Admins";
         public const string CertificateThumbPrint = "CertificateThumbPrint";
         public const string sbholtabnavConnection = "sbholtabnavConnection";
+        public const string redisConnectionString = "redisConnectionString";
         public const string ConfigConnectionString = "ConfigConnectionString";
         public const string AzureAppConfigConnection = "AzureAppConfigConnection";
         public const string CustomerCardAppId = "CustomerCardAppId";

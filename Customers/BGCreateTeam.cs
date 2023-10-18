@@ -48,11 +48,10 @@ namespace CreateTeam
             if (findCustomer.Success && findCustomer.customer != null && findCustomer.customer != default(Customer))
             {
                 Customer customer = findCustomer.customer;
-
                 result = await msGraph.GetGroupById(customer.GroupID);
 
                 //if the group was found
-                if (result.Success && result.group != null && result.group != default(Group))
+                if (result.Success && !string.IsNullOrEmpty(result.group))
                 {
                     try
                     {

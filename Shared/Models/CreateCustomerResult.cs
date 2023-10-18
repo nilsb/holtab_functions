@@ -8,7 +8,7 @@ namespace Shared.Models
     public class CreateCustomerResult
     {
         public bool Success { get; set; }
-        public Group? group { get; set; }
+        public string? group { get; set; }
         public Team? team { get; set; }
         public Customer? customer { get; set; }
     }

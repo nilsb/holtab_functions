@@ -55,16 +55,16 @@ namespace CreateTeam
                 FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer);
 
                 //if the group was found
-                if (findCustomerGroup.Success && findCustomerGroup.group != null && findCustomerGroup.group != default(Group))
+                if (findCustomerGroup.Success && !string.IsNullOrEmpty(findCustomerGroup.groupId))
                 {
                     //Set the status group created on the customer object
                     customer.GroupCreated = true;
 
                     //if the drive was found set the drive id in the output message
-                    if (findCustomerGroup.groupDrive != null && findCustomerGroup.groupDrive != default(Drive))
+                    if (!string.IsNullOrEmpty(findCustomerGroup.groupDriveId))
                     {
                         //set the status and drive id in the customer object
-                        customer.DriveID = findCustomerGroup.groupDrive.Id;
+                        customer.DriveID = findCustomerGroup.groupDriveId;
                     }
                     else
                     {
@@ -90,7 +90,7 @@ namespace CreateTeam
                         //if the general folder was not found try to create it
                         try
                         {
-                            CreateFolderResult generalFolder = await msGraph.CreateFolder(findCustomerGroup.group.Id, "General");
+                            CreateFolderResult generalFolder = await msGraph.CreateFolder(findCustomerGroup.groupId, "General");
                             customer.GeneralFolderID = generalFolder.folder.Id;
                             customer.GeneralFolderCreated = true;
 
@@ -132,7 +132,7 @@ namespace CreateTeam
                             //try to create the general folder;
                             try
                             {
-                                CreateFolderResult generalFolder = await msGraph.CreateFolder(result.group.Id, "General");
+                                CreateFolderResult generalFolder = await msGraph.CreateFolder(result.group, "General");
 
                                 if (generalFolder.Success && generalFolder?.folder != null)
                                 {

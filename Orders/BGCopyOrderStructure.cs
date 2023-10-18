@@ -57,7 +57,7 @@ namespace Orders
 
                         if (!string.IsNullOrEmpty(groupDrive.customer.GeneralFolderID))
                         {
-                            var orderFolder = await common.GetOrderFolder(groupDrive.group.Id, groupDrive.groupDrive, order);
+                            var orderFolder = await common.GetOrderFolder(groupDrive.groupId, groupDrive.groupDriveId, order);
 
                             if(orderFolder != null)
                             {
@@ -69,7 +69,7 @@ namespace Orders
 
                                     foreach (DriveItem templateFolder in templateFolders)
                                     {
-                                        CreateFolderResult result = await msGraph.CopyFolder(groupDrive.group.Id, orderFolder.Id, templateFolder, true, false);
+                                        CreateFolderResult result = await msGraph.CopyFolder(groupDrive.groupId, orderFolder.Id, templateFolder, true, false);
 
                                         if (result.Success)
                                         {
@@ -94,7 +94,7 @@ namespace Orders
                                     order.Handled = true;
                                     order.FolderID = orderFolder.Id;
                                     order.DriveFound = true;
-                                    order.DriveID = groupDrive.groupDrive.Id;
+                                    order.DriveID = groupDrive.groupDriveId;
                                     order.CreatedFolder = true;
                                     order.GroupFound = true;
                                     order.GeneralFolderFound = true;

@@ -56,12 +56,12 @@ namespace CreateTeam
                 FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer);
 
                 //if the group was found
-                if (findCustomerGroup.Success && findCustomerGroup.group != null && findCustomerGroup.group != default(Group))
+                if (findCustomerGroup.Success && !string.IsNullOrEmpty(findCustomerGroup.groupId))
                 {
                     try
                     {
                         //Create custom document library columns
-                        await CreateColumn(settings, msGraph, common, findCustomerGroup.group, customer);
+                        await CreateColumn(settings, msGraph, common, findCustomerGroup.groupId, customer);
                         customer.CreatedColumnAdditionalInfo = true;
                         customer.CreatedColumnKundnummer = true;
                         customer.CreatedColumnNAVid = true;
@@ -88,24 +88,25 @@ namespace CreateTeam
             return new OkObjectResult(JsonConvert.SerializeObject(Message));
         }
 
-        public async Task CreateColumn(Settings settings, Graph msGraph, Common common, Group group, Customer customer)
+        public async Task CreateColumn(Settings settings, Graph msGraph, Common common, string groupId, Customer customer)
         {
-            var drive = await msGraph.GetGroupDrive(group);
+            string driveId = await msGraph.GetGroupDrive(groupId);
+            string driveUrl = await msGraph.GetGroupDriveUrl(groupId);
 
-            if (drive == null)
+            if (string.IsNullOrEmpty(driveId))
             {
                 return;
             }
 
-            var root = await settings.GraphClient.Drives[drive.Id].Root.GetAsync();
-            var list = await settings.GraphClient.Drives[drive.Id].List.GetAsync();
+            var root = await settings.GraphClient.Drives[driveId].Root.GetAsync();
+            var list = await settings.GraphClient.Drives[driveId].List.GetAsync();
 
             if(root == null || list == null)
             {
                 return;
             }
 
-            string siteUrl = drive.WebUrl.Substring(0, drive.WebUrl.LastIndexOf("/"));
+            string siteUrl = driveUrl.Substring(0, driveUrl.LastIndexOf("/"));
             var groupsite = await settings.GraphClient.Sites[list?.ParentReference?.SiteId].GetAsync();
             var columns = await settings.GraphClient.Sites[groupsite.Id].Lists[list.Id].Columns.GetAsync();
 

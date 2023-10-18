@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RE = System.Text.RegularExpressions;
 using Microsoft.Graph.Models;
+using System.Threading.Channels;
 
 namespace Shared
 {
@@ -14,7 +15,7 @@ namespace Shared
         private readonly string? cdnSiteId;
         private readonly string? SqlConnectionString;
         private readonly Services? services;
-        public readonly Group? CDNGroup;
+        public readonly string? CDNGroup;
         public readonly string quoteRegex = @"^([A-Z]?\d+)";
         public readonly string customerRegex = @"(\d+)(\s?|-?)";
         public readonly string orderRegex = @"B\d{6}|T\d{5}|A\d{5}|Z\d{5}|G\d{4}|R\d{2}|E\d{5,7}|F\d{5}|H\d{5,6}|K\d{5,6}|\d{5}-\d{2}|Q\d{5}-\d{2}";
@@ -475,7 +476,7 @@ namespace Shared
         {
             FindCustomerGroupResult returnValue = new FindCustomerGroupResult();
             returnValue.Success = false;
-            Drive? groupDrive = null;
+            string? groupDriveId = "";
             List<DriveItem> rootItems = new List<DriveItem>();
             List<DriveItem> generalItems = new List<DriveItem>();
             FindGroupResult result = new FindGroupResult() { Success = false };
@@ -504,31 +505,31 @@ namespace Shared
                 if (result.Count > 1 && result.groups != null)
                 {
                     log?.LogTrace($"Found multiple groups for {customer.Name}. Returning first match.");
-                    returnValue.group = result.groups[0];
-                    groupDrive = await msGraph.GetGroupDrive(result.groups[0]);
+                    returnValue.groupId = result.groups[0];
+                    groupDriveId = await msGraph.GetGroupDrive(result.groups[0]);
                 }
                 else
                 {
                     log?.LogTrace($"Found group for {customer.Name}.");
-                    returnValue.group = result.group;
-                    groupDrive = await msGraph.GetGroupDrive(result.group);
+                    returnValue.groupId = result.group;
+                    groupDriveId = await msGraph.GetGroupDrive(result.group);
                 }
 
-                if(returnValue.group != null)
+                if(!string.IsNullOrEmpty(returnValue.groupId))
                 {
-                    returnValue.customer.GroupID = returnValue.group.Id ?? "";
+                    returnValue.customer.GroupID = returnValue.groupId ?? "";
                     returnValue.customer.GroupCreated = true;
                     UpdateCustomer(returnValue.customer, "group info");
                 }
 
-                if (groupDrive != default(Drive))
+                if (!string.IsNullOrEmpty(groupDriveId))
                 {
                     log?.LogTrace($"Found group drive for {customer.Name}.");
                     returnValue.Success = true;
-                    returnValue.groupDrive = groupDrive;
-                    returnValue.customer.DriveID = returnValue.groupDrive.Id ?? "";
+                    returnValue.groupDriveId = groupDriveId;
+                    returnValue.customer.DriveID = groupDriveId ?? "";
                     UpdateCustomer(returnValue.customer, "drive info");
-                    rootItems = await msGraph.GetDriveRootItems(groupDrive);
+                    rootItems = await msGraph.GetDriveRootItems(groupDriveId);
 
                     if (rootItems.Count > 0)
                     {
@@ -575,7 +576,7 @@ namespace Shared
             FindOrderGroupAndFolder returnValue = new FindOrderGroupAndFolder();
             returnValue.Success = false;
 
-            if(settings == null || settings.GraphClient == null)
+            if(settings == null || settings.GraphClient == null || msGraph == null)
             {
                 return returnValue;
             }
@@ -606,24 +607,25 @@ namespace Shared
 
                     if (findCustomerGroupResult?.Success == true && 
                         returnValue.customer != null && 
-                        findCustomerGroupResult?.group != null && 
-                        findCustomerGroupResult?.groupDrive != null)
+                        findCustomerGroupResult?.groupId != null && 
+                        findCustomerGroupResult?.groupDriveId != null)
                     {
-                        returnValue.customer.GroupID = findCustomerGroupResult.group.Id ?? "";
-                        returnValue.customer.DriveID = findCustomerGroupResult.groupDrive.Id ?? "";
+                        returnValue.customer.GroupID = findCustomerGroupResult.groupId ?? "";
+                        returnValue.customer.DriveID = findCustomerGroupResult.groupDriveId ?? "";
                         returnValue.customer.GroupCreated = true;
                         UpdateCustomer(returnValue.customer, "group and drive info");
                         log?.LogTrace($"Found group for {returnValue.customer.Name} and order {order.ExternalId}.");
 
                         try
                         {
-                            returnValue.orderTeam = await settings.GraphClient.Groups[findCustomerGroupResult.group.Id].Team.GetAsync();
+                            returnValue.orderTeamId = await msGraph.GetTeamFromGroup(returnValue.customer.GroupID);
 
-                            if (returnValue.orderTeam != null)
+                            if (returnValue.orderTeamId != null)
                             {
                                 returnValue.customer.TeamCreated = true;
-                                returnValue.customer.TeamID = returnValue.orderTeam.Id ?? "";
+                                returnValue.customer.TeamID = returnValue.orderTeamId ?? "";
                             }
+
                             UpdateCustomer(returnValue.customer, "team info");
                             log?.LogTrace($"Found team for {returnValue.customer.Name} and order {order.ExternalId}.");
                         }
@@ -634,8 +636,8 @@ namespace Shared
                         }
 
                         returnValue.Success = true;
-                        returnValue.orderGroup = findCustomerGroupResult.group;
-                        returnValue.orderDrive = findCustomerGroupResult.groupDrive;
+                        returnValue.orderGroupId = findCustomerGroupResult.groupId;
+                        returnValue.orderDriveId = findCustomerGroupResult.groupDriveId;
 
                         if (findCustomerGroupResult.generalFolder != null)
                         {
@@ -689,7 +691,7 @@ namespace Shared
 
                             try
                             {
-                                DriveItem? foundOrderFolder = await msGraph.FindItem(returnValue.orderDrive, "General/" + parentName + "/" + order.ExternalId, false);
+                                DriveItem? foundOrderFolder = await msGraph.FindItem(returnValue.orderDriveId, "General/" + parentName + "/" + order.ExternalId, false);
 
                                 if (foundOrderFolder != null)
                                 {
@@ -705,19 +707,19 @@ namespace Shared
                                 }
                                 else
                                 {
-                                    List<DriveItem> rootItems = await msGraph.GetDriveRootItems(returnValue.orderDrive);
+                                    List<DriveItem> rootItems = await msGraph.GetDriveRootItems(returnValue.orderDriveId);
 
                                     foreach(DriveItem rootItem in rootItems)
                                     {
                                         if(rootItem.Name == "General")
                                         {
-                                            List<DriveItem> generalItems = await msGraph.GetDriveFolderChildren(returnValue.orderDrive, rootItem, false);
+                                            List<DriveItem> generalItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, rootItem.Id, false);
 
                                             foreach (DriveItem generalItem in generalItems)
                                             {
                                                 if (generalItem.Name == parentName)
                                                 {
-                                                    List<DriveItem> folderItems = await msGraph.GetDriveFolderChildren(returnValue.orderDrive, generalItem, false);
+                                                    List<DriveItem> folderItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, generalItem.Id, false);
 
                                                     foreach(DriveItem folderItem in folderItems)
                                                     {
@@ -839,7 +841,7 @@ namespace Shared
 
         public async Task<DriveItem?> GetEmailsFolder(string parent, string month, string year)
         {
-            Drive? groupDrive = default(Drive);
+            string? groupDriveId = "";
 
             if (settings == null || settings.GraphClient == null || msGraph == null || string.IsNullOrEmpty(CDNTeamID))
             {
@@ -848,7 +850,7 @@ namespace Shared
 
             try
             {
-                groupDrive = await msGraph.GetGroupDrive(CDNTeamID);
+                groupDriveId = await msGraph.GetGroupDrive(CDNTeamID);
             }
             catch (Exception ex)
             {
@@ -858,11 +860,11 @@ namespace Shared
 
             DriveItem? emailFolder = default(DriveItem);
 
-            if (groupDrive != default(Drive))
+            if (!string.IsNullOrEmpty(groupDriveId))
             {
                 try
                 {
-                    emailFolder = await msGraph.FindItem(groupDrive, parent + "/EmailMessages_" + month + "_" + year, false);
+                    emailFolder = await msGraph.FindItem(groupDriveId, parent + "/EmailMessages_" + month + "_" + year, false);
                 }
                 catch (Exception ex)
                 {
@@ -876,7 +878,7 @@ namespace Shared
 
         public async Task<DriveItem?> GetGeneralFolder(string groupId)
         {
-            Drive? groupDrive = default(Drive);
+            string? groupDriveId = "";
 
             if (settings == null || settings.GraphClient == null || msGraph == null)
             {
@@ -885,7 +887,7 @@ namespace Shared
 
             try
             {
-                groupDrive = await msGraph.GetGroupDrive(groupId);
+                groupDriveId = await msGraph.GetGroupDrive(groupId);
             }
             catch (Exception ex)
             {
@@ -895,11 +897,11 @@ namespace Shared
 
             DriveItem? generalFolder = default(DriveItem);
 
-            if (groupDrive != default(Drive))
+            if (!string.IsNullOrEmpty(groupDriveId))
             {
                 try
                 {
-                    generalFolder = await msGraph.FindItem(groupDrive, "General", false);
+                    generalFolder = await msGraph.FindItem(groupDriveId, "General", false);
                 }
                 catch (Exception ex)
                 {
@@ -911,7 +913,7 @@ namespace Shared
             return generalFolder;
         }
 
-        public async Task<DriveItem?> GetOrderFolder(string groupId, Drive groupDrive, Order order)
+        public async Task<DriveItem?> GetOrderFolder(string groupId, string groupDriveId, Order order)
         {
             DriveItem? returnValue = null;
 
@@ -925,12 +927,12 @@ namespace Shared
 
             if(generalFolder != null)
             {
-                DriveItem? orderParentFolder = await msGraph.FindItem(groupDrive, generalFolder.Id, parentName, false);
+                DriveItem? orderParentFolder = await msGraph.FindItem(groupDriveId, generalFolder.Id, parentName, false);
                 
                 if(orderParentFolder != null)
                 {
                     var orderfolderName = GetOrderExternalId(order.Type, order.ExternalId);
-                    DriveItem? orderFolder = await msGraph.FindItem(groupDrive, orderParentFolder.Id, orderfolderName, false);
+                    DriveItem? orderFolder = await msGraph.FindItem(groupDriveId, orderParentFolder.Id, orderfolderName, false);
 
                     if(orderFolder != null)
                     {
@@ -985,7 +987,7 @@ namespace Shared
 
                 if(folder != null)
                 {
-                    List<DriveItem> folderChildren = await msGraph.GetDriveFolderChildren(cdnDrive, folder, true);
+                    List<DriveItem> folderChildren = await msGraph.GetDriveFolderChildren(cdnDrive, folder.Id, true);
                     foldersToCreate.AddRange(folderChildren);
                 }
             }
@@ -997,7 +999,7 @@ namespace Shared
         {
             CreateCustomerResult returnValue = new CreateCustomerResult();
             returnValue.Success = false;
-            Group? group = default(Group);
+            string? group = "";
 
             if (settings == null || settings.GraphClient == null || msGraph == null || customer == null)
             {
@@ -1024,7 +1026,7 @@ namespace Shared
             try
             {
                 //Create a group without owners
-                group = await msGraph.CreateGroup(GroupName, mailNickname, adminids);
+                group = (await msGraph.CreateGroup(GroupName, mailNickname, adminids))?.Id;
                 log?.LogTrace($"Created group for customer {customer.Name} ({customer.ExternalId})");
             }
             catch (Exception ex)
@@ -1036,16 +1038,16 @@ namespace Shared
             //if the group was created
             if(group != null)
             {
-                customer.GroupID = group.Id ?? "";
+                customer.GroupID = group ?? "";
 
                 //get the group drive (will probably fail since thr group takes a while to create)
                 try
                 {
-                    Drive? groupDrive = await msGraph.GetGroupDrive(group);
+                    string? groupDriveId = await msGraph.GetGroupDrive(group);
 
-                    if (groupDrive != null)
+                    if (groupDriveId != null)
                     {
-                        customer.DriveID = groupDrive.Id ?? "";
+                        customer.DriveID = groupDriveId ?? "";
                     }
                 }
                 catch (Exception ex)
@@ -1065,11 +1067,11 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<bool> CreateCustomerTeam(Customer customer, Group group)
+        public async Task<bool> CreateCustomerTeam(Customer customer, string groupId)
         {
             bool returnValue = false;
 
-            if (settings == null || settings.GraphClient == null || msGraph == null || customer == null || group == null)
+            if (settings == null || settings.GraphClient == null || msGraph == null || customer == null || string.IsNullOrEmpty(groupId))
             {
                 return returnValue;
             }
@@ -1077,7 +1079,7 @@ namespace Shared
             var appId = settings.config["CustomerCardAppId"];
 
             //try to get team or create it if it's missing
-            var team = await msGraph.CreateTeamFromGroup(group);
+            var team = await msGraph.CreateTeamFromGroup(groupId);
             log?.LogTrace($"Created team for {customer.Name} ({customer.ExternalId})");
 
             if (team != null)
@@ -1090,35 +1092,29 @@ namespace Shared
                 try
                 {
                     string ContentUrl = "https://holtabcustomercard.azurewebsites.net/Home/Index?id=" + team.Id;
+                    string? teamId = team?.Id;
 
-                    if (!customer.InstalledApp && !string.IsNullOrEmpty(group.Id) && !string.IsNullOrEmpty(appId))
+                    if (!customer.InstalledApp && !string.IsNullOrEmpty(groupId) && !string.IsNullOrEmpty(appId))
                     {
-                        var groupDrive = await msGraph.GetGroupDrive(group.Id);
+                        //string? groupDriveId = await msGraph.GetGroupDrive(groupId);
+                        string? rootUrl = await msGraph.GetGroupDriveUrl(groupId);
 
-                        if (groupDrive != null)
+                        if (!string.IsNullOrEmpty(rootUrl) && !string.IsNullOrEmpty(teamId))
                         {
-                            var root = await settings.GraphClient.Drives[groupDrive.Id].Root.GetAsync();
+                            var channelSwedish = await msGraph.FindChannel(teamId, "Allmänt");
+                            var channelEnglish = await msGraph.FindChannel(teamId, "General");
+                            string? channel = channelSwedish ?? channelEnglish;
 
-                            if (root != null)
+                            if (!string.IsNullOrEmpty(channel) && !string.IsNullOrEmpty(rootUrl))
                             {
-                                var channels = await settings.GraphClient.Teams[team.Id].Channels.GetAsync();
+                                var app = await msGraph.AddTeamApp(teamId, appId);
 
-                                if (channels?.Value?.Count > 0 && !string.IsNullOrEmpty(root.WebUrl))
+                                if (app != null)
                                 {
-                                    var app = await msGraph.AddTeamApp(team, appId);
-
-                                    if (app != null)
-                                    {
-                                        var channel = channels.Value.FirstOrDefault(c => c.DisplayName == "Allmänt" || c.DisplayName == "General");
-
-                                        if(channel != null)
-                                        {
-                                            log?.LogTrace($"Adding channel for app {app.DisplayName} to {customer.Name}");
-                                            await msGraph.AddChannelApp(team, app, channel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, root.WebUrl, "");
-                                            log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
-                                            customer.InstalledApp = true;
-                                        }
-                                    }
+                                    log?.LogTrace($"Adding channel for app {app} to {customer.Name}");
+                                    await msGraph.AddChannelApp(teamId, app, channel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, rootUrl, "");
+                                    log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
+                                    customer.InstalledApp = true;
                                 }
                             }
                         }
@@ -1157,7 +1153,7 @@ namespace Shared
                 return returnValue;
             }
 
-            Group? group = default(Group);
+            string? group = "";
             string[]? admins = null;
 
             if (!string.IsNullOrEmpty(settings.Admins))
@@ -1192,7 +1188,7 @@ namespace Shared
                 //create group if it didn't exist
                 try
                 {
-                    group = await msGraph.CreateGroup(GroupName, mailNickname, adminids);
+                    group = (await msGraph.CreateGroup(GroupName, mailNickname, adminids))?.Id;
                     log?.LogTrace($"Created group for customer {customer.Name} ({customer.ExternalId})");
                 }
                 catch (Exception ex)
@@ -1204,15 +1200,15 @@ namespace Shared
 
             if (group != null)
             {
-                customer.GroupID = group.Id ?? "";
+                customer.GroupID = group ?? "";
 
                 try
                 {
-                    Drive? groupDrive = await msGraph.GetGroupDrive(group);
+                    string? groupDriveId = await msGraph.GetGroupDrive(group);
 
-                    if (groupDrive != null)
+                    if (groupDriveId != null)
                     {
-                        customer.DriveID = groupDrive.Id ?? "";
+                        customer.DriveID = groupDriveId ?? "";
                     }
                 }
                 catch (Exception ex)
@@ -1223,7 +1219,7 @@ namespace Shared
                 customer.GroupCreated = true;
                 UpdateCustomer(customer, "group and drive info");
 
-                var team = await msGraph.CreateTeamFromGroup(group);
+                var team = await msGraph.CreateTeamFromGroup(customer.GroupID);
                 log?.LogTrace($"Created team for {customer.Name} ({customer.ExternalId})");
 
                 if (team != null)
@@ -1235,30 +1231,28 @@ namespace Shared
 
                     try
                     {
-                        string ContentUrl = "https://holtabcustomercard.azurewebsites.net/Home/Index?id=" + team.Id;
+                        string ContentUrl = "https://holtabcustomercard.azurewebsites.net/Home/Index?id=" + customer.TeamID;
 
-                        if (!string.IsNullOrEmpty(group.Id))
+                        if (!string.IsNullOrEmpty(group))
                         {
-                            var groupDrive = await msGraph.GetGroupDrive(group.Id);
+                            string? groupDriveId = await msGraph.GetGroupDrive(group);
+                            string? rootUrl = await msGraph.GetGroupDriveUrl(group);
 
-                            if (groupDrive != null)
+                            if (!string.IsNullOrEmpty(groupDriveId) && !string.IsNullOrEmpty(rootUrl))
                             {
-                                var root = await settings.GraphClient.Drives[groupDrive.Id].Root.GetAsync();
+                                var generalChannelSwedish = await msGraph.FindChannel(customer.TeamID, "Allmänt");
+                                var generalChannelEnglish = await msGraph.FindChannel(customer.TeamID, "General");
+                                string? generalChannel = generalChannelSwedish ?? generalChannelEnglish;
 
-                                if (root != null)
+                                if (!string.IsNullOrEmpty(generalChannel))
                                 {
-                                    var channels = await settings.GraphClient.Teams[team.Id].Channels.GetAsync();
-
-                                    if (channels?.Value?.Count > 0 && !string.IsNullOrEmpty(root.WebUrl))
-                                    {
-                                        var app = await msGraph.AddTeamApp(team, "e2cb3981-47e7-47b3-a0e1-f9078d342253");
+                                    var app = await msGraph.AddTeamApp(customer.TeamID, "e2cb3981-47e7-47b3-a0e1-f9078d342253");
                                         
-                                        if(app != null)
-                                        {
-                                            await msGraph.AddChannelApp(team, app, channels.Value[0], "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, root.WebUrl, "");
-                                            log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
-                                            customer.InstalledApp = true;
-                                        }
+                                    if(app != null)
+                                    {
+                                        await msGraph.AddChannelApp(customer.TeamID, app, generalChannel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, rootUrl, "");
+                                        log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
+                                        customer.InstalledApp = true;
                                     }
                                 }
                             }
@@ -1305,9 +1299,9 @@ namespace Shared
                 return returnValue;
             }
 
-            Drive? cdnDrive = await msGraph.GetSiteDrive(cdnSiteId);
+            string? cdnDrive = await msGraph.GetSiteDrive(cdnSiteId);
 
-            if (cdnDrive != null)
+            if (!string.IsNullOrEmpty(cdnDrive))
             {
                 DriveItem? source = default(DriveItem);
 
@@ -1357,7 +1351,7 @@ namespace Shared
                     {
                         try
                         {
-                            var children = await msGraph.GetDriveFolderChildren(cdnDrive, source, true);
+                            var children = await msGraph.GetDriveFolderChildren(cdnDrive, source.Id, true);
 
                             foreach (var child in children)
                             {
