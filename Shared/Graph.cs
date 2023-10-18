@@ -252,13 +252,12 @@ namespace Shared
             try
             {
                 foundTeam = (await graphClient.Groups[groupId].Team.GetAsync())?.Id;
+                redisDB.StringSet($"TeamId for: {groupId}", foundTeam);
+                log?.LogInformation($"Found TeamId {foundTeam} for group {groupId}");
             }
             catch (Exception)
             {
             }
-
-            redisDB.StringSet($"TeamId for: {groupId}", foundTeam);
-            log?.LogInformation($"Found TeamId {cachedValue} for group {groupId}");
 
             return foundTeam;
         }
