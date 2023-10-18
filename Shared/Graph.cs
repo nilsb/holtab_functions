@@ -239,7 +239,10 @@ namespace Shared
             RedisValue cachedValue = redisDB.StringGet($"TeamId for: {groupId}");
 
             if (cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
+            {
+                log?.LogInformation($"Found TeamId {cachedValue} for group {groupId} in cache");
                 return cachedValue;
+            }
 
             if (graphClient == null)
             {
@@ -255,6 +258,7 @@ namespace Shared
             }
 
             redisDB.StringSet($"TeamId for: {groupId}", foundTeam);
+            log?.LogInformation($"Found TeamId {cachedValue} for group {groupId}");
 
             return foundTeam;
         }
@@ -1046,6 +1050,7 @@ namespace Shared
 
                 if (group != null)
                 {
+                    log?.LogInformation($"Found group with id {group}");
                     returnValue.Success = true;
                     returnValue.Count = 1;
                     returnValue.group = group;
