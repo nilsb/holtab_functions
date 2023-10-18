@@ -280,7 +280,7 @@ namespace Shared
             {
             }
 
-            if (!string.IsNullOrEmpty(createdTeamId))
+            if (string.IsNullOrEmpty(createdTeamId))
             {
                 log?.LogInformation("Creating team for group " + groupId);
 
