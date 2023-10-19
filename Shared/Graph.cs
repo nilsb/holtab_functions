@@ -1636,13 +1636,16 @@ namespace Shared
 
             try
             {
+                log?.LogInformation($"Trying to find group drive for file {FileName}");
                 string? groupDriveId = await GetGroupDrive(GroupID);
 
                 if(!string.IsNullOrEmpty(groupDriveId))
                 {
+                    log?.LogInformation($"Found group drive for file {FileName}");
                     //download order file content
                     returnValue.Contents = Stream.Null;
                     (await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
+                    log?.LogInformation($"Downloaded file {FileName} with size {returnValue.Contents.Length} byte");
                     returnValue.Success = true;
                 }
             }
@@ -1667,13 +1670,16 @@ namespace Shared
 
             try
             {
+                log?.LogInformation($"Trying to find group drive for file {Path}");
                 Drive? groupDrive = await GetGroupDrive(Group);
 
                 if(groupDrive != null)
                 {
+                    log?.LogInformation($"Found group drive for file {Path}");
                     //download order file content
                     returnValue.Contents = Stream.Null;
                     (await graphClient.Drives[groupDrive.Id].Items[Folder.Id].ItemWithPath(Path).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
+                    log?.LogInformation($"Downloaded file {Path} with size {returnValue.Contents.Length} byte");
                     returnValue.Success = true;
                 }
             }
@@ -1696,10 +1702,12 @@ namespace Shared
 
             try
             {
+                log?.LogInformation($"Trying to find group drive for file {FileName}");
                 string? groupDriveId = await GetGroupDrive(GroupID);
 
                 if(!string.IsNullOrEmpty(groupDriveId))
                 {
+                    log?.LogInformation($"Found group drive for file {FileName}. Creating upload request for stream with size {FileContents.Length} byte");
                     CreateUploadSessionPostRequestBody uploadRequest = new CreateUploadSessionPostRequestBody
                     {
                         Item = new DriveItemUploadableProperties
@@ -1710,11 +1718,13 @@ namespace Shared
                             }
                         }
                     };
-                    
+
+                    log?.LogInformation($"Creating upload session");
                     var fileUploadSession = await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).CreateUploadSession.PostAsync(uploadRequest);
 
                     if (fileUploadSession != null)
                     {
+                        log?.LogInformation($"Created upload session");
                         var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, FileContents, maxUploadChunkSize, graphClient.RequestAdapter);
 
                         var totalLength = FileContents.Length;
@@ -1826,11 +1836,13 @@ namespace Shared
 
             if (graphClient != null && source != null && destination != null && !string.IsNullOrEmpty(source.GroupId) && !string.IsNullOrEmpty(source.FolderId) && !string.IsNullOrEmpty(source.Path))
             {
+                log?.LogInformation($"Downloading file {source.Path}");
                 //download the file
                 DownloadFileResult downloadFile = await this.DownloadFile(source.GroupId, source.FolderId, source.Path);
 
                 if (downloadFile.Success && !string.IsNullOrEmpty(destination.GroupId) && !string.IsNullOrEmpty(destination.FolderId) && !string.IsNullOrEmpty(destination.Path))
                 {
+                    log?.LogInformation($"Uploading file {destination.Path}");
                     if (await this.UploadFile(destination.GroupId, destination.FolderId, destination.Path, downloadFile.Contents))
                     {
                         try
@@ -1839,6 +1851,7 @@ namespace Shared
 
                             if(!string.IsNullOrEmpty(groupDriveId))
                             {
+                                log?.LogInformation($"Deleting file {source.FileId}");
                                 await graphClient.Drives[groupDriveId].Items[source.FileId].DeleteAsync();
                                 returnValue = true;
                             }
