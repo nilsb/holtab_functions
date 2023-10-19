@@ -27,5 +27,6 @@ namespace Shared
         public const string ConfigConnectionString = "ConfigConnectionString";
         public const string AzureAppConfigConnection = "AzureAppConfigConnection";
         public const string CustomerCardAppId = "CustomerCardAppId";
+        public const string debugFlags = "debugFlags";
     }
 }
