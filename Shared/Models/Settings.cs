@@ -30,7 +30,9 @@ namespace Shared.Models
                     this.Admins = config["Admins"];
                     this.SqlConnectionString = config["SqlConnectionString"];
                     this.redisConnectionString = config["redisConnectionString"];
-                    this.debugFlags = Newtonsoft.Json.JsonConvert.DeserializeObject<DebugFlags>(config["debugFlags"]);
+                    
+                    if(!string.IsNullOrEmpty(config["debugFlags"]))
+                        this.debugFlags = Newtonsoft.Json.JsonConvert.DeserializeObject<DebugFlags>(config["debugFlags"]);
 
                     if (!string.IsNullOrEmpty(this.TenantID) && !string.IsNullOrEmpty(this.ClientID) && !string.IsNullOrEmpty(this.ClientSecret))
                     {
