@@ -36,15 +36,18 @@ namespace CreateTeam
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
             log.LogInformation($"Create columns queue trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Customer?.BGCreateColumn).HasValue && (settings?.debugFlags?.Customer?.BGCreateColumn).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
-            log.LogTrace($"Got copy root structure request with message: {Message}");
+            Common common = new Common(settings, msGraph, debug);
+            
+            if(debug)
+                log.LogInformation($"Customer BGCreateColumns: Got copy root structure request with message: {Message}");
 
             //Parse the incoming message into JSON
             CustomerQueueMessage customerQueueMessage = JsonConvert.DeserializeObject<CustomerQueueMessage>(Message);
 
             //Get customer object from database
-            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);
+            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name, debug);
 
             if (findCustomer.Success && findCustomer.customer != null && findCustomer.customer != default(Customer))
             {
@@ -53,7 +56,7 @@ namespace CreateTeam
                 //Try to find the group and drive for the customer
                 //This also assigns GroupId, DriveID and GeneralFolderID in the database if it was missing
                 //The returned object contains the group object, the drive object, the root folder object and the general folder object
-                FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer);
+                FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer, debug);
 
                 //if the group was found
                 if (findCustomerGroup.Success && !string.IsNullOrEmpty(findCustomerGroup.groupId))
@@ -61,17 +64,20 @@ namespace CreateTeam
                     try
                     {
                         //Create custom document library columns
-                        await CreateColumn(settings, msGraph, common, findCustomerGroup.groupId, customer);
+                        await CreateColumn(settings, msGraph, common, findCustomerGroup.groupId, customer, debug);
                         customer.CreatedColumnAdditionalInfo = true;
                         customer.CreatedColumnKundnummer = true;
                         customer.CreatedColumnNAVid = true;
                         customer.CreatedColumnProduktionsdokument = true;
-                        common.UpdateCustomer(customer, "columns");
+                        common.UpdateCustomer(customer, "columns", debug);
                     }
                     catch (Exception ex)
                     {
-                        log.LogError(ex.ToString());
-                        log.LogTrace($"Failed to add columns to {customer.Name} with error: " + ex.ToString());
+                        log.LogError("Customer BGCreateColumns: " + ex.ToString());
+
+                        if(debug)
+                            log.LogInformation($"Customer BGCreateColumns: Failed to add columns to {customer.Name} with error " + ex.ToString());
+
                         return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(Message));
                     }
                 }
@@ -88,10 +94,10 @@ namespace CreateTeam
             return new OkObjectResult(JsonConvert.SerializeObject(Message));
         }
 
-        public async Task CreateColumn(Settings settings, Graph msGraph, Common common, string groupId, Customer customer)
+        public async Task CreateColumn(Settings settings, Graph msGraph, Common common, string groupId, Customer customer, bool debug)
         {
-            string driveId = await msGraph.GetGroupDrive(groupId);
-            string driveUrl = await msGraph.GetGroupDriveUrl(groupId);
+            string driveId = await msGraph.GetGroupDrive(groupId, debug);
+            string driveUrl = await msGraph.GetGroupDriveUrl(groupId, debug);
 
             if (string.IsNullOrEmpty(driveId))
             {
@@ -153,8 +159,10 @@ namespace CreateTeam
             catch (ServiceException ex)
             {
                 var errorMessage = ex.RawResponseBody.ToString();
-                settings.log.LogError(ex.ToString());
-                settings.log.LogTrace($"Failed to add column Kundnummer to {customer.Name} with error: " + ex.ToString());
+                settings.log.LogError("Customer BGCreateColumns: " + ex.ToString());
+
+                if(debug)
+                    settings.log.LogTrace($"Customer BGCreateColumns: Failed to add column Kundnummer to {customer.Name} with error " + ex.ToString());
             }
 
             try
@@ -174,7 +182,9 @@ namespace CreateTeam
 
                 if(!navidExists)
                 {
-                    settings.log.LogTrace($"Adding column NAVid to {customer.Name} ({customer.ExternalId})");
+                    if(debug)
+                        settings.log.LogInformation($"Customer BGCreateColumns: Adding column NAVid to {customer.Name} ({customer.ExternalId})");
+
                     ColumnDefinition navIdDef = new ColumnDefinition()
                     {
                         Description = "NAVid",
@@ -198,8 +208,10 @@ namespace CreateTeam
             }
             catch (Exception ex)
             {
-                settings.log.LogError(ex.ToString());
-                settings.log.LogTrace($"Failed to add column NAVid to {customer.Name} with error: " + ex.ToString());
+                settings.log.LogError("Customer BGCreateColumns: " + ex.ToString());
+
+                if(debug)
+                    settings.log.LogInformation($"Customer BGCreateColumns: Failed to add column NAVid to {customer.Name} with error " + ex.ToString());
             }
 
             try
@@ -219,14 +231,16 @@ namespace CreateTeam
 
                 if (!produktionsdokumentExists)
                 {
-                    settings.log.LogTrace($"Adding column Produktionsdokument to {customer.Name} ({customer.ExternalId})");
+                    if(debug)
+                        settings.log.LogInformation($"Customer BGCreateColumns: Adding column Produktionsdokument to {customer.Name} ({customer.ExternalId})");
+
                     ColumnDefinition isProdDef = new ColumnDefinition()
                     {
                         Description = "Produktionsdokument",
                         Choice = new ChoiceColumn()
                         {
                             DisplayAs = "checkBoxes",
-                            Choices = await GetProductionChoices(settings)
+                            Choices = await GetProductionChoices(settings, debug)
                         },
                         Name = "Produktionsdokument",
                         Hidden = false,
@@ -239,8 +253,10 @@ namespace CreateTeam
             }
             catch (Exception ex)
             {
-                settings.log.LogError(ex.ToString());
-                settings.log.LogTrace($"Failed to add column Produktionsdokument to {customer.Name} with error: " + ex.ToString());
+                settings.log.LogError("Customer BGCreateColumns: " + ex.ToString());
+
+                if(debug)
+                    settings.log.LogInformation($"Customer BGCreateColumns: Failed to add column Produktionsdokument to {customer.Name} with error " + ex.ToString());
             }
         }
 
@@ -251,7 +267,7 @@ namespace CreateTeam
         /// <param name="log"></param>
         /// <param name="config"></param>
         /// <returns>A list of string values</returns>
-        public async Task<List<string>> GetProductionChoices(Settings settings)
+        public async Task<List<string>> GetProductionChoices(Settings settings, bool debug)
         {
             List<string> returnValue = new List<string>();
             ListItemCollectionResponse listItems = default(ListItemCollectionResponse);
@@ -267,8 +283,10 @@ namespace CreateTeam
             }
             catch (Exception ex)
             {
-                settings.log?.LogError(ex.ToString());
-                settings.log?.LogTrace($"Failed to get choices for column Produktionsdokument with error: " + ex.ToString());
+                settings.log?.LogError("GetProductionChoices: " + ex.ToString());
+
+                if(debug)
+                    settings.log?.LogInformation($"GetProductionChoices: Failed to get choices for column Produktionsdokument with error " + ex.ToString());
             }
 
             if (listItems != null && listItems?.Value?.Count > 0)

@@ -23,18 +23,22 @@ namespace Jobs
         [FunctionName("PostProcessEmails")]
         public async Task Run([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, [Queue("receive"), StorageAccount("AzureWebJobsStorage")] ICollector<string> outputQueueItem, Microsoft.Azure.WebJobs.ExecutionContext context, ILogger log)
         {
-            log.LogInformation($"PostProcessEmail Timer trigger function executed at: {DateTime.Now}");
 
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Job?.PostProcessEmails).HasValue && (settings?.debugFlags?.Job?.PostProcessEmails).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
+
+            if(debug)
+                log.LogInformation($"Job PostProcessEmails: Timer trigger function executed at: {DateTime.Now}");
+
             string orderNo = "";
             List<OrderFiles> orderFiles = new List<OrderFiles>();
-            string groupDriveId = await msGraph.GetGroupDrive(settings.CDNTeamID);
-            DriveItem emailMessagesFolder = await common.GetEmailsFolder("General", DateTime.Now.Month.ToString(), DateTime.Now.Year.ToString());
-            var emailMessagesChildren = await msGraph.GetDriveFolderChildren(groupDriveId, emailMessagesFolder.Id, false);
-            emailMessagesFolder = await common.GetEmailsFolder("Salesemails", DateTime.Now.Month.ToString(), DateTime.Now.Year.ToString());
-            var salesEmailMessagesChildren = await msGraph.GetDriveFolderChildren(groupDriveId, emailMessagesFolder.Id, false);
+            string groupDriveId = await msGraph.GetGroupDrive(settings.CDNTeamID, debug);
+            DriveItem emailMessagesFolder = await common.GetEmailsFolder("General", DateTime.Now.Month.ToString(), DateTime.Now.Year.ToString(), debug);
+            var emailMessagesChildren = await msGraph.GetDriveFolderChildren(groupDriveId, emailMessagesFolder.Id, false, debug);
+            emailMessagesFolder = await common.GetEmailsFolder("Salesemails", DateTime.Now.Month.ToString(), DateTime.Now.Year.ToString(), debug);
+            var salesEmailMessagesChildren = await msGraph.GetDriveFolderChildren(groupDriveId, emailMessagesFolder.Id, false, debug);
 
             if(emailMessagesChildren != null && salesEmailMessagesChildren != null)
             {
@@ -58,7 +62,9 @@ namespace Jobs
 
                         if (!string.IsNullOrEmpty(orderNo) && emailChild.Name.StartsWith(orderNo))
                         {
-                            log.LogInformation($"Found orderno: {orderNo} in filename: {emailChild.Name}");
+                            if(debug)
+                                log.LogInformation($"Job PostProcessEmails: Found orderno {orderNo} in filename {emailChild.Name}");
+
                             var order = new OrderFiles();
                             order.file = emailChild;
                             order.associated = new List<DriveItem>();
@@ -75,7 +81,9 @@ namespace Jobs
                                 }
                             }
 
-                            log.LogInformation("Putting message on handle email queue: { \"filename\": \"" + emailChild.Name + "\", \"Source\": \"PostProcess\" }");
+                            if(debug)
+                                log.LogInformation("Job PostProcessEmails: Putting message on handle email queue { \"filename\": \"" + emailChild.Name + "\", \"Source\": \"PostProcess\" }");
+
                             outputQueueItem.Add("{ \"filename\": \"" + emailChild.Name + "\", \"Source\": \"PostProcess\" }");
                             orderFiles.Add(order);
                         }
@@ -87,8 +95,9 @@ namespace Jobs
                     //if (emailChild.CreatedDateTime.Value >= DateTime.Now.AddHours(-1))
                     //    continue;
 
-                    if (!emailChild.Name.ToLowerInvariant().EndsWith("pdf") && !orderFiles.Exists(of => of.associated.Exists(ofa => ofa.Name == emailChild.Name)))
+                    if (debug && !emailChild.Name.ToLowerInvariant().EndsWith("pdf") && !orderFiles.Exists(of => of.associated.Exists(ofa => ofa.Name == emailChild.Name)))
                         log.LogInformation("Putting message on handle email queue: { \"title\": \"" + emailChild.Name + "\", \"Source\": \"PostProcess\" }");
+
                     outputQueueItem.Add("{ \"title\": \"" + emailChild.Name + "\", \"Source\": \"PostProcess\" }");
                 }
             }

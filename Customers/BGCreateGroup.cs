@@ -35,15 +35,16 @@ namespace CreateTeam
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
             log.LogInformation($"Create group queue trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Customer?.BGGreateGroup).HasValue && (settings?.debugFlags?.Customer?.BGGreateGroup).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
             log.LogTrace($"Got create group request with message: {Message}");
 
             //Parse the incoming message into JSON
             CustomerQueueMessage customerQueueMessage = JsonConvert.DeserializeObject<CustomerQueueMessage>(Message);
 
             //Get customer object from database
-            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);
+            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name, debug);
 
             if (findCustomer.Success && findCustomer.customer != null && findCustomer.customer != default(Customer))
             {
@@ -52,7 +53,7 @@ namespace CreateTeam
                 //Try to find the group and drive for the customer
                 //This also assigns GroupId, DriveID and GeneralFolderID in the database if it was missing
                 //The returned object contains the group object, the drive object, the root folder object and the general folder object
-                FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer);
+                FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer, debug);
 
                 //if the group was found
                 if (findCustomerGroup.Success && !string.IsNullOrEmpty(findCustomerGroup.groupId))
@@ -80,7 +81,7 @@ namespace CreateTeam
                         customer.GeneralFolderID = findCustomerGroup.generalFolder.Id;
 
                         //update the database with the new customer information
-                        common.UpdateCustomer(customer, "group and drive info");
+                        common.UpdateCustomer(customer, "group and drive info", debug);
 
                         //the group and general folder exists so continue
                         return new OkObjectResult(Message);
@@ -90,20 +91,22 @@ namespace CreateTeam
                         //if the general folder was not found try to create it
                         try
                         {
-                            CreateFolderResult generalFolder = await msGraph.CreateFolder(findCustomerGroup.groupId, "General");
+                            CreateFolderResult generalFolder = await msGraph.CreateFolder(findCustomerGroup.groupId, "General", debug);
                             customer.GeneralFolderID = generalFolder.folder.Id;
                             customer.GeneralFolderCreated = true;
 
                             //update the database with the new customer information
-                            common.UpdateCustomer(customer, "group and drive info");
+                            common.UpdateCustomer(customer, "group and drive info", debug);
 
                             //the general folder and group exists so continue
                             return new OkObjectResult(Message);
                         }
                         catch (Exception ex)
                         {
-                            log.LogError(ex.ToString());
-                            log.LogTrace($"Failed to create general folder for {customer.Name} with error: " + ex.ToString());
+                            log.LogError("Customer BGCreateGroup: " + ex.ToString());
+
+                            if(debug)
+                                log.LogInformation($"Customer BGCreateGroup: Failed to create general folder for {customer.Name} with error " + ex.ToString());
                         }
 
                         //couldn't create the general folder so we need to try this all over again.
@@ -118,7 +121,7 @@ namespace CreateTeam
                 else
                 {
                     //If the group was not found, create group
-                    CreateCustomerResult result = await common.CreateCustomerGroup(customer);
+                    CreateCustomerResult result = await common.CreateCustomerGroup(customer, debug);
 
                     if (result.Success && result.customer != null && result.customer != default(Customer))
                     {
@@ -132,7 +135,7 @@ namespace CreateTeam
                             //try to create the general folder;
                             try
                             {
-                                CreateFolderResult generalFolder = await msGraph.CreateFolder(result.group, "General");
+                                CreateFolderResult generalFolder = await msGraph.CreateFolder(result.group, "General", debug);
 
                                 if (generalFolder.Success && generalFolder?.folder != null)
                                 {
@@ -142,8 +145,10 @@ namespace CreateTeam
                             }
                             catch (Exception ex)
                             {
-                                log.LogError(ex.ToString());
-                                log.LogTrace($"Failed to create general folder for {customer.Name} with error: " + ex.ToString());
+                                log.LogError("Customer BGCreateGroup: " + ex.ToString());
+
+                                if(debug)
+                                    log.LogInformation($"Customer BGCreateGroup: Failed to create general folder for {customer.Name} with error " + ex.ToString());
                             }
 
                             //the general folder couldn't be created so we need to try this all over again
@@ -153,7 +158,7 @@ namespace CreateTeam
                             }
 
                             //update the database with the new customer information
-                            common.UpdateCustomer(customer, "group and drive info");
+                            common.UpdateCustomer(customer, "group and drive info", debug);
 
                             //everything went ok so send message to assign owner and copy root structure
                             return new OkObjectResult(Message);

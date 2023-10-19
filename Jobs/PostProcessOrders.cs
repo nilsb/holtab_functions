@@ -24,21 +24,25 @@ namespace Jobs
         [FunctionName("PostProcessOrders")]
         public void Run([TimerTrigger("0 */5 * * * *")]TimerInfo myTimer, [Queue("createorder"), StorageAccount("AzureWebJobsStorage")] ICollector<string> outputQueueItem, Microsoft.Azure.WebJobs.ExecutionContext context, ILogger log)
         {
-            log.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
-
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Job?.PostProcessOrders).HasValue && (settings?.debugFlags?.Job?.PostProcessOrders).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
 
-            var orderItems = common.GetUnhandledOrderItems();
+            if(debug)
+                log.LogInformation($"Job PostProcessOrders: Timer trigger function executed at: {DateTime.Now}");
+
+            var orderItems = common.GetUnhandledOrderItems(debug);
 
             foreach(var order in orderItems)
             {
                 order.QueueCount = order.QueueCount + 1;
-                common.UpdateOrder(order, "queue count");
+                common.UpdateOrder(order, "queue count", debug);
 
                 if (order.QueueCount < 3) {
-                    log.LogTrace("Putting message on order queue: " + JsonConvert.SerializeObject(order));
+                    if(debug)
+                        log.LogInformation("Job PostProcessOrders: Putting message on order queue " + JsonConvert.SerializeObject(order));
+
                     var response = _http.PostAsJsonAsync<OrderMessage>("https://prod-43.westeurope.logic.azure.com:443/workflows/f048e29daba148ea989a6aac88aa636b/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=vDwjEvZsMdJ6QurTJMKVu6NEgK7MorJm3mzSck7NkNA", 
                         new OrderMessage { AdditionalInfo = order.AdditionalInfo, CustomerNo = order.CustomerNo, CustomerType = order.CustomerType, No = order.ExternalId, ProjectManager = order.ProjectManager, Seller = order.Seller, Type = order.Type });
                     //outputQueueItem.Add(JsonConvert.SerializeObject(order));

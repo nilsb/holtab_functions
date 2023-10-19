@@ -32,27 +32,30 @@ namespace CreateTeam
             Settings settings = new Settings(config, context, log);
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
             log.LogInformation($"Copy root structure queue trigger function processed message: {Message}");
+            bool debug = (settings?.debugFlags?.Customer?.BGCopyRootStructure).HasValue && (settings?.debugFlags?.Customer?.BGCopyRootStructure).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
             log.LogTrace($"Got copy root structure request with message: {Message}");
 
             //Parse the incoming message into JSON
             CustomerQueueMessage customerQueueMessage = JsonConvert.DeserializeObject<CustomerQueueMessage>(Message);
 
             //Get customer object from database
-            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);
+            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name, debug);
 
             if (findCustomer.Success && findCustomer.customer != null && findCustomer.customer != default(Customer))
             {
                 Customer customer = findCustomer.customer;
 
                 //try to copy the root structure based on type of customer
-                if (await common.CopyRootStructure(customer))
+                if (await common.CopyRootStructure(customer, debug))
                 {
-                    log.LogTrace($"Created template folders");
+                    if(debug)
+                        log.LogInformation($"Created template folders");
+
                     customer.GeneralFolderCreated = true;
                     customer.CopiedRootStructure = true;
-                    common.UpdateCustomer(customer, "root structure");
+                    common.UpdateCustomer(customer, "root structure", debug);
 
                     return new OkObjectResult(JsonConvert.SerializeObject(Message));
                 }

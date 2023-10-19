@@ -30,19 +30,22 @@ namespace CreateTeam
             ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
-            log.LogInformation($"Customer Information trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Customer?.BGCustomerInfo).HasValue && (settings?.debugFlags?.Customer?.BGCustomerInfo).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
+            
+            if (debug)
+                log.LogInformation($"Customer Information trigger function processed message: {Message}");
 
             //Parse the incoming message into JSON
             CustomerMessage customerMessage = JsonConvert.DeserializeObject<CustomerMessage>(Message);
 
             //Find the customer in the database and update the information or create it if it doesn't exist
-            Customer createdCustomer = common.UpdateOrCreateDbCustomer(customerMessage);
+            Customer createdCustomer = common.UpdateOrCreateDbCustomer(customerMessage, debug);
 
             //Make sure the customer record exists in database by trying to find it again
-            FindCustomerResult customerResult = common.GetCustomer(customerMessage.CustomerNo, customerMessage.Type, customerMessage.CustomerName);
+            FindCustomerResult customerResult = common.GetCustomer(customerMessage.CustomerNo, customerMessage.Type, customerMessage.CustomerName, debug);
 
             //If the customer was found
             if (customerResult.Success && customerResult.customer != null && customerResult.customer != default(Customer))
