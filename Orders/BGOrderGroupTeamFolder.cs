@@ -40,14 +40,15 @@ namespace Orders
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
 
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Order?.BGOrderGroupTeamFolder).HasValue && (settings?.debugFlags?.Order?.BGOrderGroupTeamFolder).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
             OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message);
-            Order order = common.GetOrderFromCDN(orderMessage.No);
+            Order order = common.GetOrderFromCDN(orderMessage.No, debug);
 
             if(order?.Customer != null)
             {
-                var groupDrive = await common.FindCustomerGroupAndDrive(order.Customer);
+                var groupDrive = await common.FindCustomerGroupAndDrive(order.Customer, debug);
 
                 if (groupDrive?.Success == true && groupDrive?.customer != null)
                 {
@@ -64,38 +65,40 @@ namespace Orders
                                 order.Customer.TeamCreated = true;
                                 order.Customer.TeamID = orderTeam.Id;
                             }
-                            common.UpdateCustomer(order.Customer, "team info");
+                            common.UpdateCustomer(order.Customer, "team info", debug);
                         }
                         catch (Exception ex)
                         {
-                            log.LogError(ex.ToString());
-                            log.LogTrace($"Failed to find team for {order.Customer.Name} and order {order.ExternalId}.");
+                            log.LogError("Order BGOrderGroupTeamFolder: " + ex.ToString());
+
+                            if(debug)
+                                log.LogInformation($"Order BGOrderGroupTeamFolder: Failed to find team for {order.Customer.Name} and order {order.ExternalId}.");
                         }
 
                         if (!string.IsNullOrEmpty(groupDrive.customer.GeneralFolderID))
                         {
                             orderMessage.GeneralFolderID = groupDrive.customer.GeneralFolderID;
                             groupDrive.customer.GeneralFolderCreated = true;
-                            common.UpdateCustomer(groupDrive.customer, "drive and folder info.");
+                            common.UpdateCustomer(groupDrive.customer, "drive and folder info.", debug);
 
                             order.Status = "Incomplete";
                             order.GroupFound = true;
-                            common.UpdateOrder(order, "group info");
+                            common.UpdateOrder(order, "group info", debug);
 
                             string parentName = common.GetOrderParentFolderName(orderMessage.Type);
                             var orderfolderName = common.GetOrderExternalId(orderMessage.Type, orderMessage.No);
                             //orderMessage.No = common.GetOrderExternalId(orderMessage.Type, orderMessage.No);
-                            var orderParent = await msGraph.CreateFolder(groupDrive.groupId, groupDrive.customer.GeneralFolderID, parentName);
+                            var orderParent = await msGraph.CreateFolder(groupDrive.groupId, groupDrive.customer.GeneralFolderID, parentName, debug);
 
                             if (orderParent?.Success == true)
                             {
                                 order = common.SetFolderStatus(order, true);
                                 order.Handled = false;
                                 order.Status = "Parent Folder Found/Created";
-                                common.UpdateOrder(order, "Parent folder info");
+                                common.UpdateOrder(order, "Parent folder info", debug);
 
                                 //order parent was found so find or create order folder
-                                var orderFolder = await msGraph.CreateFolder(groupDrive.groupId, orderParent.folder.Id, orderfolderName);
+                                var orderFolder = await msGraph.CreateFolder(groupDrive.groupId, orderParent.folder.Id, orderfolderName, debug);
 
                                 if(orderFolder?.Success == true && orderFolder?.Existed == false)
                                 {
@@ -109,7 +112,7 @@ namespace Orders
                                     order.FolderID = orderFolder.folder.Id;
                                     order.Handled = false;
                                     order.Status = "Folder Created";
-                                    common.UpdateOrder(order, "folder info");
+                                    common.UpdateOrder(order, "folder info", debug);
 
                                     orderMessage.OrderParentFolderID = orderParent.folder.Id;
                                     orderMessage.OrderFolderID = orderFolder.folder.Id;
@@ -127,7 +130,7 @@ namespace Orders
                                     order.FolderID = orderFolder.folder.Id;
                                     order.Handled = false;
                                     order.Status = "Folder Already Existed";
-                                    common.UpdateOrder(order, "folder info");
+                                    common.UpdateOrder(order, "folder info", debug);
 
                                     orderMessage.OrderParentFolderID = orderParent.folder.Id;
                                     orderMessage.OrderFolderID = orderFolder.folder.Id;
@@ -145,7 +148,7 @@ namespace Orders
                                     order.FolderID = null;
                                     order.Handled = false;
                                     order.Status = "Error Finding/Creating Folder";
-                                    common.UpdateOrder(order, "folder info");
+                                    common.UpdateOrder(order, "folder info", debug);
 
                                     return new UnprocessableEntityObjectResult($"Unable to find or create the order folder in customer {order.Customer.Name} ({order.Customer.ExternalId}) for order {orderMessage.No}");
                                 }
@@ -161,7 +164,7 @@ namespace Orders
                                 order.OrdersFolderFound = false;
                                 order.Handled = false;
                                 order.Status = "Error Finding/Creating Parent Folder";
-                                common.UpdateOrder(order, "folder info");
+                                common.UpdateOrder(order, "folder info", debug);
 
                                 return new UnprocessableEntityObjectResult($"Unable to find or create the order parent folder in customer {order.Customer.Name} ({order.Customer.ExternalId}) for order {orderMessage.No}");
                             }
@@ -177,7 +180,7 @@ namespace Orders
                             order.OrdersFolderFound = false;
                             order.Handled = false;
                             order.Status = "Error Finding General Folder";
-                            common.UpdateOrder(order, "folder info");
+                            common.UpdateOrder(order, "folder info", debug);
 
                             return new NotFoundObjectResult($"Unable to find the general folder in customer {order.Customer.Name} ({order.Customer.ExternalId}) for order {orderMessage.No}");
                         }
@@ -193,7 +196,7 @@ namespace Orders
                         order.OrdersFolderFound = false;
                         order.Handled = false;
                         order.Status = "Error Finding Group drive for customer";
-                        common.UpdateOrder(order, "folder info");
+                        common.UpdateOrder(order, "folder info", debug);
 
                         return new NotFoundObjectResult($"Unable to find the drive in customer {order.Customer.Name} ({order.Customer.ExternalId}) for order {orderMessage.No}");
                     }

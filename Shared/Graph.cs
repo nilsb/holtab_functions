@@ -233,14 +233,16 @@ namespace Shared
         //    return foundTeam;
         //}
 
-        public async Task<string?> GetTeamFromGroup(string groupId)
+        public async Task<string?> GetTeamFromGroup(string groupId, bool debug)
         {
             string? foundTeam = null;
             RedisValue cachedValue = redisDB.StringGet($"TeamId for: {groupId}");
 
             if (cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
             {
-                log?.LogInformation($"Found TeamId {cachedValue} for group {groupId} in cache");
+                if(debug)
+                    log?.LogInformation($"GetTeamFromGroup: Found TeamId {cachedValue} for group {groupId} in cache");
+
                 return cachedValue;
             }
 
@@ -253,16 +255,19 @@ namespace Shared
             {
                 foundTeam = (await graphClient.Groups[groupId].Team.GetAsync())?.Id;
                 redisDB.StringSet($"TeamId for: {groupId}", foundTeam);
-                log?.LogInformation($"Found TeamId {foundTeam} for group {groupId}");
+
+                if(debug)
+                    log?.LogInformation($"GetTeamFromGroup: Found TeamId {foundTeam} for group {groupId}");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                log?.LogError("GetTeamFromGroup: " + ex.ToString());
             }
 
             return foundTeam;
         }
 
-        public async Task<Team?> CreateTeamFromGroup(string groupId)
+        public async Task<Team?> CreateTeamFromGroup(string groupId, bool debug)
         {
             Team? createdTeam = null;
             string? createdTeamId = "";
@@ -274,15 +279,17 @@ namespace Shared
 
             try
             {
-                createdTeamId = await this.GetTeamFromGroup(groupId);
+                createdTeamId = await this.GetTeamFromGroup(groupId, debug);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                log?.LogError("CreateTeamFromGroup: " + ex.ToString());
             }
 
             if (string.IsNullOrEmpty(createdTeamId))
             {
-                log?.LogInformation("Creating team for group " + groupId);
+                if(debug)
+                    log?.LogInformation("CreateTeamFromGroup: Creating team for group " + groupId);
 
                 try
                 {
@@ -308,20 +315,23 @@ namespace Shared
                     //create a team from newly created group
                     createdTeam = await graphClient.Groups[groupId].Team.PutAsync(teamSettings);
                     redisDB.StringSet($"TeamId for: {groupId}", createdTeam?.Id);
-                    log?.LogInformation("Waiting 60s for team to be created");
+
+                    if(debug)
+                        log?.LogInformation("CreateTeamFromGroup: Waiting 60s for team to be created");
+
                     //wait for team to be created
                     Thread.Sleep(60000);
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.Message);
+                    log?.LogError("CreateTeamFromGroup: " + ex.Message);
                 }
             }
 
             return createdTeam;
         }
 
-        public async Task<string?> AddTeamApp(string teamId, string appId)
+        public async Task<string?> AddTeamApp(string teamId, string appId, bool debug)
         {
             string? returnValue = "";
 
@@ -332,9 +342,11 @@ namespace Shared
 
             try
             {
-                if(string.IsNullOrEmpty(await this.IsTeamInstalledApp(teamId, "", appId)))
+                if(string.IsNullOrEmpty(await this.IsTeamInstalledApp(teamId, "", appId, debug)))
                 {
-                    log?.LogInformation("Add app to team " + teamId);
+                    if(debug)
+                        log?.LogInformation("AddTeamApp: Add app to team " + teamId);
+
                     var teamsAppInstallation = new TeamsAppInstallation
                     {
                         AdditionalData = new Dictionary<string, object>()
@@ -349,13 +361,13 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.Message);
+                log?.LogError("AddTeamApp: " + ex.Message);
             }
 
             return returnValue;
         }
 
-        public async Task<string?> IsTeamInstalledApp(string teamId, string appName, string appId)
+        public async Task<string?> IsTeamInstalledApp(string teamId, string appName, string appId, bool debug)
         {
             string? returnValue = "";
 
@@ -365,6 +377,9 @@ namespace Shared
 
                 if(cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
                 {
+                    if (debug)
+                        log?.LogInformation($"IsTeamInstalledApp: Found app {appName} for team {teamId} in cache");
+
                     return cachedValue;
                 }
             }
@@ -375,6 +390,9 @@ namespace Shared
 
                 if (cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
                 {
+                    if (debug)
+                        log?.LogInformation($"IsTeamInstalledApp: Found appid {appId} for team {teamId} in cache");
+
                     return cachedValue;
                 }
             }
@@ -467,7 +485,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<bool> TabExists(string teamId, string channelId, string tabName)
+        public async Task<bool> TabExists(string teamId, string channelId, string tabName, bool debug)
         {
             bool returnValue = false;
 
@@ -494,14 +512,14 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.Message);
+                    log?.LogError("TabExists: " + ex.Message);
                 }
             }
 
             return returnValue;
         }
 
-        public async Task<dynamic?> GetTab(string teamId, string channelId, string tabName)
+        public async Task<dynamic?> GetTab(string teamId, string channelId, string tabName, bool debug)
         {
             dynamic? returnValue = null;
 
@@ -529,15 +547,15 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.Message);
+                log?.LogError("GetTab: " + ex.Message);
             }
 
             return returnValue;
         }
 
-        public async Task RemoveTab(string teamId, string channelId, string TabId)
+        public async Task RemoveTab(string teamId, string channelId, string TabId, bool debug)
         {
-            if (graphClient != null && await TabExists(teamId, channelId, TabId))
+            if (graphClient != null && await TabExists(teamId, channelId, TabId, debug))
             {
                 try
                 {
@@ -545,20 +563,21 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.Message);
+                    log?.LogError("RemoveTab: " + ex.Message);
                 }
             }
         }
 
-        public async Task<bool> AddChannelWebApp(string teamId, string channelId, string tabName, string contentUrl, string webUrl)
+        public async Task<bool> AddChannelWebApp(string teamId, string channelId, string tabName, string contentUrl, string webUrl, bool debug)
         {
             bool returnValue = false;
 
-            if (!(await TabExists(teamId, channelId, tabName)))
+            if (!(await TabExists(teamId, channelId, tabName, debug)))
             {
                 try
                 {
-                    log?.LogInformation("Adding website tab");
+                    if(debug)
+                        log?.LogInformation("AddChannelWebApp: Adding website tab");
 
                     TeamsTab infotab = new TeamsTab()
                     {
@@ -583,22 +602,23 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.Message);
+                    log?.LogError("AddChannelWebApp: " + ex.Message);
                 }
             }
 
             return returnValue;
         }
 
-        public async Task<bool> AddChannelApp(string teamId, string appId, string channelId, string tabName, string entityId, string contentUrl, string webUrl, string removeUrl)
+        public async Task<bool> AddChannelApp(string teamId, string appId, string channelId, string tabName, string entityId, string contentUrl, string webUrl, string removeUrl, bool debug)
         {
             bool returnValue = false;
 
-            if(!(await TabExists(teamId, channelId, tabName)))
+            if(!(await TabExists(teamId, channelId, tabName, debug)))
             {
                 try
                 {
-                    log?.LogInformation("Adding app tab");
+                    if(debug)
+                        log?.LogInformation("AddChannelApp: Adding app tab");
 
                     TeamsTab infotab = new TeamsTab()
                     {
@@ -635,14 +655,14 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.Message);
+                    log?.LogError("AddChannelApp: " + ex.Message);
                 }
             }
 
             return returnValue;
         }
 
-        public async Task<string?> FindChannel(string teamId, string channelName)
+        public async Task<string?> FindChannel(string teamId, string channelName, bool debug)
         {
             string? returnValue = null;
             
@@ -653,7 +673,8 @@ namespace Shared
 
             try
             {
-                log?.LogInformation("Find channel " + channelName + " in team " + teamId);
+                if(debug)
+                    log?.LogInformation("FindChannel: Find channel " + channelName + " in team " + teamId);
 
                 var channels = await graphClient.Teams[teamId].Channels.GetAsync();
 
@@ -661,21 +682,21 @@ namespace Shared
                 {
                     returnValue = channels.Value.FirstOrDefault(c => c.DisplayName == channelName)?.Id;
 
-                    if(returnValue != null)
+                    if(returnValue != null && debug)
                     {
-                        log?.LogInformation("Channel " + channelName + " found in team " + teamId);
+                        log?.LogInformation("FindChannel: Channel " + channelName + " found in team " + teamId);
                     }
                 }
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.Message);
+                log?.LogError("FindChannel: " + ex.Message);
             }
 
             return returnValue;
         }
 
-        public async Task<string?> AddChannel(string teamId, string channelName, string channelDescription, ChannelMembershipType type)
+        public async Task<string?> AddChannel(string teamId, string channelName, string channelDescription, ChannelMembershipType type, bool debug)
         {
             string? returnValue = "";
 
@@ -684,11 +705,12 @@ namespace Shared
                 return returnValue;
             }
 
-            if(string.IsNullOrEmpty(await FindChannel(teamId, channelName)))
+            if(string.IsNullOrEmpty(await FindChannel(teamId, channelName, debug)))
             {
                 try
                 {
-                    log?.LogInformation("Add channel " + channelName + " to team " + teamId);
+                    if(debug)
+                        log?.LogInformation("AddChannel: Adding " + channelName + " to team " + teamId);
 
                     var channel = new Channel
                     {
@@ -706,12 +728,12 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.Message);
+                    log?.LogError("AddChannel: " + ex.Message);
                 }
             }
             else
             {
-                log?.LogInformation("Channel " + channelName + " already existed in team " + teamId);
+                log?.LogInformation("AddChannel: " + channelName + " already existed in team " + teamId);
             }
 
             return returnValue;
@@ -755,7 +777,7 @@ namespace Shared
         #endregion
 
         #region Groups
-        public async Task<bool> AddGroupOwner(string userEmail, string GroupId)
+        public async Task<bool> AddGroupOwner(string userEmail, string GroupId, bool debug)
         {
             string? memberToAdd = "";
             bool returnValue = true;
@@ -770,13 +792,15 @@ namespace Shared
                 else {
                     try
                     {
-                        log?.LogInformation($"Trying to find member {userEmail}");
+                        if(debug)
+                            log?.LogInformation($"AddGroupOwner: Trying to find member {userEmail}");
+
                         memberToAdd = (await graphClient.Users[userEmail].GetAsync())?.Id;
                         redisDB.StringSet(userEmail, memberToAdd);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-                        log?.LogInformation($"Unable to find member {userEmail}");
+                        log?.LogError($"AddGroupOwner: Unable to find member {userEmail} with error {ex.ToString()}");
                     }
                 }
 
@@ -805,14 +829,18 @@ namespace Shared
 
                             if (!ownerExists)
                             {
-                                log?.LogInformation($"Adding owner {userEmail}: {memberToAdd} to group");
+                                if(debug)
+                                    log?.LogInformation($"AddGroupOwner: Adding owner {userEmail}: {memberToAdd} to group");
+
                                 await graphClient.Groups[GroupId].Owners.Ref.PostAsync(directoryObject);
                                 ownerExists = true;
                             }
                         }
                         else
                         {
-                            log?.LogInformation($"Adding owner {userEmail}: {memberToAdd} to group");
+                            if(debug)
+                                log?.LogInformation($"AddGroupOwner: Adding owner {userEmail}: {memberToAdd} to group");
+
                             await graphClient.Groups[GroupId].Owners.Ref.PostAsync(directoryObject);
                             ownerExists = true;
                         }
@@ -821,7 +849,7 @@ namespace Shared
                     }
                     catch (Exception ex)
                     {
-                        log?.LogError(ex.Message);
+                        log?.LogError("AddGroupOwner: " + ex.Message);
                         returnValue = false;
                     }
                 }
@@ -834,7 +862,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<bool> AddGroupMember(string userEmail, string GroupId)
+        public async Task<bool> AddGroupMember(string userEmail, string GroupId, bool debug)
         {
             string? memberToAdd = "";
             bool returnValue = true;
@@ -850,13 +878,15 @@ namespace Shared
                 {
                     try
                     {
-                        log?.LogInformation($"Trying to find member {userEmail}");
+                        if(debug)
+                            log?.LogInformation($"AddGroupMember: Trying to find member {userEmail}");
+
                         memberToAdd = (await graphClient.Users[userEmail].GetAsync())?.Id;
                         redisDB.StringSet(userEmail, memberToAdd);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-                        log?.LogInformation($"Unable to find member {userEmail}");
+                        log?.LogError($"AddGroupMember: Unable to find member {userEmail} with error {ex.ToString()}");
                     }
                 }
 
@@ -885,14 +915,18 @@ namespace Shared
 
                             if(!memberExists)
                             {
-                                log?.LogInformation($"Adding owner {userEmail}: {memberToAdd} to group");
+                                if(debug)
+                                    log?.LogInformation($"AddGroupMember: Adding owner {userEmail}: {memberToAdd} to group");
+
                                 await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
                                 memberExists = true;
                             }
                         }
                         else
                         {
-                            log?.LogInformation($"Adding owner {userEmail}: {memberToAdd} to group");
+                            if(debug)
+                                log?.LogInformation($"AddGroupMember: Adding owner {userEmail}: {memberToAdd} to group");
+
                             await graphClient.Groups[GroupId].Members.Ref.PostAsync(directoryObject);
                             memberExists = true;
                         }
@@ -901,7 +935,7 @@ namespace Shared
                     }
                     catch (Exception ex)
                     {
-                        log?.LogError(ex.Message);
+                        log?.LogError("AddGroupMember: " + ex.Message);
                         returnValue = false;
                     }
                 }
@@ -914,14 +948,17 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<Group?> CreateGroup(string description, string mailNickname, List<string> owners)
+        public async Task<Group?> CreateGroup(string description, string mailNickname, List<string> owners, bool debug)
         {
             Group? createdGroup = default(Group);
 
             if (!string.IsNullOrEmpty(description) && !string.IsNullOrEmpty(mailNickname) && graphClient != null)
             {
-                log?.LogInformation("Creating group " + description);
-                log?.LogInformation("With owners: " + String.Join(",", owners));
+                if (debug)
+                {
+                    log?.LogInformation("CreateGroup: Creating group " + description);
+                    log?.LogInformation("CreateGroup: With owners " + String.Join(",", owners));
+                }
 
                 try
                 {
@@ -934,11 +971,14 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogInformation("Error creating group.");
-                    log?.LogError(ex.Message);
+                    if(debug)
+                        log?.LogInformation("CreateGroup: Error creating group.");
+
+                    log?.LogError("CreateGroup: " + ex.Message);
                 }
 
-                log?.LogInformation("Waiting 60s for group to be created.");
+                if(debug)
+                    log?.LogInformation("CreateGroup: Waiting 60s for group to be created.");
 
                 //wait for group to be created
                 Thread.Sleep(90000);
@@ -947,14 +987,17 @@ namespace Shared
             return createdGroup;
         }
 
-        public async Task<Group?> CreateGroupNoWait(string description, string mailNickname, List<string> owners)
+        public async Task<Group?> CreateGroupNoWait(string description, string mailNickname, List<string> owners, bool debug)
         {
             Group? createdGroup = default(Group);
 
             if (!string.IsNullOrEmpty(description) && !string.IsNullOrEmpty(mailNickname) && graphClient != null)
             {
-                log?.LogInformation("Creating group " + description);
-                log?.LogInformation("With owners: " + String.Join(",", owners));
+                if (debug)
+                {
+                    log?.LogInformation("CreateGroupNoWait: Creating group " + description);
+                    log?.LogInformation("CreateGroupNoWait: With owners " + String.Join(",", owners));
+                }
 
                 try
                 {
@@ -967,8 +1010,10 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogInformation("Error creating group.");
-                    log?.LogError(ex.Message);
+                    if(debug)
+                        log?.LogInformation("CreateGroupNoWait: Error creating group.");
+                    
+                    log?.LogError("CreateGroupNoWait: " + ex.Message);
                 }
             }
 
@@ -1033,7 +1078,7 @@ namespace Shared
             return true;
         }
 
-        public async Task<FindGroupResult> GetGroupById(string id)
+        public async Task<FindGroupResult> GetGroupById(string id, bool debug)
         {
             FindGroupResult returnValue = new FindGroupResult();
             returnValue.Success = false;
@@ -1049,7 +1094,9 @@ namespace Shared
 
                 if (group != null)
                 {
-                    log?.LogInformation($"Found group with id {group}");
+                    if(debug)
+                        log?.LogInformation($"GetGroupById: Found group with id {group}");
+
                     returnValue.Success = true;
                     returnValue.Count = 1;
                     returnValue.group = group;
@@ -1057,7 +1104,7 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log?.LogInformation($"Group not found. {ex}");
+                log?.LogInformation($"GetGroupById: Group not found. {ex}");
             }
 
             return returnValue;
@@ -1131,7 +1178,7 @@ namespace Shared
         #endregion
 
         #region Drives
-        public async Task<Drive?> GetGroupDrive(Group? group)
+        public async Task<Drive?> GetGroupDrive(Group? group, bool debug)
         {
             Drive? groupDrive = null;
 
@@ -1142,17 +1189,20 @@ namespace Shared
 
             try
             {
+                if (debug)
+                    log?.LogInformation($"Trying to get group drive for {group.Id}");
+
                 groupDrive = await graphClient.Groups[group.Id].Drive.GetAsync();
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
+                log?.LogError("GetGroupDrive: " + ex.ToString());
             }
 
             return groupDrive;
         }
 
-        public async Task<string?> GetGroupDrive(string? GroupId)
+        public async Task<string?> GetGroupDrive(string? GroupId, bool debug)
         {
             string? groupDrive = "";
 
@@ -1165,25 +1215,31 @@ namespace Shared
 
             if(!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
             {
+                if (debug)
+                    log?.LogInformation($"Found group drive for {GroupId} in cache");
+
                 groupDrive = cachedValue;
             }
             else
             {
                 try
                 {
+                    if (debug)
+                        log?.LogInformation($"Trying to get group drive for {GroupId}");
+
                     groupDrive = (await graphClient.Groups[GroupId].Drive.GetAsync())?.Id;
                     redisDB.StringSet($"Drive for group: {GroupId}", groupDrive);
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
+                    log?.LogError("GetGroupDrive: " + ex.ToString());
                 }
             }
 
             return groupDrive;
         }
 
-        public async Task<string?> GetGroupDriveUrl(string? GroupId)
+        public async Task<string?> GetGroupDriveUrl(string? GroupId, bool debug)
         {
             string? groupDriveUrl = "";
 
@@ -1196,6 +1252,8 @@ namespace Shared
 
             if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
             {
+                if (debug)
+                    log?.LogInformation($"GetGroupDriveUrl: Found group drive url for {GroupId} in cache");
                 groupDriveUrl = cachedValue;
             }
             else
@@ -1203,18 +1261,22 @@ namespace Shared
                 try
                 {
                     groupDriveUrl = (await graphClient.Groups[GroupId].Drive.GetAsync())?.WebUrl;
+
+                    if (debug)
+                        log?.LogInformation($"GetGroupDriveUrl: Found group drive url for {GroupId}");
+
                     redisDB.StringSet($"DriveUrl for group: {GroupId}", groupDriveUrl);
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
+                    log?.LogError("GetGroupDriveUrl: " + ex.ToString());
                 }
             }
 
             return groupDriveUrl;
         }
 
-        public async Task<string?> GetGroupSite(string? GroupId)
+        public async Task<string?> GetGroupSite(string? GroupId, bool debug)
         {
             string? returnValue = "";
 
@@ -1227,10 +1289,13 @@ namespace Shared
             
             if(!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
             {
+                if(debug)
+                    log?.LogInformation($"GetGroupSite: Found group id {GroupId} in cache");
+
                 return cachedValue;
             }
 
-            FindGroupResult? findGroup = await GetGroupById(GroupId);
+            FindGroupResult? findGroup = await GetGroupById(GroupId, debug);
 
             if(findGroup?.Success == true && findGroup?.group != null)
             {
@@ -1240,6 +1305,9 @@ namespace Shared
                 {
                     returnValue = sites?.Value[0].Id;
                     redisDB.StringSet($"Site for group: {GroupId}", returnValue);
+
+                    if (debug)
+                        log?.LogInformation($"GetGroupSite: Found group id {returnValue}");
                 }
             }
 
@@ -1267,7 +1335,7 @@ namespace Shared
         //    return groupDrive;
         //}
 
-        public async Task<string?> GetSiteDrive(string? SiteId)
+        public async Task<string?> GetSiteDrive(string? SiteId, bool debug)
         {
             string? groupDriveId = "";
 
@@ -1280,23 +1348,30 @@ namespace Shared
 
             if(!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
             {
+                if (debug)
+                    log?.LogInformation($"GetSiteDrive: Found drive for site {SiteId} in cache");
+
                 groupDriveId = cachedValue;
             }
 
             try
             {
                 groupDriveId = (await graphClient.Sites[SiteId].Drive.GetAsync())?.Id;
+
+                if (debug)
+                    log?.LogInformation($"GetSiteDrive: Found drive for site {SiteId}");
+
                 redisDB.StringSet($"Drive for site: {SiteId}", groupDriveId);
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
+                log?.LogError("GetSiteDrive: " + ex.ToString());
             }
 
             return groupDriveId;
         }
 
-        public async Task<List<DriveItem>> GetDriveRootItems(Drive? groupDrive)
+        public async Task<List<DriveItem>> GetDriveRootItems(Drive? groupDrive, bool debug)
         {
             List<DriveItem> returnValue = new List<DriveItem>();
 
@@ -1310,7 +1385,7 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
+                    log?.LogError("GetDriveRootItems: " + ex.ToString());
                 }
 
                 if (root != null && graphClient != null)
@@ -1323,7 +1398,7 @@ namespace Shared
                     }
                     catch (Exception ex)
                     {
-                        log?.LogError(ex.ToString());
+                        log?.LogError("GetDriveRootItems: " + ex.ToString());
                     }
 
                     if(rootChildren?.Value?.Count > 0)
@@ -1336,7 +1411,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<List<DriveItem>> GetDriveRootItems(string? groupDriveId)
+        public async Task<List<DriveItem>> GetDriveRootItems(string? groupDriveId, bool debug)
         {
             List<DriveItem> returnValue = new List<DriveItem>();
 
@@ -1350,7 +1425,7 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
+                    log?.LogError("GetDriveRootItems: " + ex.ToString());
                 }
 
                 if (root != null && graphClient != null)
@@ -1363,7 +1438,7 @@ namespace Shared
                     }
                     catch (Exception ex)
                     {
-                        log?.LogError(ex.ToString());
+                        log?.LogError("GetDriveRootItems: " + ex.ToString());
                     }
 
                     if (rootChildren?.Value?.Count > 0)
@@ -1376,7 +1451,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<List<DriveItem>> GetDriveFolderChildren(string? groupDriveId, string? parentId, bool recursive = false)
+        public async Task<List<DriveItem>> GetDriveFolderChildren(string? groupDriveId, string? parentId, bool recursive = false, bool debug = false)
         {
             List<DriveItem> returnValue = new List<DriveItem>();
 
@@ -1390,7 +1465,7 @@ namespace Shared
                     {
                         foreach(var child in folderChildren.Value)
                         {
-                            var subchildren = await GetDriveFolderChildren(groupDriveId, child.Id, recursive);
+                            var subchildren = await GetDriveFolderChildren(groupDriveId, child.Id, recursive, debug);
 
                             if(subchildren?.Count > 0)
                             {
@@ -1436,7 +1511,7 @@ namespace Shared
         //    return returnValue;
         //}
 
-        public async Task<DriveItem?> FindItem(Drive? groupDrive, string? Path, bool withRetry = false)
+        public async Task<DriveItem?> FindItem(Drive? groupDrive, string? Path, bool withRetry = false, bool debug = false)
         {
             DriveItem? returnValue = null;
 
@@ -1452,8 +1527,9 @@ namespace Shared
             {
                 returnValue = await graphClient.Drives[groupDrive.Id].Root.ItemWithPath(Path).GetAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                log?.LogError("FindItem: " + ex.ToString());
             }
 
             while (returnValue == null && withRetry)
@@ -1462,7 +1538,9 @@ namespace Shared
                 {
                     lock (returnValue)
                     {
-                        log?.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+                        if(debug)
+                            log?.LogInformation($"FindItem: Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+
                         cnt += 1;
                         Thread.Sleep(10000);
                     }
@@ -1472,8 +1550,9 @@ namespace Shared
                 {
                     returnValue = await graphClient.Drives[groupDrive.Id].Root.ItemWithPath(Path).GetAsync();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    log?.LogError("FindItem: " + ex.ToString());
                 }
 
                 if (cnt == maxcnt)
@@ -1483,7 +1562,7 @@ namespace Shared
             return returnValue ?? default(DriveItem);
         }
 
-        public async Task<DriveItem?> FindItem(string? groupDriveId, string? Path, bool withRetry = false)
+        public async Task<DriveItem?> FindItem(string? groupDriveId, string? Path, bool withRetry = false, bool debug = false)
         {
             DriveItem? returnValue = null;
 
@@ -1499,8 +1578,9 @@ namespace Shared
             {
                 returnValue = await graphClient.Drives[groupDriveId].Root.ItemWithPath(Path).GetAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                log?.LogError("FindItem: " + ex.ToString());
             }
 
             while (returnValue == null && withRetry)
@@ -1509,7 +1589,9 @@ namespace Shared
                 {
                     lock (returnValue)
                     {
-                        log?.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+                        if(debug)
+                            log?.LogInformation($"FindItem: Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+
                         cnt += 1;
                         Thread.Sleep(10000);
                     }
@@ -1519,8 +1601,9 @@ namespace Shared
                 {
                     returnValue = await graphClient.Drives[groupDriveId].Root.ItemWithPath(Path).GetAsync();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    log?.LogError("FindItem: " + ex.ToString());
                 }
 
                 if (cnt == maxcnt)
@@ -1530,7 +1613,7 @@ namespace Shared
             return returnValue ?? default(DriveItem);
         }
 
-        public async Task<DriveItem?> FindItem(Drive? groupDrive, string? parentId, string? Path, bool withRetry)
+        public async Task<DriveItem?> FindItem(Drive? groupDrive, string? parentId, string? Path, bool withRetry, bool debug)
         {
             DriveItem? returnValue = null;
 
@@ -1543,8 +1626,9 @@ namespace Shared
             {
                 returnValue = await graphClient.Drives[groupDrive.Id].Items[parentId].ItemWithPath(Path).GetAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                log?.LogError("FindItem: " + ex.ToString());
             }
 
             int maxcnt = 2;
@@ -1556,7 +1640,9 @@ namespace Shared
                 {
                     lock (returnValue)
                     {
-                        log?.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+                        if(debug)
+                            log?.LogInformation($"FindItem: Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+
                         cnt += 1;
                         Thread.Sleep(10000);
                     }
@@ -1566,8 +1652,9 @@ namespace Shared
                 {
                     returnValue = await graphClient.Drives[groupDrive.Id].Items[parentId].ItemWithPath(Path).GetAsync();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    log?.LogError("FindItem: " + ex.ToString());
                 }
 
                 if (cnt == maxcnt)
@@ -1577,7 +1664,7 @@ namespace Shared
             return returnValue ?? default(DriveItem);
         }
 
-        public async Task<DriveItem?> FindItem(string? groupDriveId, string? parentId, string? Path, bool withRetry)
+        public async Task<DriveItem?> FindItem(string? groupDriveId, string? parentId, string? Path, bool withRetry, bool debug)
         {
             DriveItem? returnValue = null;
 
@@ -1590,8 +1677,9 @@ namespace Shared
             {
                 returnValue = await graphClient.Drives[groupDriveId].Items[parentId].ItemWithPath(Path).GetAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                log?.LogError("FindItem: " + ex.ToString());
             }
 
             int maxcnt = 2;
@@ -1603,7 +1691,9 @@ namespace Shared
                 {
                     lock (returnValue)
                     {
-                        log?.LogInformation($"Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+                        if(debug)
+                            log?.LogInformation($"FindItem: Item not found, trying again... (attempt {cnt + 1} of {maxcnt + 1})");
+
                         cnt += 1;
                         Thread.Sleep(10000);
                     }
@@ -1613,8 +1703,9 @@ namespace Shared
                 {
                     returnValue = await graphClient.Drives[groupDriveId].Items[parentId].ItemWithPath(Path).GetAsync();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    log?.LogError("FindItem: " + ex.ToString());
                 }
 
                 if (cnt == maxcnt)
@@ -1624,7 +1715,7 @@ namespace Shared
             return returnValue ?? default(DriveItem);
         }
 
-        public async Task<DownloadFileResult> DownloadFile(string? GroupID, string? FolderID, string? FileName)
+        public async Task<DownloadFileResult> DownloadFile(string? GroupID, string? FolderID, string? FileName, bool debug)
         {
             DownloadFileResult returnValue = new DownloadFileResult();
             Stream orderFileStream = Stream.Null;
@@ -1636,28 +1727,36 @@ namespace Shared
 
             try
             {
-                log?.LogInformation($"Trying to find group drive for file {FileName}");
-                string? groupDriveId = await GetGroupDrive(GroupID);
+                if(debug)
+                    log?.LogInformation($"DownloadFile: Trying to find group drive for file {FileName}");
+
+                string? groupDriveId = await GetGroupDrive(GroupID, debug);
 
                 if(!string.IsNullOrEmpty(groupDriveId))
                 {
-                    log?.LogInformation($"Found group drive for file {FileName}");
+                    if(debug)
+                        log?.LogInformation($"DownloadFile: Found group drive for file {FileName}");
+
                     //download order file content
                     returnValue.Contents = Stream.Null;
                     (await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
-                    log?.LogInformation($"Downloaded file {FileName} with size {returnValue.Contents.Length} byte");
+
+                    if(debug)
+                        log?.LogInformation($"DownloadFile: Downloaded file {FileName} with size {returnValue.Contents.Length} byte");
+
                     returnValue.Success = true;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 returnValue.Success = false;
+                log?.LogError("DownloadFile: " + ex.ToString());
             }
 
             return returnValue;
         }
 
-        public async Task<DownloadFileResult> DownloadFile(Group? Group, DriveItem? Folder, string? Path)
+        public async Task<DownloadFileResult> DownloadFile(Group? Group, DriveItem? Folder, string? Path, bool debug)
         {
             DownloadFileResult returnValue = new DownloadFileResult();
             Stream orderFileStream = Stream.Null;
@@ -1667,31 +1766,38 @@ namespace Shared
                 return returnValue;
             }
 
-
             try
             {
-                log?.LogInformation($"Trying to find group drive for file {Path}");
-                Drive? groupDrive = await GetGroupDrive(Group);
+                if(debug)
+                    log?.LogInformation($"DownloadFile: Trying to find group drive for file {Path}");
+
+                Drive? groupDrive = await GetGroupDrive(Group, debug);
 
                 if(groupDrive != null)
                 {
-                    log?.LogInformation($"Found group drive for file {Path}");
+                    if(debug)
+                        log?.LogInformation($"DownloadFile: Found group drive for file {Path}");
+
                     //download order file content
                     returnValue.Contents = Stream.Null;
                     (await graphClient.Drives[groupDrive.Id].Items[Folder.Id].ItemWithPath(Path).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
-                    log?.LogInformation($"Downloaded file {Path} with size {returnValue.Contents.Length} byte");
+                    
+                    if(debug)
+                        log?.LogInformation($"DownloadFile: Downloaded file {Path} with size {returnValue.Contents.Length} byte");
+
                     returnValue.Success = true;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                log?.LogError("DownloadFile: " + ex.ToString());
                 returnValue.Success = false;
             }
 
             return returnValue;
         }
 
-        public async Task<bool> UploadFile(string? GroupID, string? FolderID, string? FileName, Stream? FileContents)
+        public async Task<bool> UploadFile(string? GroupID, string? FolderID, string? FileName, Stream? FileContents, bool debug)
         {
             bool returnValue = false;
 
@@ -1702,12 +1808,16 @@ namespace Shared
 
             try
             {
-                log?.LogInformation($"Trying to find group drive for file {FileName}");
-                string? groupDriveId = await GetGroupDrive(GroupID);
+                if(debug)
+                    log?.LogInformation($"UploadFile: Trying to find group drive for file {FileName}");
+
+                string? groupDriveId = await GetGroupDrive(GroupID, debug);
 
                 if(!string.IsNullOrEmpty(groupDriveId))
                 {
-                    log?.LogInformation($"Found group drive for file {FileName}. Creating upload request for stream with size {FileContents.Length} byte");
+                    if(debug)
+                        log?.LogInformation($"UploadFile: Found group drive for file {FileName}. Creating upload request for stream with size {FileContents.Length} byte");
+
                     CreateUploadSessionPostRequestBody uploadRequest = new CreateUploadSessionPostRequestBody
                     {
                         Item = new DriveItemUploadableProperties
@@ -1719,40 +1829,48 @@ namespace Shared
                         }
                     };
 
-                    log?.LogInformation($"Creating upload session");
+                    if(debug)
+                        log?.LogInformation($"UploadFile: Creating upload session");
+
                     var fileUploadSession = await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).CreateUploadSession.PostAsync(uploadRequest);
 
                     if (fileUploadSession != null)
                     {
-                        log?.LogInformation($"Created upload session");
+                        if(debug)
+                            log?.LogInformation($"UploadFile: Created upload session");
+
                         var fileUploadTask = new LargeFileUploadTask<DriveItem>(fileUploadSession, FileContents, maxUploadChunkSize, graphClient.RequestAdapter);
 
                         var totalLength = FileContents.Length;
                         // Create a callback that is invoked after each slice is uploaded
                         IProgress<long> progress = new Progress<long>(prog => {
-                            log?.LogInformation($"Uploaded {prog} bytes of {totalLength} bytes");
+                            if(debug)
+                                log?.LogInformation($"UploadFile: Uploaded {prog} bytes of {totalLength} bytes");
                         });
 
                         // Upload the file
                         var uploadResult = await fileUploadTask.UploadAsync(progress);
+                        string info = uploadResult.UploadSucceeded ?
+                                $"Upload complete, item ID: {uploadResult.ItemResponse.Id}" :
+                                "Upload failed";
 
-                        log?.LogInformation(uploadResult.UploadSucceeded ?
-                            $"Upload complete, item ID: {uploadResult.ItemResponse.Id}" :
-                            "Upload failed");
+                        if (debug)
+                            log?.LogInformation($"UploadFile: {info}");
+
                         returnValue = true;
                     }
                 }
             }
             catch (Exception ex)
             {
-                log?.LogError($"Error uploading: {ex.ToString()}");
+                log?.LogError($"UploadFile: Error uploading with error {ex.ToString()}");
                 returnValue = false;
             }
 
             return returnValue;
         }
 
-        public async Task<bool> UploadFile(Group? Group, DriveItem? Folder, string? Path, Stream? FileContents)
+        public async Task<bool> UploadFile(Group? Group, DriveItem? Folder, string? Path, Stream? FileContents, bool debug)
         {
             bool returnValue = false;
 
@@ -1763,7 +1881,7 @@ namespace Shared
 
             try
             {
-                string? groupDriveId = await GetGroupDrive(Group.Id);
+                string? groupDriveId = await GetGroupDrive(Group.Id, debug);
 
                 if (!string.IsNullOrEmpty(groupDriveId))
                 {
@@ -1786,41 +1904,50 @@ namespace Shared
                         var totalLength = FileContents.Length;
                         // Create a callback that is invoked after each slice is uploaded
                         IProgress<long> progress = new Progress<long>(prog => {
-                            log?.LogInformation($"Uploaded {prog} bytes of {totalLength} bytes");
+                            if(debug)
+                                log?.LogInformation($"UploadFile: Uploaded {prog} bytes of {totalLength} bytes");
                         });
 
                         // Upload the file
                         var uploadResult = await fileUploadTask.UploadAsync(progress);
-
-                        log?.LogInformation(uploadResult.UploadSucceeded ?
+                        string info = uploadResult.UploadSucceeded ?
                             $"Upload complete, item ID: {uploadResult.ItemResponse.Id}" :
-                            "Upload failed");
+                            "Upload failed";
+
+                        if(debug)
+                            log?.LogInformation($"UploadFile: {info}");
+
                         returnValue = true;
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 returnValue = false;
+                log?.LogError("UploadFile: " + ex.ToString());
             }
 
             return returnValue;
         }
 
-        public async Task<bool> CopyFile(CopyItem? source, CopyItem? destination)
+        public async Task<bool> CopyFile(CopyItem? source, CopyItem? destination, bool debug)
         {
             bool returnValue = false;
 
             if(source != null && destination != null && !string.IsNullOrEmpty(source.GroupId) && !string.IsNullOrEmpty(source.FolderId) && !string.IsNullOrEmpty(source.Path))
             {
                 //download the file
-                log?.LogInformation("Download file " + source.Path);
-                DownloadFileResult downloadFile = await this.DownloadFile(source.GroupId, source.FolderId, source.Path);
+                if(debug)
+                    log?.LogInformation("CopyFile: Download file " + source.Path);
+
+                DownloadFileResult downloadFile = await this.DownloadFile(source.GroupId, source.FolderId, source.Path, debug);
 
                 if (downloadFile.Success && !string.IsNullOrEmpty(destination.GroupId) && !string.IsNullOrEmpty(destination.FolderId) && !string.IsNullOrEmpty(destination.Path))
                 {
-                    log?.LogInformation("Upload file " + destination.Path);
-                    if (await this.UploadFile(destination.GroupId, destination.FolderId, destination.Path, downloadFile.Contents))
+                    if(debug)
+                        log?.LogInformation("CopyFile: Upload file " + destination.Path);
+
+                    if (await this.UploadFile(destination.GroupId, destination.FolderId, destination.Path, downloadFile.Contents, debug))
                     {
                         returnValue = true;
                     }
@@ -1830,34 +1957,41 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<bool> MoveFile(CopyItem? source, CopyItem? destination)
+        public async Task<bool> MoveFile(CopyItem? source, CopyItem? destination, bool debug)
         {
             bool returnValue = false;
 
             if (graphClient != null && source != null && destination != null && !string.IsNullOrEmpty(source.GroupId) && !string.IsNullOrEmpty(source.FolderId) && !string.IsNullOrEmpty(source.Path))
             {
-                log?.LogInformation($"Downloading file {source.Path}");
+                if(debug)
+                    log?.LogInformation($"MoveFile: Downloading file {source.Path}");
+
                 //download the file
-                DownloadFileResult downloadFile = await this.DownloadFile(source.GroupId, source.FolderId, source.Path);
+                DownloadFileResult downloadFile = await this.DownloadFile(source.GroupId, source.FolderId, source.Path, debug);
 
                 if (downloadFile.Success && !string.IsNullOrEmpty(destination.GroupId) && !string.IsNullOrEmpty(destination.FolderId) && !string.IsNullOrEmpty(destination.Path))
                 {
-                    log?.LogInformation($"Uploading file {destination.Path}");
-                    if (await this.UploadFile(destination.GroupId, destination.FolderId, destination.Path, downloadFile.Contents))
+                    if(debug)
+                        log?.LogInformation($"MoveFile: Uploading file {destination.Path}");
+
+                    if (await this.UploadFile(destination.GroupId, destination.FolderId, destination.Path, downloadFile.Contents, debug))
                     {
                         try
                         {
-                            string? groupDriveId = await GetGroupDrive(source.GroupId);
+                            string? groupDriveId = await GetGroupDrive(source.GroupId, debug);
 
                             if(!string.IsNullOrEmpty(groupDriveId))
                             {
-                                log?.LogInformation($"Deleting file {source.FileId}");
+                                if(debug)
+                                    log?.LogInformation($"MoveFile: Deleting file {source.FileId}");
+
                                 await graphClient.Drives[groupDriveId].Items[source.FileId].DeleteAsync();
                                 returnValue = true;
                             }
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
+                            log?.LogError("MoveFile: " + ex.ToString());
                         }
                     }
                 }
@@ -1866,7 +2000,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<CreateFolderResult> CopyFolder(string? GroupId, string? ParentId, DriveItem? Folder, bool recursive = false, bool includeFiles = false)
+        public async Task<CreateFolderResult> CopyFolder(string? GroupId, string? ParentId, DriveItem? Folder, bool recursive = false, bool includeFiles = false, bool debug = false)
         {
             CreateFolderResult returnValue = new CreateFolderResult();
             returnValue.Success = false;
@@ -1877,11 +2011,12 @@ namespace Shared
             }
 
             DriveItem? createdFolder = null;
-            CreateFolderResult result = await this.CreateFolder(GroupId, ParentId, Folder.Name);
+            CreateFolderResult result = await this.CreateFolder(GroupId, ParentId, Folder.Name, debug);
 
             if (result.Success && Folder.Children != null)
             {
-                log?.LogInformation("Created " + Folder.Name + " folder.");
+                if(debug)
+                    log?.LogInformation("CopyFolder: Created " + Folder.Name + " folder.");
 
                 createdFolder = result.folder;
 
@@ -1894,7 +2029,7 @@ namespace Shared
                         if (childFolder.Folder == null)
                             continue;
 
-                        var createdChild = await this.CopyFolder(GroupId, createdFolder.Id, childFolder, recursive, includeFiles);
+                        var createdChild = await this.CopyFolder(GroupId, createdFolder.Id, childFolder, recursive, includeFiles, debug);
 
                         if (createdChild?.Success == true && createdChild.folder != null)
                         {
@@ -1912,7 +2047,7 @@ namespace Shared
 
                         CopyItem source = new CopyItem() { GroupId = GroupId, FolderId = Folder.Id ?? "", Path = childFile.Name ?? "" };
                         CopyItem destination = new CopyItem() { GroupId = GroupId, FolderId = createdFolder.Id ?? "", Path = childFile.Name ?? "" };
-                        await this.CopyFile(source, destination);
+                        await this.CopyFile(source, destination, debug);
                     }
                 }
 
@@ -1923,18 +2058,21 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<CreateFolderResult> CopyFolder(string GroupId, DriveItem Folder, bool recursive, bool? includeFiles)
+        public async Task<CreateFolderResult> CopyFolder(string GroupId, DriveItem Folder, bool recursive, bool? includeFiles, bool debug)
         {
             CreateFolderResult returnValue = new CreateFolderResult();
             returnValue.Success = false;
-            log?.LogInformation("Creating " + Folder.Name + " folder.");
+
+            if(debug)
+                log?.LogInformation("CopyFolder: Creating " + Folder.Name + " folder.");
+
             DriveItem? createdFolder = null;
             CreateFolderResult result = new CreateFolderResult();
             result.Success = false;
 
             if (!string.IsNullOrEmpty(Folder.Name))
             {
-                result = this.CreateFolder(GroupId, Folder.Name).Result;
+                result = this.CreateFolder(GroupId, Folder.Name, debug).Result;
             }
 
             if (result.Success && Folder.Children != null && result.folder != null)
@@ -1950,7 +2088,7 @@ namespace Shared
                         if (childFolder.Folder == null)
                             continue;
 
-                        var createdChild = await this.CopyFolder(GroupId, childFolder, recursive, includeFiles);
+                        var createdChild = await this.CopyFolder(GroupId, childFolder, recursive, includeFiles, debug);
 
                         if (createdChild.Success && createdChild.folder != null)
                         {
@@ -1968,7 +2106,7 @@ namespace Shared
 
                         CopyItem source = new CopyItem() { GroupId = GroupId, FolderId = Folder.Id ?? "", Path = childFile.Name ?? "" };
                         CopyItem destination = new CopyItem() { GroupId = GroupId, FolderId = createdFolder.Id ?? "", Path = childFile.Name ?? "" };
-                        await this.CopyFile(source, destination);
+                        await this.CopyFile(source, destination, debug);
                     }
                 }
 
@@ -1979,15 +2117,18 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<CreateFolderResult> CreateFolder(string GroupId, string ParentId, string FolderName)
+        public async Task<CreateFolderResult> CreateFolder(string GroupId, string ParentId, string FolderName, bool debug)
         {
             CreateFolderResult returnValue = new CreateFolderResult();
             returnValue.Success = false;
             DriveItem? createdFolder = null;
 
             //first check if folder exists
-            var driveId = this.GetGroupDrive(GroupId).Result;
-            var existingFolder = this.FindItem(driveId, ParentId, FolderName, false).Result;
+            if (debug)
+                log?.LogInformation("CopyFolder: Check if folder " + FolderName + " exists.");
+
+            var driveId = this.GetGroupDrive(GroupId, debug).Result;
+            var existingFolder = this.FindItem(driveId, ParentId, FolderName, false, debug).Result;
 
             if(existingFolder == null && graphClient != null && !string.IsNullOrEmpty(driveId))
             {
@@ -2013,16 +2154,21 @@ namespace Shared
                         returnValue.folder = createdFolder;
                         returnValue.Success = true;
                         returnValue.Existed = false;
-                        log?.LogInformation("Created " + FolderName + " folder.");
+
+                        if(debug)
+                            log?.LogInformation("CopyFolder: Created " + FolderName + " folder.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
+                    log?.LogError("CopyFolder: " + ex.ToString());
                 }
             }
             else
             {
+                if (debug)
+                    log?.LogInformation("CopyFolder: Folder " + FolderName + " already existed.");
+
                 returnValue.Existed = true;
                 returnValue.folder = existingFolder;
                 returnValue.Success = true;
@@ -2031,15 +2177,18 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<CreateFolderResult> CreateFolder(string GroupId, string FolderName)
+        public async Task<CreateFolderResult> CreateFolder(string GroupId, string FolderName, bool debug)
         {
             CreateFolderResult returnValue = new CreateFolderResult();
             returnValue.Success = false;
             DriveItem? createdFolder = null;
 
             //first check if folder exists
-            var driveId = this.GetGroupDrive(GroupId).Result;
-            var existingFolder = this.FindItem(driveId, FolderName, false).Result;
+            if (debug)
+                log?.LogInformation("CreateFolder: Check if folder " + FolderName + " exists.");
+
+            var driveId = this.GetGroupDrive(GroupId, debug).Result;
+            var existingFolder = this.FindItem(driveId, FolderName, false, debug).Result;
 
             if (existingFolder == null && !string.IsNullOrEmpty(driveId) && graphClient != null)
             {
@@ -2068,17 +2217,22 @@ namespace Shared
                         {
                             returnValue.folder = createdFolder;
                             returnValue.Success = true;
-                            log?.LogInformation("Created " + FolderName + " folder.");
+
+                            if(debug)
+                                log?.LogInformation("CreateFolder: Created " + FolderName + " folder.");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
+                    log?.LogError("CreateFolder: " + ex.ToString());
                 }
             }
             else
             {
+                if (debug)
+                    log?.LogInformation("CreateFolder: Folder " + FolderName + " already existed.");
+
                 returnValue.folder = existingFolder;
                 returnValue.Success = true;
             }
@@ -2088,7 +2242,7 @@ namespace Shared
         #endregion
 
         #region List
-        public async Task<List<ListItem>> GetListItems(string SiteId, string ListId, string Filter)
+        public async Task<List<ListItem>> GetListItems(string SiteId, string ListId, string Filter, bool debug)
         {
             List<ListItem> returnValue = new List<ListItem>();
 
@@ -2111,7 +2265,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task CreateDriveColumn(string groupId, ColumnDefinition def)
+        public async Task CreateDriveColumn(string groupId, ColumnDefinition def, bool debug)
         {
             if(graphClient == null)
             {
@@ -2120,20 +2274,22 @@ namespace Shared
 
             try
             {
-                var group = await GetGroupById(groupId);
+                var group = await GetGroupById(groupId, debug);
 
                 if(group.Success)
                 {
-                    var driveId = await GetGroupDrive(groupId);
+                    var driveId = await GetGroupDrive(groupId, debug);
 
                     if(!string.IsNullOrEmpty(driveId))
                     {
                         var list = await graphClient.Drives[driveId].List.GetAsync();
-                        var site = await GetGroupSite(groupId);
+                        var site = await GetGroupSite(groupId, debug);
 
                         if(list != null && site != null)
                         {
-                            log?.LogInformation($"Adding column: {def.Description}");
+                            if(debug)
+                                log?.LogInformation($"CreateDriveColumn: Adding column {def.Description}");
+
                             var col = await graphClient.Sites[site].Lists[list.Id].Columns.PostAsync(def);
                         }
                     }
@@ -2141,11 +2297,11 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
+                log?.LogError("CreateDriveColumn: " + ex.ToString());
             }
         }
 
-        public async Task CreateDriveColumn(Site site, List list, ColumnDefinition def)
+        public async Task CreateDriveColumn(Site site, List list, ColumnDefinition def, bool debug)
         {
             if(graphClient == null)
             {
@@ -2154,18 +2310,20 @@ namespace Shared
 
             try
             {
-                log?.LogInformation($"Adding column: {def.Description}");
+                if(debug)
+                    log?.LogInformation($"CreateDriveColumn: Adding column {def.Description}");
+
                 var col = await graphClient.Sites[site.Id].Lists[list.Id].Columns.PostAsync(def);
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
+                log?.LogError("CreateDriveColumn: " + ex.ToString());
             }
         }
         #endregion
 
         #region Plans
-        public async Task<PlannerPlan?> CreatePlanAsync(string groupId, string planName)
+        public async Task<PlannerPlan?> CreatePlanAsync(string groupId, string planName, bool debug)
         {
             PlannerPlan? createdPlan = null;
 
@@ -2185,17 +2343,18 @@ namespace Shared
                 createdPlan = await graphClient.Planner.Plans
                     .PostAsync(newPlan);
 
-                log?.LogInformation($"Plan created with ID: {createdPlan?.Id}");
+                if(debug)
+                    log?.LogInformation($"CreatePlanAsync: Plan created with ID: {createdPlan?.Id}");
             }
             catch (ServiceException ex)
             {
-                log?.LogError($"Error creating plan: {ex.Message}");
+                log?.LogError($"CreatePlanAsync: Error creating plan wit error {ex.Message}");
             }
 
             return createdPlan;
         }
 
-        public async Task<IList<PlannerPlan>> GetPlansAsync(string groupId)
+        public async Task<IList<PlannerPlan>> GetPlansAsync(string groupId, bool debug)
         {
             List<PlannerPlan> returnValue = new List<PlannerPlan>();
 
@@ -2210,7 +2369,8 @@ namespace Shared
 
                 if (plans?.Value?.Count > 0)
                 {
-                    services?.Log("Found: " + plans.Value.Count + " plans in group");
+                    if(debug)
+                        log?.LogInformation("GetPlansAsync: Found " + plans.Value.Count + " plans in group");
 
                     foreach (PlannerPlan plan in plans.Value)
                     {
@@ -2220,20 +2380,24 @@ namespace Shared
             }
             catch (ServiceException ex)
             {
-                log?.LogError($"Error retrieving plans: {ex.Message}");
+                log?.LogError($"GetPlansAsync: Error retrieving plans with error {ex.Message}");
             }
 
             return returnValue;
         }
 
-        public async Task<PlannerPlan?> PlanExists(string groupId, string planTitle)
+        public async Task<PlannerPlan?> PlanExists(string groupId, string planTitle, bool debug)
         {
-            log?.LogInformation("Trying to find plan: " + planTitle + " in group: " + groupId);
-            var plans = await GetPlansAsync(groupId);
+            if(debug)
+                log?.LogInformation("PlanExists: Trying to find plan " + planTitle + " in group: " + groupId);
+
+            var plans = await GetPlansAsync(groupId, debug);
 
             if(plans?.Count > 0)
             {
-                log?.LogInformation("Found: " + plans.Count);
+                if(debug)
+                    log?.LogInformation("PlanExists: Found " + plans.Count);
+
                 if (plans.Any(p => p.Title == planTitle))
                 {
                     return plans.FirstOrDefault(p => p.Title == planTitle);
@@ -2243,7 +2407,7 @@ namespace Shared
             return null;
         }
 
-        public async Task<IList<PlannerBucket>> GetBucketsAsync(string planId)
+        public async Task<IList<PlannerBucket>> GetBucketsAsync(string planId, bool debug)
         {
             List<PlannerBucket> returnValue = new List<PlannerBucket>();
 
@@ -2259,18 +2423,21 @@ namespace Shared
 
                 if(buckets?.Value?.Count > 0)
                 {
+                    if (debug)
+                        log?.LogInformation($"GetBucketsAsync: Found {buckets.Value.Count} buckets in {planId}");
+
                     returnValue = buckets.Value;
                 }
             }
             catch (ServiceException ex)
             {
-                log?.LogError($"Error retrieving buckets: {ex.Message}");
+                log?.LogError($"GetBucketsAsync: Error retrieving buckets with error {ex.Message}");
             }
 
             return returnValue;
         }
 
-        public async Task CopyBucketAsync(PlannerBucket sourceBucket, string targetPlanId)
+        public async Task CopyBucketAsync(PlannerBucket sourceBucket, string targetPlanId, bool debug)
         {
             if(graphClient == null)
             {
@@ -2288,17 +2455,21 @@ namespace Shared
 
             try
             {
+                if (debug)
+                    log?.LogInformation($"CopyBucketAsync: Creating bucket {sourceBucket.Name} in {targetPlanId}");
+
                 createdBucket = await graphClient.Planner.Buckets.PostAsync(newBucket);
             }
             catch (ServiceException ex)
             {
-                log?.LogError($"Error creating bucket: {ex.Message}");
+                log?.LogError($"CopyBucketAsync: Error creating bucket with {ex.Message}");
                 return;
             }
 
             if(createdBucket != null)
             {
-                log?.LogInformation("Bucket " + sourceBucket.Name + " created, copying tasks");
+                if(debug)
+                    log?.LogInformation("CopyBucketAsync: Bucket " + sourceBucket.Name + " created, copying tasks");
 
                 // Retrieve tasks from the source bucket
                 var tasks = await graphClient.Planner.Buckets[sourceBucket.Id].Tasks
@@ -2323,7 +2494,7 @@ namespace Shared
                         }
                         catch (ServiceException ex)
                         {
-                            log?.LogError($"Error creating task: {ex.Message}");
+                            log?.LogError($"CopyBucketAsync: Error creating task with error {ex.Message}");
                         }
                     }
                 }

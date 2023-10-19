@@ -32,18 +32,20 @@ namespace Orders
             Microsoft.Azure.WebJobs.ExecutionContext context,
             ILogger log)
         {
-            log.LogInformation("Order assign permissions message received.");
-
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Order?.BGAssignPermission).HasValue && (settings?.debugFlags?.Order?.BGAssignPermission).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
             OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message);
-            Order order = common.GetOrderFromCDN(orderMessage.ExternalId);
+            Order order = common.GetOrderFromCDN(orderMessage.ExternalId, debug);
+
+            if(debug)
+                log.LogInformation("Order BGAssignPermissions: Order assign permissions message received.");
 
             if (order?.Customer != null)
             {
-                var groupDrive = await common.FindCustomerGroupAndDrive(order.Customer);
+                var groupDrive = await common.FindCustomerGroupAndDrive(order.Customer, debug);
 
                 if (groupDrive?.Success == true && groupDrive?.customer != null)
                 {
@@ -51,18 +53,18 @@ namespace Orders
                     {
                         if (!string.IsNullOrEmpty(orderMessage.Seller))
                         {
-                            await msGraph.AddGroupOwner(orderMessage.Seller, orderMessage.CustomerGroupID);
-                            await msGraph.AddGroupMember(orderMessage.Seller, orderMessage.CustomerGroupID);
+                            await msGraph.AddGroupOwner(orderMessage.Seller, orderMessage.CustomerGroupID, debug);
+                            await msGraph.AddGroupMember(orderMessage.Seller, orderMessage.CustomerGroupID, debug);
                         }
 
                         if (!string.IsNullOrEmpty(orderMessage.ProjectManager))
                         {
-                            await msGraph.AddGroupOwner(orderMessage.ProjectManager, orderMessage.CustomerGroupID);
-                            await msGraph.AddGroupMember(orderMessage.ProjectManager, orderMessage.CustomerGroupID);
+                            await msGraph.AddGroupOwner(orderMessage.ProjectManager, orderMessage.CustomerGroupID, debug);
+                            await msGraph.AddGroupMember(orderMessage.ProjectManager, orderMessage.CustomerGroupID, debug);
                         }
 
                         order.Handled = true;
-                        common.UpdateOrCreateDbOrder(order);
+                        common.UpdateOrCreateDbOrder(order, debug);
                     }
                 }
             }

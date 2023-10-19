@@ -32,31 +32,38 @@ namespace Orders
 
             log.LogInformation($"Order Information trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Order?.BGOrderInfo).HasValue && (settings?.debugFlags?.Order?.BGOrderInfo).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
 
             OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message);
 
             if(string.IsNullOrEmpty(orderMessage.No) && !string.IsNullOrEmpty(orderMessage.ExternalId))
             {
-                log.LogInformation("Message did not contain ExternalId so assigning it from No");
+                if(debug)
+                    log.LogInformation("Order BGOrderInfo: Message did not contain ExternalId so assigning it from No");
+
                 orderMessage.No = orderMessage.ExternalId;
             }
 
             if (string.IsNullOrEmpty(orderMessage.ExternalId) && !string.IsNullOrEmpty(orderMessage.No))
             {
-                log.LogInformation("Message did not contain No so assigning it from ExternalId");
+                if(debug)
+                    log.LogInformation("Order BGOrderInfo: Message did not contain No so assigning it from ExternalId");
+
                 orderMessage.ExternalId = orderMessage.No;
             }
 
             var newOrder = default(Order);
 
             //Find and update or create the order database post
-            Order cdnItem = common.GetOrderFromCDN(orderMessage.ExternalId);
+            Order cdnItem = common.GetOrderFromCDN(orderMessage.ExternalId, debug);
 
             if(cdnItem != null)
             {
-                log.LogInformation("Found order in Database");
+                if(debug)
+                    log.LogInformation("Order BGOrderInfo: Found order in Database");
+
                 if (string.IsNullOrEmpty(cdnItem.ExternalId))
                     cdnItem.ExternalId = orderMessage.ExternalId; //backwards compatibility
 
@@ -67,8 +74,10 @@ namespace Orders
                 cdnItem.CustomerNo = orderMessage.CustomerNo;
                 cdnItem.CustomerType = orderMessage.CustomerType;
                 cdnItem.Type = orderMessage.Type;
-                newOrder = common.UpdateOrCreateDbOrder(cdnItem);
-                log.LogInformation("Updated order in Database");
+                newOrder = common.UpdateOrCreateDbOrder(cdnItem, debug);
+                
+                if(debug)
+                    log.LogInformation("Order BGOrderInfo: Updated order in Database");
             }
             else
             {
@@ -83,13 +92,17 @@ namespace Orders
                     ProjectManager = orderMessage.ProjectManager
                 };
 
-                newOrder = common.UpdateOrCreateDbOrder(newOrder);
-                log.LogInformation("Created order in Database");
+                newOrder = common.UpdateOrCreateDbOrder(newOrder, debug);
+                
+                if(debug)
+                    log.LogInformation("Order BGOrderInfo: Created order in Database");
             }
 
             if (newOrder != null)
             {
-                log.LogInformation("Order was created or updated in Database");
+                if(debug)
+                    log.LogInformation("Order BGOrderInfo: Order was created or updated in Database");
+
                 orderMessage.ExternalId = newOrder.ExternalId;
 
                 if(newOrder.Customer != null)
@@ -107,7 +120,9 @@ namespace Orders
             }
             else
             {
-                log.LogInformation("Could not create or update order in Database");
+                if(debug)
+                    log.LogInformation("Order BGOrderInfo: Could not create or update order in Database");
+
                 return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(orderMessage));
             }
 

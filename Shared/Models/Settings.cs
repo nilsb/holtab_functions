@@ -30,6 +30,7 @@ namespace Shared.Models
                     this.Admins = config["Admins"];
                     this.SqlConnectionString = config["SqlConnectionString"];
                     this.redisConnectionString = config["redisConnectionString"];
+                    this.debugFlags = Newtonsoft.Json.JsonConvert.DeserializeObject<DebugFlags>(config["debugFlags"]);
 
                     if (!string.IsNullOrEmpty(this.TenantID) && !string.IsNullOrEmpty(this.ClientID) && !string.IsNullOrEmpty(this.ClientSecret))
                     {
@@ -60,6 +61,7 @@ namespace Shared.Models
             }
         }
 
+        public DebugFlags? debugFlags { get; set; }
         public GraphServiceClient? GraphClient { get; set; }
         public ConnectionMultiplexer? redis { get; set; }
         public string TenantID { get; set; } = "";

@@ -18,8 +18,6 @@ namespace Jobs
             [HttpTrigger(AuthorizationLevel.Function, new string[] { "get", "post" }, Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
-
             string name = req.Query["id"];
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();

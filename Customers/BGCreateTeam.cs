@@ -35,20 +35,21 @@ namespace CreateTeam
             log.LogInformation($"Create team queue trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
             string response = string.Empty;
+            bool debug = (settings?.debugFlags?.Customer?.BGCreateTeam).HasValue && (settings?.debugFlags?.Customer?.BGCreateTeam).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
             FindGroupResult result = new FindGroupResult() { Success = false };
 
             //Parse the incoming message into JSON
             CustomerQueueMessage customerQueueMessage = JsonConvert.DeserializeObject<CustomerQueueMessage>(Message);
 
             //Get customer object from database
-            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);
+            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name, debug);
 
             if (findCustomer.Success && findCustomer.customer != null && findCustomer.customer != default(Customer))
             {
                 Customer customer = findCustomer.customer;
-                result = await msGraph.GetGroupById(customer.GroupID);
+                result = await msGraph.GetGroupById(customer.GroupID, debug);
 
                 //if the group was found
                 if (result.Success && !string.IsNullOrEmpty(result.group))
@@ -56,7 +57,7 @@ namespace CreateTeam
                     try
                     {
                         //try to find the team if it already exists or create it if it's missing
-                        bool createTeamResult = await common.CreateCustomerTeam(findCustomer.customer, result.group);
+                        bool createTeamResult = await common.CreateCustomerTeam(findCustomer.customer, result.group, debug);
                     }
                     catch (Exception ex)
                     {

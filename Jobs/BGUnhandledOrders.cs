@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -31,13 +32,15 @@ namespace Jobs
             Microsoft.Azure.WebJobs.ExecutionContext context,
             ILogger log)
         {
-            log.LogInformation("Triggered get unhandled orders request.");
-
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Job?.BGUnhandledOrders).HasValue && (settings?.debugFlags?.Job?.BGUnhandledOrders).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
+            Common common = new Common(settings, msGraph, debug);
 
-            var orderItems = common.GetUnhandledOrderItems();
+            if(debug)
+                log.LogInformation($"Job BGUnhandledOrders: Triggered get unhandled orders request. {DateTime.Now}");
+
+            var orderItems = common.GetUnhandledOrderItems(debug);
             
             return new OkObjectResult(JsonConvert.SerializeObject(orderItems));
         }

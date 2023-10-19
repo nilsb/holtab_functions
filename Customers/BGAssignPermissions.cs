@@ -31,24 +31,26 @@ namespace Customers
             ILogger log)
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
-            log.LogInformation($"Assign permissions queue trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
+            bool debug = (settings?.debugFlags?.Customer?.BGAssignPermissions).HasValue && (settings?.debugFlags?.Customer?.BGAssignPermissions).Value;
             Graph msGraph = new Graph(settings);
-            Common common = new Common(settings, msGraph);
-            log.LogTrace($"Got assign permissions request with message: {Message}");
+            Common common = new Common(settings, msGraph, debug);
+
+            if (debug)
+                log.LogInformation($"Customer BGAssignPermissions: Assign permissions queue trigger function processed message {Message}");
 
             //Parse the incoming message into JSON
             CustomerQueueMessage customerQueueMessage = JsonConvert.DeserializeObject<CustomerQueueMessage>(Message);
 
             //Get customer object from database
-            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name);
+            FindCustomerResult findCustomer = common.GetCustomer(customerQueueMessage.ExternalId, customerQueueMessage.Type, customerQueueMessage.Name, debug);
 
             if(findCustomer.Success)
             {
                 Customer customer = findCustomer.customer;
 
                 //Try to find the group but assumes it was already created
-                FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer);
+                FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer, debug);
 
                 if (findCustomerGroup.Success)
                 {
@@ -57,8 +59,8 @@ namespace Customers
                     {
                         if (!string.IsNullOrEmpty(customer.Seller))
                         {
-                            await msGraph.AddGroupOwner(customer.Seller, customer.GroupID);
-                            await msGraph.AddGroupMember(customer.Seller, customer.GroupID);
+                            await msGraph.AddGroupOwner(customer.Seller, customer.GroupID, debug);
+                            await msGraph.AddGroupMember(customer.Seller, customer.GroupID, debug);
                         }
 
                         return new OkObjectResult(JsonConvert.SerializeObject(Message));

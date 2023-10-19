@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using RE = System.Text.RegularExpressions;
 using Microsoft.Graph.Models;
 using System.Threading.Channels;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace Shared
 {
@@ -21,7 +23,7 @@ namespace Shared
         public readonly string orderRegex = @"B\d{6}|T\d{5}|A\d{5}|Z\d{5}|G\d{4}|R\d{2}|E\d{5,7}|F\d{5}|H\d{5,6}|K\d{5,6}|\d{5}-\d{2}|Q\d{5}-\d{2}";
         public List<char> illegalChars = new List<char>() { '~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '=', '{', '}', '|', '[', ']', '\\', ':', '\"', ';', '\'', '<', '>', ',', '.', '?', '/', 'å', 'ä', 'ö', 'Å', 'Ä', 'Ö', ' ', 'Ø', 'Æ', 'æ', 'ø', 'ü', 'Ü', 'µ', 'ẞ', 'ß' };
 
-        public Common(Settings _settings, Graph _msGraph)
+        public Common(Settings _settings, Graph _msGraph, bool debug)
         {
             log = _settings.log;
             msGraph = _msGraph;
@@ -40,7 +42,7 @@ namespace Shared
 
                 if (!string.IsNullOrEmpty(CDNTeamID))
                 {
-                    FindGroupResult? findGroup = msGraph?.GetGroupById(CDNTeamID).Result;
+                    FindGroupResult? findGroup = msGraph?.GetGroupById(CDNTeamID, debug).Result;
 
                     if (findGroup?.Success == true)
                     {
@@ -50,23 +52,29 @@ namespace Shared
             }
         }
 
-        public Order? GetOrderFromCDN(string orderNo)
+        public Order? GetOrderFromCDN(string orderNo, bool debug)
         {
             Order? returnValue = null;
 
             try
             {
-                log?.LogInformation($"Trying to find order with id {orderNo}.");
-                returnValue = services?.GetOrderFromDB(orderNo);
+                if(debug)
+                    log?.LogInformation($"GetOrderFromCDN: Trying to find order with id {orderNo}.");
+
+                returnValue = services?.GetOrderFromDB(orderNo, debug);
 
                 if(returnValue != null)
                 {
-                    log?.LogInformation($"Found order with id {orderNo}. Trying to fetch customer.");
-                    FindCustomerResult customers = GetCustomer(returnValue);
+                    if(debug)
+                        log?.LogInformation($"GetOrderFromCDN: Found order with id {orderNo}. Trying to fetch customer.");
+
+                    FindCustomerResult customers = GetCustomer(returnValue, debug);
 
                     if (returnValue.Customer == null && customers.Success && customers.customer != null)
                     {
-                        log?.LogInformation($"Found customer {customers.customer.Name} for order with id {orderNo}.");
+                        if(debug)
+                            log?.LogInformation($"GetOrderFromCDN: Found customer {customers.customer.Name} for order with id {orderNo}.");
+
                         returnValue.CustomerName = customers.customer.Name;
                         returnValue.Customer = customers.customer;
 
@@ -77,72 +85,85 @@ namespace Shared
                     }
 
                     returnValue.ExternalId = orderNo;
-                    UpdateOrder(returnValue, "customer info");
+                    UpdateOrder(returnValue, "customer info", debug);
                 }
             }
             catch (Exception ex)
             {
                 log?.LogError(ex.ToString());
-                log?.LogTrace($"Failed to get order {orderNo} from CDN with error: " + ex.ToString());
+                
+                if(debug)
+                    log?.LogInformation($"GetOrderFromCDN: Failed to get order {orderNo} from CDN with error: " + ex.ToString());
             }
 
             return returnValue;
         }
 
-        public void UpdateOrder(Order order, string logmsg)
+        public void UpdateOrder(Order order, string logmsg, bool debug)
         {
             if (order != null)
             {
-                log?.LogTrace($"Updating {logmsg} for order {order.ExternalId} in database.");
+                if(debug)
+                    log?.LogTrace($"Updating {logmsg} for order {order.ExternalId} in database.");
                 services?.UpdateOrderInDB(order);
             }
-            else
+            else if(debug)
             {
                 log?.LogTrace($"Failed to update {logmsg} for order in database: order object was null");
             }
         }
 
-        public Order? UpdateOrCreateDbOrder(Order order)
+        public Order? UpdateOrCreateDbOrder(Order order, bool debug)
         {
             Order? returnValue = null;
             Order? DBOrder = null;
 
             if(order != null)
             {
-                log?.LogInformation($"Processing order {order.ExternalId} for CreateOrUpdateDB.");
+                if(debug)
+                    log?.LogInformation($"UpdateOrCreateDbOrder: Processing order {order.ExternalId} for CreateOrUpdateDB.");
+
                 //try to find the customer in the order object sent as parameter (in case it changed or the order is new)
-                FindCustomerResult DBCustomer = GetCustomer(order);
+                FindCustomerResult DBCustomer = GetCustomer(order, debug);
 
                 if (DBCustomer.Success && DBCustomer.customer != null)
                 {
-                    log?.LogInformation($"Found customer for order {order.ExternalId} in CreateOrUpdateDB.");
+                    if(debug)
+                        log?.LogInformation($"UpdateOrCreateDbOrder: Found customer for order {order.ExternalId} in CreateOrUpdateDB.");
+
                     order.Customer = DBCustomer.customer;
                 }
 
                 //try to get existing order from database
-                DBOrder = services?.GetOrderFromDB(order.ExternalId);
+                DBOrder = services?.GetOrderFromDB(order.ExternalId, debug);
 
                 if (DBOrder != null && DBOrder != default(Order))
                 {
-                    log?.LogInformation($"Found existing order {order.ExternalId} in CreateOrUpdateDB.");
+                    if(debug)
+                        log?.LogInformation($"UpdateOrCreateDbOrder: Found existing order {order.ExternalId} in CreateOrUpdateDB.");
+
                     DBOrder = order;
                     DBOrder.Status = "Updated";
                     returnValue = DBOrder;
-                    UpdateOrder(DBOrder, "order message info");
+                    UpdateOrder(DBOrder, "order message info", debug);
                 }
-                else
+                else if(debug)
                 {
-                    log?.LogInformation($"Order does not exist in database.");
+                    log?.LogInformation($"UpdateOrCreateDbOrder: Order does not exist in database.");
                 }
 
                 if (returnValue == null)
                 {
-                    log?.LogInformation($"Creating new order.");
+                    if(debug)
+                        log?.LogInformation($"UpdateOrCreateDbOrder: Creating new order.");
+
                     Order NewOrder = new Order();
 
                     if (DBCustomer.Success && DBCustomer.customer != null)
                     {
-                        log?.LogInformation($"Setting new order customer.");
+                        if(debug)
+                            log?.LogInformation($"UpdateOrCreateDbOrder: Setting new order customer.");
+
                         NewOrder.Customer = order.Customer;
                         NewOrder.CustomerName = order.CustomerName;
                         NewOrder.CustomerType = order.CustomerType;
@@ -163,12 +184,15 @@ namespace Shared
 
                     try
                     {
-                        log?.LogInformation($"Adding order to DB.");
+                        if(debug)
+                            log?.LogInformation($"UpdateOrCreateDbOrder: Adding order to DB.");
 
-                        if (services?.AddOrderInDB(NewOrder) == true)
+                        if (services?.AddOrderInDB(NewOrder, debug) == true)
                         {
-                            log?.LogTrace($"Fetching added order from DB.");
-                            Order? NewDBOrder = services?.GetOrderFromDB(NewOrder.ExternalId);
+                            if(debug)
+                                log?.LogInformation($"UpdateOrCreateDbOrder: Fetching added order from DB.");
+
+                            Order? NewDBOrder = services?.GetOrderFromDB(NewOrder.ExternalId, debug);
 
                             if (NewDBOrder != null)
                             {
@@ -179,8 +203,12 @@ namespace Shared
                     }
                     catch (Exception ex)
                     {
-                        log?.LogError(ex.ToString());
-                        log?.LogTrace($"Failed to create order in database with error: {ex}");
+                        log?.LogError("UpdateOrCreateDbOrder: " + ex.ToString());
+
+                        if (debug)
+                        {
+                            log?.LogInformation($"UpdateOrCreateDbOrder: Failed to create order in database with error: {ex}");
+                        }
                     }
                 }
             }
@@ -188,7 +216,7 @@ namespace Shared
             return returnValue;
         }
 
-        public Customer? UpdateOrCreateDbCustomer(CustomerMessage? msg)
+        public Customer? UpdateOrCreateDbCustomer(CustomerMessage? msg, bool debug)
         {
             Customer? returnValue = null;
             List<Customer> DBCustomers = new List<Customer>();
@@ -200,7 +228,10 @@ namespace Shared
 
             try
             {
-                DBCustomers = services.GetCustomerFromDB(msg.CustomerNo, msg.Type);
+                if (debug)
+                    log?.LogInformation($"UpdateOrCreateDbCustomer: Try to get customer {msg.CustomerNo} ({msg.Type}) from database");
+
+                DBCustomers = services.GetCustomerFromDB(msg.CustomerNo, msg.Type, debug);
 
                 if (DBCustomers.Count > 0)
                 {
@@ -209,6 +240,9 @@ namespace Shared
 
                     if (foundCustomer != null && foundCustomer != default(Customer))
                     {
+                        if (debug)
+                            log?.LogInformation($"UpdateOrCreateDbCustomer: Found customer {msg.CustomerNo} ({msg.Type}) in database so we update it.");
+
                         foundCustomer.Address = msg.CustomerAddress;
                         foundCustomer.Address1 = msg.CustomerAddress2;
                         foundCustomer.Fax = msg.CustomerFax;
@@ -221,15 +255,23 @@ namespace Shared
                         foundCustomer.Seller = msg.Responsible;
                         foundCustomer.Prospect = msg.Responsible;
                         foundCustomer.Modified = DateTime.Now;
-                        UpdateCustomer(foundCustomer, "new customer info");
+
+                        if (debug)
+                            log?.LogInformation($"UpdateOrCreateDbCustomer: Update customer {msg.CustomerNo} ({msg.Type}) with information: " + JsonConvert.SerializeObject(foundCustomer));
+
+                        UpdateCustomer(foundCustomer, "new customer info", debug);
                         returnValue = foundCustomer;
                     }
                 }
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
-                log?.LogInformation($"Failed to find or update customer {msg.CustomerName} ({msg.CustomerNo}) in database with error: {ex}");
+                log?.LogError("UpdateOrCreateDbCustomer: " + ex.ToString());
+
+                if (debug)
+                {
+                    log?.LogInformation($"UpdateOrCreateDbCustomer: Failed to find or update customer {msg.CustomerName} ({msg.CustomerNo}) in database with error: {ex}");
+                }
             }
 
             if (DBCustomers.Count <= 0)
@@ -256,9 +298,12 @@ namespace Shared
 
                 try
                 {
-                    if (services.AddCustomerInDB(newCustomer))
+                    if (debug)
+                        log?.LogInformation($"UpdateOrCreateDbCustomer: Trying to creating customer {msg.CustomerNo} ({msg.Type}) with information: " + JsonConvert.SerializeObject(newCustomer));
+
+                    if (services.AddCustomerInDB(newCustomer, debug))
                     {
-                        DBCustomers = services.GetCustomerFromDB(msg.CustomerNo, msg.Type);
+                        DBCustomers = services.GetCustomerFromDB(msg.CustomerNo, msg.Type, debug);
 
                         if (DBCustomers.Count > 0)
                         {
@@ -275,21 +320,27 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
-                    log?.LogTrace($"Failed to add customer {newCustomer.Name} in database with error: {ex}");
+                    if (debug)
+                    {
+                        log?.LogError(ex.ToString());
+                        log?.LogTrace($"Failed to add customer {newCustomer.Name} in database with error: {ex}");
+                    }
                 }
             }
 
             return returnValue;
         }
 
-        public FindCustomerResult GetCustomer(Order? order)
+        public FindCustomerResult GetCustomer(Order? order, bool debug)
         {
             FindCustomerResult returnValue = new FindCustomerResult();
 
             if (order?.Customer == null)
             {
-                FindCustomerResult foundCustomers = GetCustomer(order?.CustomerNo, order?.CustomerType);
+                if(debug)
+                    log?.LogInformation($"GetCustomer: Order object customer was not set so fecth customer from database");
+
+                FindCustomerResult foundCustomers = GetCustomer(order?.CustomerNo, order?.CustomerType, debug);
 
                 if (string.IsNullOrEmpty(order?.CustomerName))
                 {
@@ -299,6 +350,9 @@ namespace Shared
 
                         if (DBCustomer != null && DBCustomer != default(Customer))
                         {
+                            if (debug)
+                                log?.LogInformation($"GetCustomer: Found customer {DBCustomer.ID} in database.");
+
                             returnValue.Success = true;
                             returnValue.customer = DBCustomer;
                         }
@@ -312,6 +366,9 @@ namespace Shared
 
                         if (DBCustomer != null && DBCustomer != default(Customer))
                         {
+                            if (debug)
+                                log?.LogInformation($"GetCustomer: Found customer {DBCustomer.ID} in database.");
+
                             returnValue.Success = true;
                             returnValue.customer = DBCustomer;
                         }
@@ -320,6 +377,9 @@ namespace Shared
             }
             else
             {
+                if (debug)
+                    log?.LogInformation($"GetCustomer: Order has customer {order.Customer.ID}.");
+
                 returnValue.Success = true;
                 returnValue.customer = order.Customer;
             }
@@ -327,10 +387,14 @@ namespace Shared
             return returnValue;
         }
 
-        public FindCustomerResult GetCustomer(string CustomerNo, string CustomerType, string CustomerName)
+        public FindCustomerResult GetCustomer(string CustomerNo, string CustomerType, string CustomerName, bool debug)
         {
             FindCustomerResult returnValue = new FindCustomerResult();
-            FindCustomerResult foundCustomers = GetCustomer(CustomerNo, CustomerType);
+
+            if (debug)
+                log?.LogInformation($"GetCustomer: Try to find customer {CustomerNo} ({CustomerType}) in database");
+
+            FindCustomerResult foundCustomers = GetCustomer(CustomerNo, CustomerType, debug);
 
             if (foundCustomers.Success && foundCustomers.customers.Count > 0 && !string.IsNullOrEmpty(CustomerName))
             {
@@ -338,6 +402,9 @@ namespace Shared
 
                 if (DBCustomer != null && DBCustomer != default(Customer))
                 {
+                    if (debug)
+                        log?.LogInformation($"GetCustomer: Found customer {DBCustomer.ID} in database.");
+
                     returnValue.Success = true;
                     returnValue.customer = DBCustomer;
                 }
@@ -348,6 +415,9 @@ namespace Shared
 
                 if (DBCustomer != null && DBCustomer != default(Customer))
                 {
+                    if (debug)
+                        log?.LogInformation($"GetCustomer: Found customer {DBCustomer.ID} in database.");
+
                     returnValue.Success = true;
                     returnValue.customer = DBCustomer;
                 }
@@ -356,7 +426,7 @@ namespace Shared
             return returnValue;
         }
 
-        public FindCustomerResult GetCustomer(string? CustomerNo, string? CustomerType)
+        public FindCustomerResult GetCustomer(string? CustomerNo, string? CustomerType, bool debug)
         {
             FindCustomerResult returnValue = new FindCustomerResult();
             returnValue.Success = false;
@@ -364,38 +434,49 @@ namespace Shared
 
             if (string.IsNullOrEmpty(CustomerNo))
             {
+                if(debug)
+                    log?.LogError($"GetCustomer: CustomerNo is null or empty");
+
                 return returnValue;
             }
 
             try
             {
-                dbCustomer = services?.GetCustomerFromDB(CustomerNo, CustomerType);
+                if (debug)
+                    log?.LogInformation($"GetCustomer: Trying to get customer {CustomerNo} ({CustomerType}) from database.");
+
+                dbCustomer = services?.GetCustomerFromDB(CustomerNo, CustomerType, debug);
 
                 if (dbCustomer?.Count > 0)
                 {
-                    returnValue.Success = true;
-                    returnValue.customers = dbCustomer;
+                    if(debug)
+                        log?.LogInformation($"GetCustomer: Found {dbCustomer.Count} customers. Returning first match if count was more than 1.");
 
-                    if (dbCustomer.Count == 1)
-                    {
-                        returnValue.customer = dbCustomer[0];
-                    }
+                    returnValue.customer = dbCustomer[0];
+                    returnValue.customers = dbCustomer;
+                    returnValue.Success = true;
                 }
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
-                log?.LogTrace($"Failed to get customer {CustomerNo} from DB with error: " + ex.ToString());
+                log?.LogError("GetCustomer: " + ex.ToString());
+
+                if (debug)
+                {
+                    log?.LogInformation($"GetCustomer: Failed to get customer {CustomerNo} from DB with error: " + ex.ToString());
+                }
             }
 
             return returnValue;
         }
 
-        public void UpdateCustomer(Customer customer, string logmsg)
+        public void UpdateCustomer(Customer customer, string logmsg, bool debug)
         {
             if (customer.ID == Guid.Empty)
             {
-                log?.LogTrace($"Failed to update {logmsg} on customer {customer.Name} ({customer.ExternalId}): No database record exists");
+                if(debug)
+                    log?.LogError($"UpdateCustomer: Failed to update {logmsg} on customer {customer.Name} ({customer.ExternalId}): No database record exists");
+
                 return;
             }
 
@@ -404,23 +485,31 @@ namespace Shared
             try
             {
                 customer.Modified = DateTime.Now;
-                if (services?.UpdateCustomerInDB(customer) == true)
+
+                if (debug)
                 {
-                    log?.LogInformation($"Updated {logmsg} for customer {customer.Name} ({customer.ExternalId}) in database.");
-                }
-                else
-                {
-                    log?.LogTrace($"Failed to update {logmsg} on customer {customer.Name} ({customer.ExternalId})");
+                    if (services?.UpdateCustomerInDB(customer) == true)
+                    {
+                        log?.LogInformation($"UpdateCustomer: Updated {logmsg} for customer {customer.Name} ({customer.ExternalId}) in database.");
+                    }
+                    else
+                    {
+                        log?.LogTrace($"UpdateCustomer: Failed to update {logmsg} on customer {customer.Name} ({customer.ExternalId})");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
-                log?.LogTrace($"Failed to update {logmsg} on customer {customer.Name} ({customer.ExternalId}) with query: {updatequery}");
+                log?.LogError("UpdateCustomer: " + ex.ToString());
+
+                if (debug)
+                {
+                    log?.LogInformation($"UpdateCustomer: Failed to update {logmsg} on customer {customer.Name} ({customer.ExternalId}) with query: {updatequery}");
+                }
             }
         }
 
-        public string GetMailNickname(string? customerName, string? customerNo, string? customerType)
+        public string GetMailNickname(string? customerName, string? customerNo, string? customerType, bool debug)
         {
             string mailNickname = "";
 
@@ -434,24 +523,29 @@ namespace Shared
 
             illegalChars.ForEach(c => mailNickname = mailNickname.Replace(c.ToString(), ""));
 
+            if (debug)
+                log?.LogInformation($"GetMailNickname: {mailNickname.Replace("é", "e")}");
+
             return mailNickname.Replace("é", "e");
         }
 
-        public FindCustomerGroupResult FindCustomerGroupAndDrive(string? customerName, string? customerNo, string? customerType)
+        public FindCustomerGroupResult FindCustomerGroupAndDrive(string? customerName, string? customerNo, string? customerType, bool debug)
         {
             FindCustomerGroupResult returnValue = new FindCustomerGroupResult();
             returnValue.Success = false;
-            string mailNickname = this.GetMailNickname(customerName, customerNo, customerType);
+            string mailNickname = this.GetMailNickname(customerName, customerNo, customerType, debug);
 
             if(string.IsNullOrEmpty(customerName) || string.IsNullOrEmpty(customerNo) || string.IsNullOrEmpty(customerType))
             {
                 return returnValue;
             }
 
-            log?.LogInformation($"Trying to get group for {mailNickname}.");
+            if(debug)
+                log?.LogInformation($"FindCustomerGroupAndDrive: Trying to get group for {mailNickname}.");
+
             try
             {
-                FindCustomerResult findCustomer = GetCustomer(customerNo, customerType, customerName);
+                FindCustomerResult findCustomer = GetCustomer(customerNo, customerType, customerName, debug);
 
                 if (findCustomer.Success)
                 {
@@ -459,20 +553,22 @@ namespace Shared
 
                     if (returnValue.customer != null)
                     {
-                        returnValue = FindCustomerGroupAndDrive(returnValue.customer).Result;
+                        returnValue = FindCustomerGroupAndDrive(returnValue.customer, debug).Result;
                     }
                 }
             }
             catch (Exception ex)
             {
                 log?.LogError(ex.ToString());
-                log?.LogTrace($"Failed to get group and drive for {mailNickname} with error: " + ex.ToString());
+
+                if(debug)
+                    log?.LogInformation($"FindCustomerGroupAndDrive: Failed to get group and drive for {mailNickname} with error: " + ex.ToString());
             }
 
             return returnValue;
         }
 
-        public async Task<FindCustomerGroupResult> FindCustomerGroupAndDrive(Customer? customer)
+        public async Task<FindCustomerGroupResult> FindCustomerGroupAndDrive(Customer? customer, bool debug)
         {
             FindCustomerGroupResult returnValue = new FindCustomerGroupResult();
             returnValue.Success = false;
@@ -486,15 +582,19 @@ namespace Shared
                 return returnValue;
             }
 
-            log?.LogTrace($"Trying to get group drive for {customer.Name}.");
+            if(debug)
+                log?.LogTrace($"FindCustomerGroupAndDrive: Trying to get group drive for {customer.Name}.");
+
             if (!string.IsNullOrEmpty(customer.GroupID))
             {
-                result = await msGraph.GetGroupById(customer.GroupID);
+                result = await msGraph.GetGroupById(customer.GroupID, debug);
             }
             else
             {
-                log?.LogTrace($"Missing group id in database so trying mailnickname {customer.Name}.");
-                string mailNickname = this.GetMailNickname(customer.Name, customer.ExternalId, customer.Type);
+                if(debug)
+                    log?.LogTrace($"FindCustomerGroupAndDrive: Missing group id in database so trying mailnickname {customer.Name}.");
+
+                string mailNickname = this.GetMailNickname(customer.Name, customer.ExternalId, customer.Type, debug);
                 result = await msGraph.FindGroupByName(mailNickname, false);
             }
 
@@ -504,36 +604,44 @@ namespace Shared
 
                 if (result.Count > 1 && result.groups != null)
                 {
-                    log?.LogTrace($"Found multiple groups for {customer.Name}. Returning first match.");
+                    if(debug)
+                        log?.LogTrace($"FindCustomerGroupAndDrive: Found multiple groups for {customer.Name}. Returning first match.");
+
                     returnValue.groupId = result.groups[0];
-                    groupDriveId = await msGraph.GetGroupDrive(result.groups[0]);
+                    groupDriveId = await msGraph.GetGroupDrive(result.groups[0], debug);
                 }
                 else
                 {
-                    log?.LogTrace($"Found group for {customer.Name}.");
+                    if(debug)
+                        log?.LogTrace($"FindCustomerGroupAndDrive: Found group for {customer.Name}.");
+
                     returnValue.groupId = result.group;
-                    groupDriveId = await msGraph.GetGroupDrive(result.group);
+                    groupDriveId = await msGraph.GetGroupDrive(result.group, debug);
                 }
 
                 if(!string.IsNullOrEmpty(returnValue.groupId))
                 {
                     returnValue.customer.GroupID = returnValue.groupId ?? "";
                     returnValue.customer.GroupCreated = true;
-                    UpdateCustomer(returnValue.customer, "group info");
+                    UpdateCustomer(returnValue.customer, "group info", debug);
                 }
 
                 if (!string.IsNullOrEmpty(groupDriveId))
                 {
-                    log?.LogTrace($"Found group drive for {customer.Name}.");
+                    if(debug)
+                        log?.LogInformation($"FindCustomerGroupAndDrive: Found group drive for {customer.Name}.");
+
                     returnValue.Success = true;
                     returnValue.groupDriveId = groupDriveId;
                     returnValue.customer.DriveID = groupDriveId ?? "";
-                    UpdateCustomer(returnValue.customer, "drive info");
-                    rootItems = await msGraph.GetDriveRootItems(groupDriveId);
+                    UpdateCustomer(returnValue.customer, "drive info", debug);
+                    rootItems = await msGraph.GetDriveRootItems(groupDriveId, debug);
 
                     if (rootItems.Count > 0)
                     {
-                        log?.LogTrace($"Fetched root items in group drive for {customer.Name}.");
+                        if(debug)
+                            log?.LogInformation($"FindCustomerGroupAndDrive: Fetched root items in group drive for {customer.Name}.");
+
                         returnValue.rootItems = rootItems;
                     }
                 }
@@ -544,11 +652,13 @@ namespace Shared
 
                     if (generalFolder != default(DriveItem))
                     {
-                        log?.LogTrace($"Fetched general folder in group drive for {customer.Name}.");
+                        if (debug)
+                            log?.LogInformation($"FindCustomerGroupAndDrive: Fetched general folder in group drive for {customer.Name}.");
+
                         returnValue.generalFolder = generalFolder;
                         returnValue.customer.GeneralFolderID = generalFolder.Id ?? "";
                         returnValue.customer.GeneralFolderCreated = true;
-                        UpdateCustomer(returnValue.customer, "general folder info");
+                        UpdateCustomer(returnValue.customer, "general folder info", debug);
                     }
                 }
             }
@@ -556,22 +666,24 @@ namespace Shared
             return returnValue;
         }
 
-        public FindOrderGroupAndFolder GetOrderGroupAndFolder(string OrderNo)
+        public FindOrderGroupAndFolder GetOrderGroupAndFolder(string OrderNo, bool debug)
         {
             FindOrderGroupAndFolder returnValue = new FindOrderGroupAndFolder();
             returnValue.Success = false;
-            Order? order = this.GetOrderFromCDN(OrderNo);
-            log?.LogTrace($"Trying to fetch CDN item for {OrderNo}.");
+            Order? order = this.GetOrderFromCDN(OrderNo, debug);
+
+            if(debug)
+                log?.LogInformation($"GetOrderGroupAndFolder: Trying to fetch CDN item for {OrderNo}.");
 
             if(order != null)
             {
-                returnValue = this.GetOrderGroupAndFolder(order).Result;
+                returnValue = this.GetOrderGroupAndFolder(order, debug).Result;
             }
 
             return returnValue;
         }
 
-        public async Task<FindOrderGroupAndFolder> GetOrderGroupAndFolder(Order order)
+        public async Task<FindOrderGroupAndFolder> GetOrderGroupAndFolder(Order order, bool debug)
         {
             FindOrderGroupAndFolder returnValue = new FindOrderGroupAndFolder();
             returnValue.Success = false;
@@ -583,11 +695,13 @@ namespace Shared
 
             if (order != null && !string.IsNullOrEmpty(order.CustomerNo) && !string.IsNullOrEmpty(order.CustomerType))
             {
-                FindCustomerResult customerName = GetCustomer(order);
+                FindCustomerResult customerName = GetCustomer(order, debug);
 
                 if (customerName.Success && customerName.customer != null)
                 {
-                    log?.LogTrace($"Got customer name from cdn for {customerName.customer.Name}.");
+                    if(debug)
+                        log?.LogInformation($"GetOrderGroupAndFolder: Got customer name from cdn for {customerName.customer.Name}.");
+
                     order.Customer = customerName.customer;
                     returnValue.customer = customerName.customer;
 
@@ -597,11 +711,11 @@ namespace Shared
                     {
                         if(string.IsNullOrEmpty(returnValue.customer.GroupID) || string.IsNullOrEmpty(returnValue.customer.DriveID))
                         {
-                            findCustomerGroupResult = this.FindCustomerGroupAndDrive(returnValue.customer.Name, returnValue.customer.ExternalId, returnValue.customer.Type);
+                            findCustomerGroupResult = this.FindCustomerGroupAndDrive(returnValue.customer.Name, returnValue.customer.ExternalId, returnValue.customer.Type, debug);
                         }
                         else
                         {
-                            findCustomerGroupResult = await this.FindCustomerGroupAndDrive(returnValue.customer);
+                            findCustomerGroupResult = await this.FindCustomerGroupAndDrive(returnValue.customer, debug);
                         }
                     }
 
@@ -613,12 +727,14 @@ namespace Shared
                         returnValue.customer.GroupID = findCustomerGroupResult.groupId ?? "";
                         returnValue.customer.DriveID = findCustomerGroupResult.groupDriveId ?? "";
                         returnValue.customer.GroupCreated = true;
-                        UpdateCustomer(returnValue.customer, "group and drive info");
-                        log?.LogTrace($"Found group for {returnValue.customer.Name} and order {order.ExternalId}.");
+                        UpdateCustomer(returnValue.customer, "group and drive info", debug);
+                        
+                        if(debug)
+                            log?.LogInformation($"GetOrderGroupAndFolder: Found group for {returnValue.customer.Name} and order {order.ExternalId}.");
 
                         try
                         {
-                            returnValue.orderTeamId = await msGraph.GetTeamFromGroup(returnValue.customer.GroupID);
+                            returnValue.orderTeamId = await msGraph.GetTeamFromGroup(returnValue.customer.GroupID, debug);
 
                             if (returnValue.orderTeamId != null)
                             {
@@ -626,13 +742,17 @@ namespace Shared
                                 returnValue.customer.TeamID = returnValue.orderTeamId ?? "";
                             }
 
-                            UpdateCustomer(returnValue.customer, "team info");
-                            log?.LogTrace($"Found team for {returnValue.customer.Name} and order {order.ExternalId}.");
+                            UpdateCustomer(returnValue.customer, "team info", debug);
+
+                            if(debug)
+                                log?.LogInformation($"GetOrderGroupAndFolder: Found team for {returnValue.customer.Name} and order {order.ExternalId}.");
                         }
                         catch (Exception ex)
                         {
-                            log?.LogError(ex.ToString());
-                            log?.LogTrace($"Failed to find team for {returnValue.customer.Name} and order {order.ExternalId}.");
+                            log?.LogError("GetOrderGroupAndFolder: " + ex.ToString());
+
+                            if(debug)
+                                log?.LogInformation($"GetOrderGroupAndFolder: Failed to find team for {returnValue.customer.Name} and order {order.ExternalId}.");
                         }
 
                         returnValue.Success = true;
@@ -641,11 +761,13 @@ namespace Shared
 
                         if (findCustomerGroupResult.generalFolder != null)
                         {
-                            log?.LogTrace($"Found general folder for {returnValue.customer.Name} and order {order.ExternalId}.");
+                            if(debug)
+                                log?.LogInformation($"GetOrderGroupAndFolder: Found general folder for {returnValue.customer.Name} and order {order.ExternalId}.");
+
                             returnValue.generalFolder = findCustomerGroupResult.generalFolder;
                             returnValue.customer.GeneralFolderCreated = true;
                             returnValue.customer.GeneralFolderID = returnValue.generalFolder.Id ?? "";
-                            UpdateCustomer(returnValue.customer, "general folder info");
+                            UpdateCustomer(returnValue.customer, "general folder info", debug);
                         }
 
                         if (returnValue.customer.GeneralFolderCreated && msGraph != null)
@@ -666,7 +788,9 @@ namespace Shared
 
                                     if (orderMatch.Success)
                                     {
-                                        log?.LogTrace($"Changed order no for quote: {order.ExternalId} to: {orderMatch.Value}");
+                                        if(debug)
+                                            log?.LogInformation($"GetOrderGroupAndFolder: Changed order no for quote: {order.ExternalId} to: {orderMatch.Value}");
+
                                         order.ExternalId = orderMatch.Value;
                                     }
 
@@ -677,7 +801,9 @@ namespace Shared
 
                                     if (offerMatch.Success)
                                     {
-                                        log?.LogTrace($"Changed order no for quote: {order.ExternalId} to: {offerMatch.Value}");
+                                        if(debug)
+                                            log?.LogInformation($"Changed order no for quote: {order.ExternalId} to: {offerMatch.Value}");
+
                                         order.ExternalId = offerMatch.Value;
                                     }
 
@@ -695,7 +821,9 @@ namespace Shared
 
                                 if (foundOrderFolder != null)
                                 {
-                                    log?.LogTrace($"Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
+                                    if(debug)
+                                        log?.LogInformation($"GetOrderGroupAndFolder: Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
+
                                     returnValue.orderFolder = foundOrderFolder;
                                     order.CreatedFolder = true;
                                     order.CustomerID = returnValue.customer.ID;
@@ -703,29 +831,31 @@ namespace Shared
                                     order.GeneralFolderFound = true;
                                     order.FolderID = returnValue.orderFolder.Id ?? "";
                                     order.OrdersFolderFound = true;
-                                    UpdateOrder(order, "folder info");
+                                    UpdateOrder(order, "folder info", debug);
                                 }
                                 else
                                 {
-                                    List<DriveItem> rootItems = await msGraph.GetDriveRootItems(returnValue.orderDriveId);
+                                    List<DriveItem> rootItems = await msGraph.GetDriveRootItems(returnValue.orderDriveId, debug);
 
                                     foreach(DriveItem rootItem in rootItems)
                                     {
                                         if(rootItem.Name == "General")
                                         {
-                                            List<DriveItem> generalItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, rootItem.Id, false);
+                                            List<DriveItem> generalItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, rootItem.Id, false, debug);
 
                                             foreach (DriveItem generalItem in generalItems)
                                             {
                                                 if (generalItem.Name == parentName)
                                                 {
-                                                    List<DriveItem> folderItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, generalItem.Id, false);
+                                                    List<DriveItem> folderItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, generalItem.Id, false, debug);
 
                                                     foreach(DriveItem folderItem in folderItems)
                                                     {
                                                         if(folderItem.Name == order.ExternalId)
                                                         {
-                                                            log?.LogTrace($"Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
+                                                            if(debug)
+                                                                log?.LogInformation($"GetOrderGroupAndFolder: Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
+
                                                             returnValue.orderFolder = folderItem;
                                                             order.CreatedFolder = true;
                                                             order.CustomerID = returnValue.customer.ID;
@@ -733,7 +863,7 @@ namespace Shared
                                                             order.GeneralFolderFound = true;
                                                             order.FolderID = returnValue.orderFolder.Id ?? "";
                                                             order.OrdersFolderFound = true;
-                                                            UpdateOrder(order, "folder info");
+                                                            UpdateOrder(order, "folder info", debug);
                                                         }
                                                     }
                                                 }
@@ -744,8 +874,10 @@ namespace Shared
                             }
                             catch (Exception ex)
                             {
-                                log?.LogError(ex.ToString());
-                                log?.LogTrace($"Failed to get folder for order {order.ExternalId}.");
+                                log?.LogError("GetOrderGroupAndFolder: " + ex.ToString());
+
+                                if(debug)
+                                    log?.LogInformation($"Failed to get folder for order {order.ExternalId}.");
                             }
                         }
                     }
@@ -826,7 +958,7 @@ namespace Shared
             return returnValue;
         }
 
-        public List<Order> GetUnhandledOrderItems()
+        public List<Order> GetUnhandledOrderItems(bool debug)
         {
             List<Order> returnValue = new List<Order>();
 
@@ -835,11 +967,11 @@ namespace Shared
                 return returnValue;
             }
 
-            returnValue = services.ExecSQLQuery<Order>("SELECT * FROM Orders WHERE Handled = 0", new Dictionary<string, object>());
+            returnValue = services.ExecSQLQuery<Order>("SELECT * FROM Orders WHERE Handled = 0", new Dictionary<string, object>(), debug);
             return returnValue;
         }
 
-        public async Task<DriveItem?> GetEmailsFolder(string parent, string month, string year)
+        public async Task<DriveItem?> GetEmailsFolder(string parent, string month, string year, bool debug)
         {
             string? groupDriveId = "";
 
@@ -850,12 +982,14 @@ namespace Shared
 
             try
             {
-                groupDriveId = await msGraph.GetGroupDrive(CDNTeamID);
+                groupDriveId = await msGraph.GetGroupDrive(CDNTeamID, debug);
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
-                log?.LogTrace($"Failed to get drive for CDN Team with error: " + ex.ToString());
+                log?.LogError("GetEmailsFolder: " + ex.ToString());
+
+                if(debug)
+                    log?.LogTrace($"GetEmailsFolder: Failed to get drive for CDN Team with error: " + ex.ToString());
             }
 
             DriveItem? emailFolder = default(DriveItem);
@@ -868,15 +1002,17 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
-                    log?.LogTrace($"Failed to get email folder for CDN Team with error: " + ex.ToString());
+                    log?.LogError("GetEmailsFolder: " + ex.ToString());
+
+                    if(debug)
+                        log?.LogInformation($"GetEmailsFolder: Failed to get email folder for CDN Team with error: " + ex.ToString());
                 }
             }
 
             return emailFolder;
         }
 
-        public async Task<DriveItem?> GetGeneralFolder(string groupId)
+        public async Task<DriveItem?> GetGeneralFolder(string groupId, bool debug)
         {
             string? groupDriveId = "";
 
@@ -887,12 +1023,14 @@ namespace Shared
 
             try
             {
-                groupDriveId = await msGraph.GetGroupDrive(groupId);
+                groupDriveId = await msGraph.GetGroupDrive(groupId, debug);
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
-                log?.LogTrace($"Failed to get drive for group {groupId} with error: " + ex.ToString());
+                log?.LogError("GetGeneralFolder: " + ex.ToString());
+
+                if(debug)
+                    log?.LogInformation($"GetGeneralFolder: Failed to get drive for group {groupId} with error: " + ex.ToString());
             }
 
             DriveItem? generalFolder = default(DriveItem);
@@ -905,15 +1043,15 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
-                    log?.LogTrace($"Failed to get general folder in group {groupId} with error: " + ex.ToString());
+                    log?.LogError("GetGeneralFolder: " + ex.ToString());
+                    log?.LogTrace($"GetGeneralFolder: Failed to get general folder in group {groupId} with error: " + ex.ToString());
                 }
             }
 
             return generalFolder;
         }
 
-        public async Task<DriveItem?> GetOrderFolder(string groupId, string groupDriveId, Order order)
+        public async Task<DriveItem?> GetOrderFolder(string groupId, string groupDriveId, Order order, bool debug)
         {
             DriveItem? returnValue = null;
 
@@ -923,16 +1061,16 @@ namespace Shared
             }
 
             string parentName = GetOrderParentFolderName(order.Type);
-            DriveItem? generalFolder = await GetGeneralFolder(groupId);
+            DriveItem? generalFolder = await GetGeneralFolder(groupId, debug);
 
             if(generalFolder != null)
             {
-                DriveItem? orderParentFolder = await msGraph.FindItem(groupDriveId, generalFolder.Id, parentName, false);
+                DriveItem? orderParentFolder = await msGraph.FindItem(groupDriveId, generalFolder.Id, parentName, false, debug);
                 
                 if(orderParentFolder != null)
                 {
                     var orderfolderName = GetOrderExternalId(order.Type, order.ExternalId);
-                    DriveItem? orderFolder = await msGraph.FindItem(groupDriveId, orderParentFolder.Id, orderfolderName, false);
+                    DriveItem? orderFolder = await msGraph.FindItem(groupDriveId, orderParentFolder.Id, orderfolderName, false, debug);
 
                     if(orderFolder != null)
                     {
@@ -970,7 +1108,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<List<DriveItem>> GetOrderTemplateFolders(Order order)
+        public async Task<List<DriveItem>> GetOrderTemplateFolders(Order order, bool debug)
         {
             List<DriveItem> foldersToCreate = new List<DriveItem>();
 
@@ -979,7 +1117,7 @@ namespace Shared
                 return foldersToCreate;
             }
 
-            var cdnDrive = await msGraph.GetSiteDrive(settings.cdnSiteId);
+            var cdnDrive = await msGraph.GetSiteDrive(settings.cdnSiteId, debug);
 
             if (cdnDrive != null)
             {
@@ -987,7 +1125,7 @@ namespace Shared
 
                 if(folder != null)
                 {
-                    List<DriveItem> folderChildren = await msGraph.GetDriveFolderChildren(cdnDrive, folder.Id, true);
+                    List<DriveItem> folderChildren = await msGraph.GetDriveFolderChildren(cdnDrive, folder.Id, true, debug);
                     foldersToCreate.AddRange(folderChildren);
                 }
             }
@@ -995,7 +1133,7 @@ namespace Shared
             return foldersToCreate;
         }
 
-        public async Task<CreateCustomerResult> CreateCustomerGroup(Customer customer)
+        public async Task<CreateCustomerResult> CreateCustomerGroup(Customer customer, bool debug)
         {
             CreateCustomerResult returnValue = new CreateCustomerResult();
             returnValue.Success = false;
@@ -1014,8 +1152,8 @@ namespace Shared
             }
 
             List<string> adminids = new List<string>();
-            string mailNickname = this.GetMailNickname(customer.Name, customer.ExternalId, customer.Type);
-            adminids = await GetAdmins(new Customer(), admins);
+            string mailNickname = this.GetMailNickname(customer.Name, customer.ExternalId, customer.Type, debug);
+            adminids = await GetAdmins(new Customer(), admins, debug);
             string GroupName = "";
 
             if (customer.Type == "Customer")
@@ -1026,13 +1164,17 @@ namespace Shared
             try
             {
                 //Create a group without owners
-                group = (await msGraph.CreateGroup(GroupName, mailNickname, adminids))?.Id;
-                log?.LogTrace($"Created group for customer {customer.Name} ({customer.ExternalId})");
+                group = (await msGraph.CreateGroup(GroupName, mailNickname, adminids, debug))?.Id;
+
+                if(debug)
+                    log?.LogInformation($"CreateCustomerGroup: Created group for customer {customer.Name} ({customer.ExternalId})");
             }
             catch (Exception ex)
             {
-                log?.LogError(ex.ToString());
-                log?.LogTrace($"Failed to create group for {customer.Name} ({customer.ExternalId}) with error: " + ex.ToString());
+                log?.LogError("CreateCustomerGroup: " + ex.ToString());
+
+                if(debug)
+                    log?.LogInformation($"CreateCustomerGroup: Failed to create group for {customer.Name} ({customer.ExternalId}) with error: " + ex.ToString());
             }
 
             //if the group was created
@@ -1043,7 +1185,7 @@ namespace Shared
                 //get the group drive (will probably fail since thr group takes a while to create)
                 try
                 {
-                    string? groupDriveId = await msGraph.GetGroupDrive(group);
+                    string? groupDriveId = await msGraph.GetGroupDrive(group, debug);
 
                     if (groupDriveId != null)
                     {
@@ -1052,7 +1194,7 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogInformation(ex.ToString());
+                    log?.LogError("CreateCustomerGroup: " + ex.ToString());
                 }
 
                 returnValue.group = group;
@@ -1061,13 +1203,13 @@ namespace Shared
             }
             else
             {
-                log?.LogTrace($"Failed to create group {customer.Name} ({customer.ExternalId})");
+                log?.LogInformation($"CreateCustomerGroup: Failed to create group {customer.Name} ({customer.ExternalId})");
             }
 
             return returnValue;
         }
 
-        public async Task<bool> CreateCustomerTeam(Customer customer, string groupId)
+        public async Task<bool> CreateCustomerTeam(Customer customer, string groupId, bool debug)
         {
             bool returnValue = false;
 
@@ -1079,15 +1221,17 @@ namespace Shared
             var appId = settings.config["CustomerCardAppId"];
 
             //try to get team or create it if it's missing
-            var team = await msGraph.CreateTeamFromGroup(groupId);
-            log?.LogTrace($"Created team for {customer.Name} ({customer.ExternalId})");
+            var team = await msGraph.CreateTeamFromGroup(groupId, debug);
+
+            if(debug)
+                log?.LogInformation($"CreateCustomerTeam: Created team for {customer.Name} ({customer.ExternalId})");
 
             if (team != null)
             {
                 customer.TeamCreated = true;
                 customer.TeamID = team.Id ?? "";
                 customer.TeamUrl = team.WebUrl ?? "";
-                UpdateCustomer(customer, "team info");
+                UpdateCustomer(customer, "team info", debug);
 
                 try
                 {
@@ -1097,23 +1241,28 @@ namespace Shared
                     if (!customer.InstalledApp && !string.IsNullOrEmpty(groupId) && !string.IsNullOrEmpty(appId))
                     {
                         //string? groupDriveId = await msGraph.GetGroupDrive(groupId);
-                        string? rootUrl = await msGraph.GetGroupDriveUrl(groupId);
+                        string? rootUrl = await msGraph.GetGroupDriveUrl(groupId, debug);
 
                         if (!string.IsNullOrEmpty(rootUrl) && !string.IsNullOrEmpty(teamId))
                         {
-                            var channelSwedish = await msGraph.FindChannel(teamId, "Allmänt");
-                            var channelEnglish = await msGraph.FindChannel(teamId, "General");
+                            var channelSwedish = await msGraph.FindChannel(teamId, "Allmänt", debug);
+                            var channelEnglish = await msGraph.FindChannel(teamId, "General", debug);
                             string? channel = channelSwedish ?? channelEnglish;
 
                             if (!string.IsNullOrEmpty(channel) && !string.IsNullOrEmpty(rootUrl))
                             {
-                                var app = await msGraph.AddTeamApp(teamId, appId);
+                                var app = await msGraph.AddTeamApp(teamId, appId, debug);
 
                                 if (app != null)
                                 {
-                                    log?.LogTrace($"Adding channel for app {app} to {customer.Name}");
-                                    await msGraph.AddChannelApp(teamId, app, channel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, rootUrl, "");
-                                    log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
+                                    if(debug)
+                                        log?.LogInformation($"CreateCustomerTeam: Adding channel for app {app} to {customer.Name}");
+
+                                    await msGraph.AddChannelApp(teamId, app, channel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, rootUrl, "", debug);
+
+                                    if(debug)
+                                        log?.LogInformation($"CreateCustomerTeam: Installed teams app for {customer.Name} ({customer.ExternalId})");
+
                                     customer.InstalledApp = true;
                                 }
                             }
@@ -1122,16 +1271,19 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
-                    log?.LogTrace($"Failed to install teams app for {customer.Name} with error: " + ex.ToString());
+                    log?.LogError("CreateCustomerTeam: " + ex.ToString());
+
+                    if(debug)
+                        log?.LogInformation($"CreateCustomerTeam: Failed to install teams app for {customer.Name} with error " + ex.ToString());
                 }
 
-                UpdateCustomer(customer, "team app info");
+                UpdateCustomer(customer, "team app info", debug);
                 returnValue = true;
             }
             else
             {
-                log?.LogTrace($"Failed to create team for group {customer.Name} ({customer.ExternalId})");
+                if(debug)
+                    log?.LogInformation($"CreateCustomerTeam: Failed to create team for group {customer.Name} ({customer.ExternalId})");
             }
 
             return returnValue;
@@ -1143,7 +1295,7 @@ namespace Shared
         /// </summary>
         /// <param name="customer"></param>
         /// <returns></returns>
-        public async Task<CreateCustomerResult> CreateCustomerOrSupplier(Customer customer)
+        public async Task<CreateCustomerResult> CreateCustomerOrSupplier(Customer customer, bool debug)
         {
             CreateCustomerResult returnValue = new CreateCustomerResult();
             returnValue.Success = false;
@@ -1164,8 +1316,8 @@ namespace Shared
             List<string> adminids = new List<string>();
             string mailNickname = "";
 
-            mailNickname = this.GetMailNickname(customer.Name, customer.ExternalId, customer.Type);
-            adminids = await GetAdmins(customer, admins);
+            mailNickname = this.GetMailNickname(customer.Name, customer.ExternalId, customer.Type, debug);
+            adminids = await GetAdmins(customer, admins, debug);
             string GroupName = "";
 
             if (customer.Type == "Customer")
@@ -1176,7 +1328,7 @@ namespace Shared
             //find group if it exists or try to create it
             if (customer.GroupID != null && customer.GroupID != string.Empty)
             {
-                FindGroupResult findGroup = await msGraph.GetGroupById(customer.GroupID);
+                FindGroupResult findGroup = await msGraph.GetGroupById(customer.GroupID, debug);
 
                 if (findGroup?.Success == true)
                 {
@@ -1188,13 +1340,17 @@ namespace Shared
                 //create group if it didn't exist
                 try
                 {
-                    group = (await msGraph.CreateGroup(GroupName, mailNickname, adminids))?.Id;
-                    log?.LogTrace($"Created group for customer {customer.Name} ({customer.ExternalId})");
+                    group = (await msGraph.CreateGroup(GroupName, mailNickname, adminids, debug))?.Id;
+
+                    if(debug)
+                        log?.LogInformation($"CreateCustomerOrSupplier: Created group for customer {customer.Name} ({customer.ExternalId})");
                 }
                 catch (Exception ex)
                 {
                     log?.LogError(ex.ToString());
-                    log?.LogTrace($"Failed to create group for {customer.Name} ({customer.ExternalId}) with error: " + ex.ToString());
+
+                    if(debug)
+                        log?.LogInformation($"CreateCustomerOrSupplier: Failed to create group for {customer.Name} ({customer.ExternalId}) with error: " + ex.ToString());
                 }
             }
 
@@ -1204,7 +1360,7 @@ namespace Shared
 
                 try
                 {
-                    string? groupDriveId = await msGraph.GetGroupDrive(group);
+                    string? groupDriveId = await msGraph.GetGroupDrive(group, debug);
 
                     if (groupDriveId != null)
                     {
@@ -1213,21 +1369,23 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
+                    log?.LogError("CreateCustomerOrSupplier: " + ex.ToString());
                 }
 
                 customer.GroupCreated = true;
-                UpdateCustomer(customer, "group and drive info");
+                UpdateCustomer(customer, "group and drive info", debug);
 
-                var team = await msGraph.CreateTeamFromGroup(customer.GroupID);
-                log?.LogTrace($"Created team for {customer.Name} ({customer.ExternalId})");
+                var team = await msGraph.CreateTeamFromGroup(customer.GroupID, debug);
+
+                if(debug)
+                    log?.LogInformation($"CreateCustomerOrSupplier: Created team for {customer.Name} ({customer.ExternalId})");
 
                 if (team != null)
                 {
                     customer.TeamCreated = true;
                     customer.TeamID = team.Id ?? "";
                     customer.TeamUrl = team.WebUrl ?? "";
-                    UpdateCustomer(customer, "team info");
+                    UpdateCustomer(customer, "team info", debug);
 
                     try
                     {
@@ -1235,23 +1393,26 @@ namespace Shared
 
                         if (!string.IsNullOrEmpty(group))
                         {
-                            string? groupDriveId = await msGraph.GetGroupDrive(group);
-                            string? rootUrl = await msGraph.GetGroupDriveUrl(group);
+                            string? groupDriveId = await msGraph.GetGroupDrive(group, debug);
+                            string? rootUrl = await msGraph.GetGroupDriveUrl(group, debug);
 
                             if (!string.IsNullOrEmpty(groupDriveId) && !string.IsNullOrEmpty(rootUrl))
                             {
-                                var generalChannelSwedish = await msGraph.FindChannel(customer.TeamID, "Allmänt");
-                                var generalChannelEnglish = await msGraph.FindChannel(customer.TeamID, "General");
+                                var generalChannelSwedish = await msGraph.FindChannel(customer.TeamID, "Allmänt", debug);
+                                var generalChannelEnglish = await msGraph.FindChannel(customer.TeamID, "General", debug);
                                 string? generalChannel = generalChannelSwedish ?? generalChannelEnglish;
 
                                 if (!string.IsNullOrEmpty(generalChannel))
                                 {
-                                    var app = await msGraph.AddTeamApp(customer.TeamID, "e2cb3981-47e7-47b3-a0e1-f9078d342253");
+                                    var app = await msGraph.AddTeamApp(customer.TeamID, "e2cb3981-47e7-47b3-a0e1-f9078d342253", debug);
                                         
                                     if(app != null)
                                     {
-                                        await msGraph.AddChannelApp(customer.TeamID, app, generalChannel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, rootUrl, "");
-                                        log?.LogTrace($"Installed teams app for {customer.Name} ({customer.ExternalId})");
+                                        await msGraph.AddChannelApp(customer.TeamID, app, generalChannel, "Om Företaget", System.Guid.NewGuid().ToString("D").ToUpperInvariant(), ContentUrl, rootUrl, "", debug);
+
+                                        if(debug)
+                                            log?.LogInformation($"CreateCustomerOrSupplier: Installed teams app for {customer.Name} ({customer.ExternalId})");
+
                                         customer.InstalledApp = true;
                                     }
                                 }
@@ -1260,11 +1421,13 @@ namespace Shared
                     }
                     catch (Exception ex)
                     {
-                        log?.LogError(ex.ToString());
-                        log?.LogTrace($"Failed to install teams app for {customer.Name} with error: " + ex.ToString());
+                        log?.LogError("CreateCustomerOrSupplier: " + ex.ToString());
+
+                        if(debug)
+                            log?.LogInformation($"CreateCustomerOrSupplier: Failed to install teams app for {customer.Name} with error: " + ex.ToString());
                     }
 
-                    UpdateCustomer(customer, "team app info");
+                    UpdateCustomer(customer, "team app info", debug);
 
                     returnValue.group = group;
                     returnValue.team = team;
@@ -1273,12 +1436,14 @@ namespace Shared
                 }
                 else
                 {
-                    log?.LogTrace($"Failed to create team for group {customer.Name} ({customer.ExternalId})");
+                    if(debug)
+                        log?.LogInformation($"CreateCustomerOrSupplier: Failed to create team for group {customer.Name} ({customer.ExternalId})");
                 }
             }
             else
             {
-                log?.LogTrace($"Failed to create group {customer.Name} ({customer.ExternalId})");
+                if(debug)
+                    log?.LogInformation($"CreateCustomerOrSupplier: Failed to create group {customer.Name} ({customer.ExternalId})");
             }
 
             return returnValue;
@@ -1290,7 +1455,7 @@ namespace Shared
         /// </summary>
         /// <param name="customer"></param>
         /// <returns></returns>
-        public async Task<bool> CopyRootStructure(Customer customer)
+        public async Task<bool> CopyRootStructure(Customer customer, bool debug)
         {
             bool returnValue = false;
             
@@ -1299,7 +1464,7 @@ namespace Shared
                 return returnValue;
             }
 
-            string? cdnDrive = await msGraph.GetSiteDrive(cdnSiteId);
+            string? cdnDrive = await msGraph.GetSiteDrive(cdnSiteId, debug);
 
             if (!string.IsNullOrEmpty(cdnDrive))
             {
@@ -1309,20 +1474,23 @@ namespace Shared
                 {
                     if (customer.Type == "Customer")
                     {
-                        source = await msGraph.FindItem(cdnDrive, "Dokumentstruktur Kund", false);
+                        source = await msGraph.FindItem(cdnDrive, "Dokumentstruktur Kund", false, debug);
                     }
                     else if (customer.Type == "Supplier")
                     {
-                        source = await msGraph.FindItem(cdnDrive, "Dokumentstruktur Leverantör", false);
+                        source = await msGraph.FindItem(cdnDrive, "Dokumentstruktur Leverantör", false, debug);
                     }
                 }
                 catch (Exception ex)
                 {
-                    log?.LogError(ex.ToString());
-                    log?.LogTrace($"Failed to get templates for {customer.Name} with error: " + ex.ToString());
+                    log?.LogError("CopyRootStructure: " + ex.ToString());
+
+                    if(debug)
+                        log?.LogInformation($"CopyRootStructure: Failed to get templates for {customer.Name} with error " + ex.ToString());
                 }
 
-                log?.LogTrace($"Found CDN folder structure template for {customer.Name} ({customer.ExternalId})");
+                if(debug)
+                    log?.LogInformation($"CopyRootStructure: Found CDN folder structure template for {customer.Name} ({customer.ExternalId})");
 
                 if (source != default(DriveItem))
                 {
@@ -1332,18 +1500,22 @@ namespace Shared
                     {
                         try
                         {
-                            generalFolder = await this.GetGeneralFolder(customer.GroupID);
+                            generalFolder = await this.GetGeneralFolder(customer.GroupID, debug);
 
                             if (generalFolder != null)
                             {
                                 customer.GeneralFolderID = generalFolder.Id ?? "";
-                                log?.LogTrace($"Found general folder for {customer.Name} ({customer.ExternalId})");
+
+                                if(debug)
+                                    log?.LogInformation($"CopyRootStructure: Found general folder for {customer.Name} ({customer.ExternalId})");
                             }
                         }
                         catch (Exception ex)
                         {
-                            log?.LogError(ex.ToString());
-                            log?.LogTrace($"Failed to get general folder for {customer.Name} with error: " + ex.ToString());
+                            log?.LogError("CopyRootStructure: " + ex.ToString());
+                            
+                            if(debug)
+                                log?.LogInformation($"CopyRootStructure: Failed to get general folder for {customer.Name} with error: " + ex.ToString());
                         }
                     }
 
@@ -1351,20 +1523,24 @@ namespace Shared
                     {
                         try
                         {
-                            var children = await msGraph.GetDriveFolderChildren(cdnDrive, source.Id, true);
+                            var children = await msGraph.GetDriveFolderChildren(cdnDrive, source.Id, true, debug);
 
                             foreach (var child in children)
                             {
-                                await msGraph.CopyFolder(customer.GroupID, customer.GeneralFolderID, child, true, false);
+                                await msGraph.CopyFolder(customer.GroupID, customer.GeneralFolderID, child, true, false, debug);
                             }
 
-                            log?.LogTrace($"Copied templates for {customer.Name} ({customer.ExternalId})");
+                            if(debug)
+                                log?.LogInformation($"CopyRootStructure: Copied templates for {customer.Name} ({customer.ExternalId})");
+
                             returnValue = true;
                         }
                         catch (Exception ex)
                         {
-                            log?.LogError(ex.ToString());
-                            log?.LogTrace($"Failed to copy template structure for {customer.Name} ({customer.ExternalId})");
+                            log?.LogError("CopyRootStructure: " + ex.ToString());
+
+                            if(debug)
+                                log?.LogInformation($"CopyRootStructure: Failed to copy template structure for {customer.Name} ({customer.ExternalId})");
                         }
 
                     }
@@ -1374,7 +1550,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<List<string>> GetAdmins(Customer? customer, string[]? admins)
+        public async Task<List<string>> GetAdmins(Customer? customer, string[]? admins, bool debug)
         {
             List<string> adminids = new List<string>();
             List<string> _admins = new List<string>();
@@ -1408,13 +1584,16 @@ namespace Shared
                         }
                         else
                         {
-                            log?.LogTrace($"Failed to find user {user}");
+                            if(debug)
+                                log?.LogInformation($"GetAdmins: Failed to find user {user}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        log?.LogError(ex.ToString());
-                        log?.LogTrace($"Failed to get user {user}" + ex.ToString());
+                        log?.LogError("GetAdmins: " + ex.ToString());
+
+                        if(debug)
+                            log?.LogInformation($"GetAdmins: Failed to get user {user}" + ex.ToString());
                     }
                 }
             }

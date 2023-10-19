@@ -36,12 +36,12 @@ namespace Shared
         private readonly string SelectCustomerByExternalIDCommand = "SELECT * FROM Customers WHERE ExternalId = @ExternalId AND [Type] = @Type";
 
         #region SelectOrder
-        public Order? GetOrderFromDB(string orderNo)
+        public Order? GetOrderFromDB(string orderNo, bool debug)
         {
             Order? returnValue = null;
             Dictionary<string, object> keys = new Dictionary<string, object>();
             keys.Add("ExternalId", orderNo);
-            List<Order> result = ExecSQLQuery<Order>(SelectOrderByExternalIDCommand, keys);
+            List<Order> result = ExecSQLQuery<Order>(SelectOrderByExternalIDCommand, keys, debug);
 
             if (result.Count > 0)
             {
@@ -53,7 +53,7 @@ namespace Shared
                     }
                     else
                     {
-                        Customer? dbCustomer = GetCustomerFromDB(or.CustomerID);
+                        Customer? dbCustomer = GetCustomerFromDB(or.CustomerID, debug);
 
                         if (dbCustomer != null)
                         {
@@ -68,18 +68,18 @@ namespace Shared
             return returnValue;
         }
 
-        public Order? GetOrderFromDB(Guid ID)
+        public Order? GetOrderFromDB(Guid ID, bool debug)
         {
             Order? returnValue = null;
             Dictionary<string, object> keys = new Dictionary<string, object>();
             keys.Add("OrderID", ID);
-            List<Order> result = ExecSQLQuery<Order>(SelectOrderByIDCommand, keys);
+            List<Order> result = ExecSQLQuery<Order>(SelectOrderByIDCommand, keys, debug);
 
             if (result.Count > 0)
             {
                 result.ForEach(or =>
                 {
-                    or.Customer = GetCustomerFromDB(or.CustomerID);
+                    or.Customer = GetCustomerFromDB(or.CustomerID, debug);
 
                     if (or.Customer != null)
                     {
@@ -95,9 +95,9 @@ namespace Shared
         #endregion
 
         #region AddOrder
-        public bool AddOrderInDB(Order obj)
+        public bool AddOrderInDB(Order obj, bool debug)
         {
-            return InsertSQLQuery(obj, "Orders");
+            return InsertSQLQuery(obj, "Orders", debug);
         }
         #endregion
 
@@ -133,11 +133,16 @@ namespace Shared
         #endregion
 
         #region SelectCustomer
-        public List<Customer> GetCustomerFromDB(string? customerNo, string? customerType)
+        public List<Customer> GetCustomerFromDB(string? customerNo, string? customerType, bool debug)
         {
             List<Customer> returnValue = new List<Customer>();
 
-            if(!string.IsNullOrEmpty(customerNo) && !string.IsNullOrEmpty(customerType))
+            if ((string.IsNullOrEmpty(customerNo) || string.IsNullOrEmpty(customerType)) && debug)
+            {
+                log?.LogError("GetCustomerFromDB: CustomerNo or CustomerType is null or empty");
+            }
+
+            if (!string.IsNullOrEmpty(customerNo) && !string.IsNullOrEmpty(customerType))
             {
                 Dictionary<string, object> keys = new Dictionary<string, object>
                 {
@@ -145,7 +150,7 @@ namespace Shared
                     { "Type", customerType }
                 };
 
-                List<Customer> ret = ExecSQLQuery<Customer>(SelectCustomerByExternalIDCommand, keys);
+                List<Customer> ret = ExecSQLQuery<Customer>(SelectCustomerByExternalIDCommand, keys, debug);
 
                 if (ret.Count > 0)
                 {
@@ -157,13 +162,13 @@ namespace Shared
 
         }
 
-        public Customer? GetCustomerFromDB(Guid ID)
+        public Customer? GetCustomerFromDB(Guid ID, bool debug)
         {
             Customer? returnValue = null;
             Dictionary<string, object> keys = new Dictionary<string, object>();
             keys.Add("CustomerID", ID);
 
-            List<Customer> ret = ExecSQLQuery<Customer>(SelectCustomerByIDCommand, keys);
+            List<Customer> ret = ExecSQLQuery<Customer>(SelectCustomerByIDCommand, keys, debug);
 
             if (ret.Count > 0)
             {
@@ -198,9 +203,9 @@ namespace Shared
         #endregion
 
         #region CustomerAdd
-        public bool AddCustomerInDB(Customer obj)
+        public bool AddCustomerInDB(Customer obj, bool debug)
         {
-            return InsertSQLQuery(obj, "Customers");
+            return InsertSQLQuery(obj, "Customers", debug);
         }
         #endregion
 
@@ -467,11 +472,14 @@ namespace Shared
         /// <param name="tablename"></param>
         /// <param name="_config"></param>
         /// <returns></returns>
-        public bool InsertSQLQuery<T>(T src, string tablename)
+        public bool InsertSQLQuery<T>(T src, string tablename, bool debug)
         {
             bool returnValue = false;
             int affectedRows = 0;
             string query = GetSQLInsertQuery(src, tablename);
+
+            if (debug)
+                log?.LogInformation($"InsertSQLQuery<{typeof(T).GetType().Name}>: Built query {query} for insert");
 
             try
             {
@@ -493,16 +501,20 @@ namespace Shared
             }
             catch (Exception ex)
             {
-                log?.LogError($"Insert query {query} failed with error {ex.ToString()}");
+                if(debug)
+                    log?.LogError($"InsertSQLQuery<{typeof(T).GetType().Name}>: Insert query {query} failed with error {ex.ToString()}");
             }
 
             return returnValue;
         }
 
-        public bool InsertSQLQuery(string query)
+        public bool InsertSQLQuery(string query, bool debug)
         {
             bool returnValue = false;
             int affectedRows = 0;
+
+            if (debug)
+                log?.LogInformation($"InsertSQLQuery: Built query {query} for insert");
 
             try
             {
@@ -521,8 +533,10 @@ namespace Shared
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                if (debug)
+                    log?.LogError($"InsertSQLQuery: Insert query {query} failed with error {ex.ToString()}");
             }
 
             return returnValue;
@@ -536,12 +550,15 @@ namespace Shared
         /// <param name="keys"></param>
         /// <param name="_config"></param>
         /// <returns></returns>
-        public List<T> ExecSQLQuery<T>(string query, Dictionary<string, object> keys)
+        public List<T> ExecSQLQuery<T>(string query, Dictionary<string, object> keys, bool debug)
         {
             List<T> list = new List<T>();
 
             try
             {
+                if (debug)
+                    log?.LogInformation($"ExecSQLQuery<{typeof(T).GetType().Name}>: Executing query {query}");
+
                 using (SqlConnection conn = new SqlConnection(this.SqlConnectionString))
                 {
                     using (SqlCommand command = new SqlCommand())
@@ -592,8 +609,10 @@ namespace Shared
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                if (debug)
+                    log?.LogError($"ExecSQLQuery<{typeof(T).GetType().Name}>: {ex.ToString()}");
             }
 
             return list;
@@ -606,13 +625,16 @@ namespace Shared
         /// <param name="keys"></param>
         /// <param name="_config"></param>
         /// <returns></returns>
-        public bool ExecSQLNonQuery(string query, Dictionary<string, object> keys)
+        public bool ExecSQLNonQuery(string query, Dictionary<string, object> keys, bool debug)
         {
             bool returnValue = false;
             int affectedRows = 0;
 
             try
             {
+                if (debug)
+                    log?.LogInformation($"ExecSQLNonQuery: Executing query {query}");
+
                 using (SqlConnection conn = new SqlConnection(this.SqlConnectionString))
                 {
                     using (SqlCommand command = new SqlCommand())
@@ -634,8 +656,10 @@ namespace Shared
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                if (debug)
+                    log?.LogError($"ExecSQLNonQuery: Error when executing query {ex.ToString()}");
             }
 
             return returnValue;
