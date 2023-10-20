@@ -30,11 +30,13 @@ namespace Orders
         {
             string Message = await new StreamReader(req.Body).ReadToEndAsync();
 
-            log.LogInformation($"Order Information trigger function processed message: {Message}");
             Settings settings = new Settings(config, context, log);
             bool debug = (settings?.debugFlags?.Order?.BGOrderInfo).HasValue && (settings?.debugFlags?.Order?.BGOrderInfo).Value;
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph, debug);
+
+            if(debug)
+                log.LogInformation($"Order BGOrderInfo: Trigger function processed message: {Message}");
 
             OrderMessage orderMessage = JsonConvert.DeserializeObject<OrderMessage>(Message);
 
