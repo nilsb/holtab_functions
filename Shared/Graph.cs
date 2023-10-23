@@ -2048,6 +2048,9 @@ namespace Shared
                         CopyItem source = new CopyItem() { GroupId = GroupId, FolderId = Folder.Id ?? "", Path = childFile.Name ?? "" };
                         CopyItem destination = new CopyItem() { GroupId = GroupId, FolderId = createdFolder.Id ?? "", Path = childFile.Name ?? "" };
                         await this.CopyFile(source, destination, debug);
+
+                        if (debug)
+                            log?.LogInformation("CopyFolder: Copied " + childFile.Name);
                     }
                 }
 
