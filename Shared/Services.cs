@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Shared.Models;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -557,7 +558,7 @@ namespace Shared
             try
             {
                 if (debug)
-                    log?.LogInformation($"ExecSQLQuery<{typeof(T).GetType().Name}>: Executing query {query}");
+                    log?.LogInformation($"ExecSQLQuery<{typeof(T).GetType().Name}>: Executing query {query} with keys {JsonConvert.SerializeObject(keys)}");
 
                 using (SqlConnection conn = new SqlConnection(this.SqlConnectionString))
                 {
