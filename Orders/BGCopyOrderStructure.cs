@@ -78,25 +78,26 @@ namespace Orders
 
                                     foreach (DriveItem templateFolder in templateFolders)
                                     {
-                                        CreateFolderResult result = await msGraph.CopyFolder(groupDrive.groupId, orderFolder.Id, templateFolder, true, false);
+                                        CreateFolderResult result = await msGraph.CopyFolder(groupDrive.groupId, orderFolder.Id, templateFolder, true, false, debug);
 
                                         if (result.Success)
                                         {
                                             copyStructure &= true;
+                                            if (debug)
+                                                log.LogInformation("Order BGCopyOrderStructure: Folder created and structure copied.");
+
+                                            order.StructureCreated = true;
+                                            order.Handled = copyStructure;
+                                            order.Status = "Folder created and structure copied";
+                                            common.UpdateOrder(order, "status", debug);
                                         }
                                         else
                                         {
                                             copyStructure &= false;
+                                            if (debug)
+                                                log.LogInformation("Order BGCopyOrderStructure: Failed to copy structure.");
                                         }
                                     }
-
-                                    if(debug)
-                                        log.LogInformation("Order BGCopyOrderStructure: Folder created and structure copied.");
-
-                                    order.StructureCreated = true;
-                                    order.Handled = copyStructure;
-                                    order.Status = "Folder created and structure copied";
-                                    common.UpdateOrder(order, "status", debug);
                                 }
                                 else
                                 {
