@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Mail;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using Microsoft.Azure.WebJobs;
@@ -68,51 +69,43 @@ namespace Jobs
 
                             if (groupAndFolder.Success)
                             {
-                                var emailStream = new MemoryStream(Encoding.UTF8.GetBytes(msg.Body.Content));
-                                bool uploadMsgResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, $"{msg.Subject}.txt", emailStream, true);
+                                //var emailStream = new MemoryStream(Encoding.UTF8.GetBytes(msg.Body.Content));
+                                //bool uploadMsgResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, $"{msg.Id}.txt", emailStream, true);
 
-                                if (!uploadMsgResult)
-                                {
-                                    log?.LogError($"unable to upload file {msg.Subject}.txt");
-                                    moved = false;
-                                }
-                                else
-                                {
-                                    moved = true;
-                                }
+                                //if (!uploadMsgResult)
+                                //{
+                                //    log?.LogError($"unable to upload file {msg.Subject}.txt");
+                                //    moved = false;
+                                //}
+                                //else
+                                //{
+                                //    moved = true;
+                                //}
 
                                 var attachments = msg.Attachments;
 
                                 foreach (var attachment in attachments)
                                 {
                                     var contentUrl = attachment.ContentUrl;
+                                    var subfolder = ExtractSubFolderNameFromContentUrl(contentUrl);
 
-                                    if (!string.IsNullOrEmpty(contentUrl))
+                                    if (!string.IsNullOrEmpty(contentUrl) && !string.IsNullOrEmpty(subfolder))
                                     {
-                                        using (var httpClient = new HttpClient())
+                                        var folder = await msGraph.FindItem(team, subfolder, false, true);
+
+                                        if(folder != null)
                                         {
-                                            // Fetch the actual content
-                                            var response = await httpClient.GetAsync(contentUrl);
+                                            var file = await msGraph.DownloadFile(team, folder.Id, attachment.Name, true);
+                                            bool uploadResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, attachment.Name, file.Contents, true);
 
-                                            if (response.IsSuccessStatusCode)
+                                            if (uploadResult)
                                             {
-                                                var contentStream = await response.Content.ReadAsStreamAsync();
-                                                bool uploadResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, attachment.Name, contentStream, true);
-
-                                                if (uploadResult)
-                                                {
-                                                    log?.LogInformation($"Uploaded file {attachment.Name} to group for order {orderno}");
-                                                    moved &= true;
-                                                }
-                                                else
-                                                {
-                                                    log?.LogError($"Failed to upload {attachment.Name}");
-                                                    moved &= false;
-                                                }
+                                                log?.LogInformation($"Uploaded file {attachment.Name} to group for order {orderno}");
+                                                moved &= true;
                                             }
                                             else
                                             {
-                                                log.LogError($"Failed to fetch content for attachment {attachment.Id} from {contentUrl}");
+                                                log?.LogError($"Failed to upload {attachment.Name}");
                                                 moved &= false;
                                             }
                                         }
@@ -131,5 +124,12 @@ namespace Jobs
             }
 
         }
+
+        private string ExtractSubFolderNameFromContentUrl(string contentUrl)
+        {
+            var match = Regex.Match(contentUrl, "/General/([^/]+)/");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
     }
 }
