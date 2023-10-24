@@ -1801,7 +1801,7 @@ namespace Shared
         {
             bool returnValue = false;
 
-            if (graphClient == null || FileContents == null || FileContents == Stream.Null || string.IsNullOrEmpty(GroupID) || string.IsNullOrEmpty(FolderID) || string.IsNullOrEmpty(FileName) || FileContents.Length > 0)
+            if (graphClient == null || FileContents == null || FileContents == Stream.Null || string.IsNullOrEmpty(GroupID) || string.IsNullOrEmpty(FolderID) || string.IsNullOrEmpty(FileName) || FileContents.Length <= 0)
             {
                 return returnValue;
             }
@@ -1874,7 +1874,7 @@ namespace Shared
         {
             bool returnValue = false;
 
-            if(graphClient == null || Group == null || Folder == null || string.IsNullOrEmpty(Path) || FileContents == null || FileContents == Stream.Null || FileContents.Length > 0)
+            if(graphClient == null || Group == null || Folder == null || string.IsNullOrEmpty(Path) || FileContents == null || FileContents == Stream.Null || FileContents.Length <= 0)
             {
                 return returnValue;
             }
