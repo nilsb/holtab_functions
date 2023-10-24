@@ -44,7 +44,7 @@ namespace Jobs
             string customerNo = "";
 
             //use filename in message
-            if (string.IsNullOrEmpty(data.Title) && !string.IsNullOrEmpty(data.Filename))
+            if (!common.HasProperty(data, "title") && common.HasProperty(data, "Filename") && !string.IsNullOrEmpty(data.Filename))
             {
                 orderNo = common.FindOrderNoInString(data.Filename);
 
@@ -62,22 +62,22 @@ namespace Jobs
                     }
                 }
             }
-            else if(!string.IsNullOrEmpty(data.Title)) 
+            else if(common.HasProperty(data, "title") && !string.IsNullOrEmpty(data.title)) 
             {
                 //use title in message
-                orderNo = common.FindOrderNoInString(data.Title);
+                orderNo = common.FindOrderNoInString(data.title);
 
                 if (!string.IsNullOrEmpty(orderNo) && debug)
                 {
-                    log?.LogInformation($"Job HandleEmail: Found orderno {orderNo} in email subject {data.Title}");
+                    log?.LogInformation($"Job HandleEmail: Found orderno {orderNo} in email subject {data.title}");
                 }
                 else
                 {
-                    customerNo = common.FindCustomerNoInString(data.Title);
+                    customerNo = common.FindCustomerNoInString(data.title);
 
                     if (!string.IsNullOrEmpty(customerNo) && debug)
                     {
-                        log?.LogInformation($"Job HandleEmail: Found customerno {customerNo} in subject {data.Title}");
+                        log?.LogInformation($"Job HandleEmail: Found customerno {customerNo} in subject {data.title}");
                     }
                 }
             }
