@@ -1,10 +1,18 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
+using System.Net.Mail;
+using System.Text;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph;
+using Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
+using Microsoft.Graph.Models;
 using Shared;
 using Shared.Models;
 
@@ -13,6 +21,7 @@ namespace Jobs
     public class ProcessCDNEmails
     {
         private readonly IConfiguration config;
+        private const int ChunkSize = 320 * 1024; // This is 320 KB. Adjust based on your requirement.
 
         public ProcessCDNEmails(IConfiguration config)
         {
@@ -30,14 +39,18 @@ namespace Jobs
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph, debug);
 
+            log?.LogInformation("GetCDNTeam");
             string team = await msGraph.GetTeamFromGroup(settings.CDNTeamID, true);
 
             if (!string.IsNullOrEmpty(team))
             {
+                log?.LogInformation("Get messages in team");
                 var messages = await settings.GraphClient.Teams[team].PrimaryChannel.Messages.GetAsync();
 
                 foreach(var message in messages?.Value)
                 {
+                    log?.LogInformation(team + ": " + message);
+
                     var msg = await settings.GraphClient.Teams[team].PrimaryChannel.Messages[message.Id].GetAsync();
                     string orderno = common.FindOrderNoInString(msg.Subject);
 
@@ -47,13 +60,47 @@ namespace Jobs
 
                         if (groupAndFolder.Success)
                         {
+                            var emailStream = new MemoryStream(Encoding.UTF8.GetBytes(msg.Body.Content));
+                            bool uploadMsgResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, $"{msg.Subject}.txt", emailStream, true);
+
+                            if (!uploadMsgResult)
+                            {
+                                log?.LogError($"unable to upload file {msg.Subject}.txt");
+                            }
+
                             var attachments = msg.Attachments;
 
                             foreach (var attachment in attachments)
                             {
+                                var contentUrl = attachment.ContentUrl;
 
+                                if (!string.IsNullOrEmpty(contentUrl))
+                                {
+                                    using (var httpClient = new HttpClient())
+                                    {
+                                        // Fetch the actual content
+                                        var response = await httpClient.GetAsync(contentUrl);
+                                        if (response.IsSuccessStatusCode)
+                                        {
+                                            var contentStream = await response.Content.ReadAsStreamAsync();
+                                            bool uploadResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, attachment.Name, contentStream, true);
+
+                                            if (uploadResult)
+                                            {
+                                                log?.LogInformation($"Uploaded file {attachment.Name} to group for order {orderno}");
+                                            }
+                                            else
+                                            {
+                                                log?.LogError($"Failed to upload {attachment.Name}");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            log.LogError($"Failed to fetch content for attachment {attachment.Id} from {contentUrl}");
+                                        }
+                                    }
+                                }
                             }
-
                         }
                     }
                 }
