@@ -40,11 +40,11 @@ namespace Jobs
             string HistoryMonths = config["HistoryMonths"];
             int historyMonths = 0;
             Int32.TryParse(HistoryMonths, out historyMonths);
-            string orderNo;
+            string orderNo = "";
             string customerNo = "";
 
             //use filename in message
-            if (string.IsNullOrEmpty(data.Title))
+            if (string.IsNullOrEmpty(data.Title) && !string.IsNullOrEmpty(data.Filename))
             {
                 orderNo = common.FindOrderNoInString(data.Filename);
 
@@ -62,7 +62,7 @@ namespace Jobs
                     }
                 }
             }
-            else
+            else if(!string.IsNullOrEmpty(data.Title)) 
             {
                 //use title in message
                 orderNo = common.FindOrderNoInString(data.Title);
