@@ -1600,5 +1600,14 @@ namespace Shared
 
             return adminids;
         }
+
+        public bool HasProperty(dynamic obj, string propertyName)
+        {
+            if (obj == null) return false;
+
+            var type = obj.GetType();
+
+            return type.GetProperty(propertyName) != null;
+        }
     }
 }
