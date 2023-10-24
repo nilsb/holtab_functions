@@ -39,19 +39,21 @@ namespace Jobs
                 foreach(var message in messages?.Value)
                 {
                     var msg = await settings.GraphClient.Teams[team].PrimaryChannel.Messages[message.Id].GetAsync();
-                    var attachments = msg.Attachments;
+                    string orderno = common.FindOrderNoInString(msg.Subject);
 
-                    foreach(var attachment in attachments)
+                    if (!string.IsNullOrEmpty(orderno))
                     {
-                        string orderno = common.FindOrderNoInString(msg.Subject);
+                        var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
 
-                        if(!string.IsNullOrEmpty(orderno))
+                        if (groupAndFolder.Success)
                         {
-                            var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
+                            var attachments = msg.Attachments;
 
-                            if (groupAndFolder.Success)
+                            foreach (var attachment in attachments)
                             {
+
                             }
+
                         }
                     }
                 }

@@ -30,7 +30,7 @@ namespace Jobs
             ILogger log)
         {
             log.LogInformation("Got handle email request with message " + myQueueItem);
-            HandleEmailMessage data = JsonConvert.DeserializeObject<HandleEmailMessage>(myQueueItem);
+            dynamic data = JsonConvert.DeserializeObject<dynamic>(myQueueItem);
 
             Settings settings = new Settings(config, context, log);
             bool debug = (settings?.debugFlags?.Job?.PostProcessEmails).HasValue && (settings?.debugFlags?.Job?.PostProcessEmails).Value;
