@@ -80,6 +80,7 @@ namespace Jobs
                                     {
                                         // Fetch the actual content
                                         var response = await httpClient.GetAsync(contentUrl);
+
                                         if (response.IsSuccessStatusCode)
                                         {
                                             var contentStream = await response.Content.ReadAsStreamAsync();
