@@ -44,66 +44,89 @@ namespace Jobs
 
             if (!string.IsNullOrEmpty(team))
             {
-                log?.LogInformation("Get messages in team");
-                var messages = await settings.GraphClient.Teams[team].PrimaryChannel.Messages.GetAsync();
+                var primaryChannel = await settings.GraphClient.Teams[team].PrimaryChannel.GetAsync();
 
-                foreach(var message in messages?.Value)
+                if(primaryChannel != null)
                 {
-                    log?.LogInformation(team + ": " + message);
-
-                    var msg = await settings.GraphClient.Teams[team].PrimaryChannel.Messages[message.Id].GetAsync();
-                    string orderno = common.FindOrderNoInString(msg.Subject);
-
-                    if (!string.IsNullOrEmpty(orderno))
+                    log?.LogInformation("Get messages in team");
+                    var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
                     {
-                        var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
+                        requestConfiguration.QueryParameters.Top = 50;
+                    });
 
-                        if (groupAndFolder.Success)
+                    foreach (var message in messages?.Value)
+                    {
+                        bool moved = false;
+                        log?.LogInformation(team + ": " + message);
+
+                        var msg = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[message.Id].GetAsync();
+                        string orderno = common.FindOrderNoInString(msg.Subject);
+
+                        if (!string.IsNullOrEmpty(orderno))
                         {
-                            var emailStream = new MemoryStream(Encoding.UTF8.GetBytes(msg.Body.Content));
-                            bool uploadMsgResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, $"{msg.Subject}.txt", emailStream, true);
+                            var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
 
-                            if (!uploadMsgResult)
+                            if (groupAndFolder.Success)
                             {
-                                log?.LogError($"unable to upload file {msg.Subject}.txt");
-                            }
+                                var emailStream = new MemoryStream(Encoding.UTF8.GetBytes(msg.Body.Content));
+                                bool uploadMsgResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, $"{msg.Subject}.txt", emailStream, true);
 
-                            var attachments = msg.Attachments;
-
-                            foreach (var attachment in attachments)
-                            {
-                                var contentUrl = attachment.ContentUrl;
-
-                                if (!string.IsNullOrEmpty(contentUrl))
+                                if (!uploadMsgResult)
                                 {
-                                    using (var httpClient = new HttpClient())
+                                    log?.LogError($"unable to upload file {msg.Subject}.txt");
+                                    moved = false;
+                                }
+                                else
+                                {
+                                    moved = true;
+                                }
+
+                                var attachments = msg.Attachments;
+
+                                foreach (var attachment in attachments)
+                                {
+                                    var contentUrl = attachment.ContentUrl;
+
+                                    if (!string.IsNullOrEmpty(contentUrl))
                                     {
-                                        // Fetch the actual content
-                                        var response = await httpClient.GetAsync(contentUrl);
-
-                                        if (response.IsSuccessStatusCode)
+                                        using (var httpClient = new HttpClient())
                                         {
-                                            var contentStream = await response.Content.ReadAsStreamAsync();
-                                            bool uploadResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, attachment.Name, contentStream, true);
+                                            // Fetch the actual content
+                                            var response = await httpClient.GetAsync(contentUrl);
 
-                                            if (uploadResult)
+                                            if (response.IsSuccessStatusCode)
                                             {
-                                                log?.LogInformation($"Uploaded file {attachment.Name} to group for order {orderno}");
+                                                var contentStream = await response.Content.ReadAsStreamAsync();
+                                                bool uploadResult = await msGraph.UploadFile(groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, attachment.Name, contentStream, true);
+
+                                                if (uploadResult)
+                                                {
+                                                    log?.LogInformation($"Uploaded file {attachment.Name} to group for order {orderno}");
+                                                    moved &= true;
+                                                }
+                                                else
+                                                {
+                                                    log?.LogError($"Failed to upload {attachment.Name}");
+                                                    moved &= false;
+                                                }
                                             }
                                             else
                                             {
-                                                log?.LogError($"Failed to upload {attachment.Name}");
+                                                log.LogError($"Failed to fetch content for attachment {attachment.Id} from {contentUrl}");
+                                                moved &= false;
                                             }
-                                        }
-                                        else
-                                        {
-                                            log.LogError($"Failed to fetch content for attachment {attachment.Id} from {contentUrl}");
                                         }
                                     }
                                 }
                             }
                         }
+
+                        if (moved)
+                        {
+                            await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[msg.Id].SoftDelete.PostAsync();
+                        }
                     }
+
                 }
             }
 
