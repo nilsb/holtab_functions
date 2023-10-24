@@ -43,6 +43,7 @@ namespace Jobs
             string orderNo;
             string customerNo = "";
 
+            //use filename in message
             if (string.IsNullOrEmpty(data.Title))
             {
                 orderNo = common.FindOrderNoInString(data.Filename);
@@ -63,6 +64,7 @@ namespace Jobs
             }
             else
             {
+                //use title in message
                 orderNo = common.FindOrderNoInString(data.Title);
 
                 if (!string.IsNullOrEmpty(orderNo) && debug)
