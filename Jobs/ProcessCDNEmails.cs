@@ -45,6 +45,7 @@ namespace Jobs
 
             if (!string.IsNullOrEmpty(team))
             {
+                var teamDrive = await msGraph.GetGroupDrive(team, true);
                 var primaryChannel = await settings.GraphClient.Teams[team].PrimaryChannel.GetAsync();
 
                 if(primaryChannel != null)
@@ -91,7 +92,7 @@ namespace Jobs
 
                                     if (!string.IsNullOrEmpty(contentUrl) && !string.IsNullOrEmpty(subfolder))
                                     {
-                                        var folder = await msGraph.FindItem(team, subfolder, false, true);
+                                        var folder = await msGraph.FindItem(teamDrive, subfolder, false, true);
 
                                         if(folder != null)
                                         {
