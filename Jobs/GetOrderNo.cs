@@ -23,13 +23,12 @@ namespace Jobs
         }
 
         [FunctionName("GetOrderNo")]
-        public async Task<IActionResult> Run(
+        public IActionResult Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             Microsoft.Azure.WebJobs.ExecutionContext context,
             ILogger log)
         {
             log.LogInformation("Trigger function processed a request to find order number.");
-            string returnValue = "";
 
             Settings settings = new Settings(config, context, log);
             bool debug = (settings?.debugFlags?.Job?.PostProcessEmails).HasValue && (settings?.debugFlags?.Job?.PostProcessEmails).Value;

@@ -21,7 +21,7 @@ namespace Shared
         private readonly string? SqlConnectionString;
         private readonly string? redisConnectionString;
         private readonly ConnectionMultiplexer? redis;
-        private readonly IDatabase redisDB;
+        private readonly IDatabase? redisDB;
 
         public Graph(Settings _settings)
         {
@@ -154,7 +154,7 @@ namespace Shared
             User? memberToAdd = default(User);
             bool returnValue = false;
 
-            if (!string.IsNullOrEmpty(userEmail) && graphClient != null && redis != null)
+            if (!string.IsNullOrEmpty(userEmail) && graphClient != null && redis != null && redisDB != null)
             {
                 RedisValue cachedValue = redisDB.StringGet(userEmail);
 
@@ -236,6 +236,12 @@ namespace Shared
         public async Task<string?> GetTeamFromGroup(string groupId, bool debug)
         {
             string? foundTeam = null;
+
+            if(redisDB == null || graphClient == null)
+            {
+                return foundTeam;
+            }
+
             RedisValue cachedValue = redisDB.StringGet($"TeamId for: {groupId}");
 
             if (cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
@@ -244,11 +250,6 @@ namespace Shared
                     log?.LogInformation($"GetTeamFromGroup: Found TeamId {cachedValue} for group {groupId} in cache");
 
                 return cachedValue;
-            }
-
-            if (graphClient == null)
-            {
-                return foundTeam;
             }
 
             try
@@ -272,7 +273,7 @@ namespace Shared
             Team? createdTeam = null;
             string? createdTeamId = "";
 
-            if(graphClient == null)
+            if(graphClient == null || redisDB == null)
             {
                 return createdTeam;
             }
@@ -371,6 +372,11 @@ namespace Shared
         {
             string? returnValue = "";
 
+            if(redisDB == null || graphClient == null)
+            {
+                return returnValue;
+            }
+
             if (!string.IsNullOrEmpty(appName))
             {
                 RedisValue cachedValue = redisDB.StringGet($"App: {appName} for: {teamId}");
@@ -395,11 +401,6 @@ namespace Shared
 
                     return cachedValue;
                 }
-            }
-
-            if (graphClient == null)
-            {
-                return returnValue;
             }
 
             var apps = await graphClient.Teams[teamId].InstalledApps.GetAsync();
@@ -781,6 +782,12 @@ namespace Shared
         {
             string? memberToAdd = "";
             bool returnValue = true;
+
+            if (redisDB == null)
+            {
+                return returnValue;
+            }
+
             var cacheValue = redisDB.StringGet(userEmail);
 
             if (!string.IsNullOrEmpty(userEmail) && graphClient != null)
@@ -866,6 +873,12 @@ namespace Shared
         {
             string? memberToAdd = "";
             bool returnValue = true;
+
+            if(redisDB == null)
+            {
+                return returnValue;
+            }
+
             var cacheValue = redisDB.StringGet(userEmail);
 
             if (!string.IsNullOrEmpty(userEmail) && graphClient != null)
@@ -1206,7 +1219,7 @@ namespace Shared
         {
             string? groupDrive = "";
 
-            if (graphClient == null || string.IsNullOrEmpty(GroupId))
+            if (graphClient == null || string.IsNullOrEmpty(GroupId) || redisDB == null)
             {
                 return null;
             }
@@ -1243,7 +1256,7 @@ namespace Shared
         {
             string? groupDriveUrl = "";
 
-            if (graphClient == null || string.IsNullOrEmpty(GroupId))
+            if (graphClient == null || string.IsNullOrEmpty(GroupId) || redisDB == null)
             {
                 return null;
             }
@@ -1280,7 +1293,7 @@ namespace Shared
         {
             string? returnValue = "";
 
-            if (graphClient == null || string.IsNullOrEmpty(GroupId))
+            if (graphClient == null || string.IsNullOrEmpty(GroupId) || redisDB == null)
             {
                 return null;
             }
@@ -1339,7 +1352,7 @@ namespace Shared
         {
             string? groupDriveId = "";
 
-            if (graphClient == null || string.IsNullOrEmpty(SiteId))
+            if (graphClient == null || string.IsNullOrEmpty(SiteId) || redisDB == null)
             {
                 return null;
             }
@@ -1738,12 +1751,18 @@ namespace Shared
                         log?.LogInformation($"DownloadFile: Found group drive for file {FileName}");
 
                     //download order file content
-                    returnValue.Contents = await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).Content.GetAsync();
+                    var stream = await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).Content.GetAsync();
 
-                    if(debug)
-                        log?.LogInformation($"DownloadFile: Downloaded file {FileName} with size {returnValue?.Contents?.Length} byte");
+                    if(stream != null && stream != Stream.Null)
+                    {
+                        returnValue.Contents = new MemoryStream();
+                        await stream.CopyToAsync(returnValue.Contents);
 
-                    returnValue.Success = true;
+                        if (debug)
+                            log?.LogInformation($"DownloadFile: Downloaded file {FileName} with size {returnValue.Contents?.Length} byte");
+
+                        returnValue.Success = true;
+                    }
                 }
             }
             catch (Exception ex)
@@ -1778,13 +1797,18 @@ namespace Shared
                         log?.LogInformation($"DownloadFile: Found group drive for file {Path}");
 
                     //download order file content
-                    returnValue.Contents = Stream.Null;
-                    (await graphClient.Drives[groupDrive.Id].Items[Folder.Id].ItemWithPath(Path).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
+                    returnValue.Contents = new MemoryStream();
+                    var source = await graphClient.Drives[groupDrive.Id].Items[Folder.Id].ItemWithPath(Path).Content.GetAsync();
                     
-                    if(debug)
-                        log?.LogInformation($"DownloadFile: Downloaded file {Path} with size {returnValue.Contents.Length} byte");
+                    if(source != null && source != Stream.Null)
+                    {
+                        await source.CopyToAsync(returnValue.Contents);
 
-                    returnValue.Success = true;
+                        if (debug)
+                            log?.LogInformation($"DownloadFile: Downloaded file {Path} with size {returnValue.Contents.Length} byte");
+
+                        returnValue.Success = true;
+                    }
                 }
             }
             catch (Exception ex)
@@ -1796,7 +1820,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<bool> UploadFile(string? GroupID, string? FolderID, string? FileName, Stream? FileContents, bool debug)
+        public async Task<bool> UploadFile(string? GroupID, string? FolderID, string? FileName, MemoryStream FileContents, bool debug)
         {
             bool returnValue = false;
 
@@ -1869,7 +1893,7 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<bool> UploadFile(Group? Group, DriveItem? Folder, string? Path, Stream? FileContents, bool debug)
+        public async Task<bool> UploadFile(Group? Group, DriveItem? Folder, string? Path, MemoryStream FileContents, bool debug)
         {
             bool returnValue = false;
 
@@ -2512,11 +2536,16 @@ namespace Shared
 
         public bool LookupCacheList(string key, string lookup)
         {
+            if(redisDB == null)
+            {
+                return false;
+            }
+
             RedisValue cachedValue = redisDB.StringGet(key);
 
             if(cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
             {
-                List<string> values = JsonConvert.DeserializeObject<List<string>>(cachedValue);
+                List<string?>? values = JsonConvert.DeserializeObject<List<string?>?>(cachedValue);
                 
                 if(values?.Count > 0)
                 {
@@ -2529,11 +2558,16 @@ namespace Shared
 
         public dynamic? LookupCacheList(string key, Func<dynamic, bool> searchFunction)
         {
+            if (redisDB == null)
+            {
+                return null;
+            }
+
             RedisValue cachedValue = redisDB.StringGet(key);
 
             if (cachedValue.HasValue && !cachedValue.IsNullOrEmpty)
             {
-                List<dynamic> values = JsonConvert.DeserializeObject<List<dynamic>>(cachedValue);
+                List<dynamic?>? values = JsonConvert.DeserializeObject<List<dynamic?>?>(cachedValue);
 
                 if (values?.Count > 0)
                 {
@@ -2546,6 +2580,11 @@ namespace Shared
 
         public bool AddCacheList(string key, string value)
         {
+            if (redisDB == null)
+            {
+                return false;
+            }
+
             RedisValue cachedValue = redisDB.StringGet(key);
 
             if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
@@ -2574,6 +2613,11 @@ namespace Shared
 
         public bool AddCacheList(string key, List<string?> value)
         {
+            if (redisDB == null)
+            {
+                return false;
+            }
+
             RedisValue cachedValue = redisDB.StringGet(key);
 
             if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
@@ -2601,6 +2645,11 @@ namespace Shared
 
         public bool AddCacheList(string key, List<dynamic?> value)
         {
+            if (redisDB == null)
+            {
+                return false;
+            }
+
             RedisValue cachedValue = redisDB.StringGet(key);
 
             if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
