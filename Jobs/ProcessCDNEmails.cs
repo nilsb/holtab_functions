@@ -114,17 +114,22 @@ namespace Jobs
 
                                             if (customerPrimaryChannel != null)
                                             {
-                                                if (debug)
-                                                    log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
+                                                var customerPrimaryChannelFolder = await settings.GraphClient.Teams[customerTeam].Channels[customerPrimaryChannel.Id].FilesFolder.GetAsync();
 
-                                                var emailsfolder = await msGraph.FindItem(customerGroupResult.groupDriveId, customerPrimaryChannel.FilesFolder.Id, "E-Post", false, debug);
-
-                                                if (emailsfolder != null)
+                                                if(customerPrimaryChannelFolder != null)
                                                 {
                                                     if (debug)
                                                         log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
 
-                                                    moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, customerGroupResult.groupId, emailsfolder.Id, msGraph, settings, log, debug);
+                                                    var emailsfolder = await msGraph.FindItem(customerGroupResult.groupDriveId, customerPrimaryChannelFolder.Id, "E-Post", false, debug);
+
+                                                    if (emailsfolder != null)
+                                                    {
+                                                        if (debug)
+                                                            log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
+
+                                                        moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, customerGroupResult.groupId, emailsfolder.Id, msGraph, settings, log, debug);
+                                                    }
                                                 }
                                             }
 
