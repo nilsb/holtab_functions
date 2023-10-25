@@ -80,7 +80,7 @@ namespace Jobs
 
                             if (groupAndFolder.Success)
                             {
-                                moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, msGraph, log, debug);
+                                moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, msGraph, settings, log, debug);
                             }
                         }
                         else if (!string.IsNullOrEmpty(customerno))
@@ -124,7 +124,7 @@ namespace Jobs
                                                     if (debug)
                                                         log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
 
-                                                    moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, customerGroupResult.groupId, emailsfolder.Id, msGraph, log, debug);
+                                                    moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, customerGroupResult.groupId, emailsfolder.Id, msGraph, settings, log, debug);
                                                 }
                                             }
 
@@ -151,7 +151,7 @@ namespace Jobs
             return match.Success ? match.Groups[1].Value : null;
         }
 
-        private async Task<bool> ProcessAttachments(ChatMessage msg, Channel primaryChannel, string team, string teamDrive, string destinationGroup, string destinationFolder, Graph msGraph, ILogger log, bool debug)
+        private async Task<bool> ProcessAttachments(ChatMessage msg, Channel primaryChannel, string team, string teamDrive, string destinationGroup, string destinationFolder, Graph msGraph, Settings settings, ILogger log, bool debug)
         {
             bool returnValue = true;
             var attachments = msg.Attachments;
@@ -173,44 +173,54 @@ namespace Jobs
 
                 if (!string.IsNullOrEmpty(contentUrl) && !string.IsNullOrEmpty(subfolder))
                 {
-                    if (debug)
-                        log?.LogInformation($"ProcessCDNEmails: Trying to find folder {primaryChannel.FilesFolder.Name}/{subfolder}");
+                    var primaryChannelFolder = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].FilesFolder.GetAsync();
 
-                    var folder = await msGraph.FindItem(teamDrive, primaryChannel.FilesFolder.Id, subfolder, false, true);
-
-                    if (folder != null)
+                    if(primaryChannelFolder != null)
                     {
                         if (debug)
-                            log?.LogInformation($"ProcessCDNEmails: Trying to download item {primaryChannel.FilesFolder.Name}/{subfolder}/{attachment.Name}");
+                            log?.LogInformation($"ProcessCDNEmails: Trying to find folder {primaryChannelFolder.Name}/{subfolder}");
 
-                        var file = await msGraph.DownloadFile(team, folder.Id, attachment.Name, true);
+                        var folder = await msGraph.FindItem(teamDrive, primaryChannelFolder.Id, subfolder, false, true);
 
-                        if (file != null && file.Contents != Stream.Null && file.Contents.Length > 0)
+                        if (folder != null)
                         {
-                            bool uploadResult = await msGraph.UploadFile(destinationGroup, destinationFolder, attachment.Name, file.Contents, true);
+                            if (debug)
+                                log?.LogInformation($"ProcessCDNEmails: Trying to download item {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
 
-                            if (uploadResult)
+                            var file = await msGraph.DownloadFile(team, folder.Id, attachment.Name, true);
+
+                            if (file != null && file.Contents != Stream.Null && file.Contents.Length > 0)
                             {
-                                if (debug)
-                                    log?.LogInformation($"ProcessCDNEmails: Uploaded file {attachment.Name} to destination");
+                                bool uploadResult = await msGraph.UploadFile(destinationGroup, destinationFolder, attachment.Name, file.Contents, true);
 
-                                returnValue &= true;
+                                if (uploadResult)
+                                {
+                                    if (debug)
+                                        log?.LogInformation($"ProcessCDNEmails: Uploaded file {attachment.Name} to destination");
+
+                                    returnValue &= true;
+                                }
+                                else
+                                {
+                                    if (debug)
+                                        log?.LogError($"ProcessCDNEmails: Failed to upload {attachment.Name}");
+
+                                    returnValue &= false;
+                                }
                             }
                             else
                             {
                                 if (debug)
-                                    log?.LogError($"ProcessCDNEmails: Failed to upload {attachment.Name}");
+                                    log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannel.FilesFolder.Name}/{subfolder}/{attachment.Name}");
 
                                 returnValue &= false;
                             }
                         }
                         else
                         {
-                            if (debug)
-                                log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannel.FilesFolder.Name}/{subfolder}/{attachment.Name}");
-
                             returnValue &= false;
                         }
+
                     }
                     else
                     {
