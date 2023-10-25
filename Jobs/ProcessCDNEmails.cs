@@ -192,11 +192,11 @@ namespace Jobs
                             if (debug)
                                 log?.LogInformation($"ProcessCDNEmails: Trying to download item {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
 
-                            var file = await msGraph.DownloadFile(team, folder.Id, attachment.Name, true);
+                            var file = await msGraph.DownloadFile(team, folder.Id, attachment.Name, debug);
 
                             if (file != null && file.Contents != Stream.Null && file.Contents.Length > 0)
                             {
-                                bool uploadResult = await msGraph.UploadFile(destinationGroup, destinationFolder, attachment.Name, file.Contents, true);
+                                bool uploadResult = await msGraph.UploadFile(destinationGroup, destinationFolder, attachment.Name, file.Contents, debug);
 
                                 if (uploadResult)
                                 {
@@ -216,7 +216,7 @@ namespace Jobs
                             else
                             {
                                 if (debug)
-                                    log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannel.FilesFolder.Name}/{subfolder}/{attachment.Name}");
+                                    log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
 
                                 returnValue &= false;
                             }
