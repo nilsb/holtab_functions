@@ -68,7 +68,7 @@ namespace Jobs
                         bool moved = false;
 
                         if(debug)
-                            log?.LogInformation("ProcessCDNEmails: " + team + ": " + message);
+                            log?.LogInformation("ProcessCDNEmails: " + team + ": " + message.Subject);
 
                         var msg = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[message.Id].GetAsync();
                         string orderno = common.FindOrderNoInString(msg.Subject);
@@ -156,10 +156,20 @@ namespace Jobs
             bool returnValue = true;
             var attachments = msg.Attachments;
 
+            if (debug)
+                log?.LogInformation($"ProcessCDNEmails: Processing attachments");
+
             foreach (var attachment in attachments)
             {
                 var contentUrl = attachment.ContentUrl;
+
+                if (debug)
+                    log?.LogInformation($"ProcessCDNEmails: Attachment content URL {contentUrl}");
+
                 var subfolder = ExtractSubFolderNameFromContentUrl(contentUrl);
+
+                if (debug)
+                    log?.LogInformation($"ProcessCDNEmails: Extracted subfolder name {subfolder}");
 
                 if (!string.IsNullOrEmpty(contentUrl) && !string.IsNullOrEmpty(subfolder))
                 {
