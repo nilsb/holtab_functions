@@ -1738,11 +1738,10 @@ namespace Shared
                         log?.LogInformation($"DownloadFile: Found group drive for file {FileName}");
 
                     //download order file content
-                    returnValue.Contents = Stream.Null;
-                    (await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).Content.GetAsync() ?? Stream.Null).CopyTo(returnValue.Contents);
+                    returnValue.Contents = await graphClient.Drives[groupDriveId].Items[FolderID].ItemWithPath(FileName).Content.GetAsync();
 
                     if(debug)
-                        log?.LogInformation($"DownloadFile: Downloaded file {FileName} with size {returnValue.Contents.Length} byte");
+                        log?.LogInformation($"DownloadFile: Downloaded file {FileName} with size {returnValue?.Contents?.Length} byte");
 
                     returnValue.Success = true;
                 }
