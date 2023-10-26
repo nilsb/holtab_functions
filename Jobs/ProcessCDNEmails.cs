@@ -62,22 +62,22 @@ namespace Jobs
 
                     int count = pagesize;
 
-                    var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
+                    var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.Delta.GetAsDeltaGetResponseAsync((requestConfiguration) =>
                     {
                         requestConfiguration.QueryParameters.Top = pagesize;
                     });
 
-                    await ProcessMessages(messages, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
+                    await ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
 
                     while (!string.IsNullOrEmpty(messages.OdataNextLink)) {
-                        messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
+                        messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.Delta.GetAsDeltaGetResponseAsync((requestConfiguration) =>
                         {
                             requestConfiguration.QueryParameters.Top = pagesize;
                             requestConfiguration.QueryParameters.Skip = count;
                             count += pagesize;
                         });
 
-                        await ProcessMessages(messages, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
+                        await ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
                     }
                 }
             }
@@ -90,9 +90,9 @@ namespace Jobs
             return match.Success ? match.Groups[1].Value : null;
         }
 
-        private async Task ProcessMessages(ChatMessageCollectionResponse messages, Channel primaryChannel, string team, string teamDrive, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
+        private async Task ProcessMessages(List<ChatMessage> messages, Channel primaryChannel, string team, string teamDrive, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
         {
-            foreach (var message in messages?.Value)
+            foreach (var message in messages)
             {
                 bool moved = false;
 
