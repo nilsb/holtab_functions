@@ -635,14 +635,22 @@ namespace Shared
                     returnValue.groupDriveId = groupDriveId;
                     returnValue.customer.DriveID = groupDriveId ?? "";
                     UpdateCustomer(returnValue.customer, "drive info", debug);
-                    rootItems = await msGraph.GetDriveRootItems(groupDriveId, debug);
 
-                    if (rootItems.Count > 0)
+                    if (string.IsNullOrEmpty(returnValue.customer.GeneralFolderID))
                     {
-                        if(debug)
-                            log?.LogInformation($"FindCustomerGroupAndDrive: Fetched root items in group drive for {customer.Name}.");
+                        rootItems = await msGraph.GetDriveRootItems(groupDriveId, debug);
 
-                        returnValue.rootItems = rootItems;
+                        if (rootItems.Count > 0)
+                        {
+                            if (debug)
+                                log?.LogInformation($"FindCustomerGroupAndDrive: Fetched root items in group drive for {customer.Name}.");
+
+                            returnValue.rootItems = rootItems;
+                        }
+                    }
+                    else
+                    {
+                        returnValue.generalFolderId = returnValue.customer.GeneralFolderID;
                     }
                 }
 
@@ -655,7 +663,7 @@ namespace Shared
                         if (debug)
                             log?.LogInformation($"FindCustomerGroupAndDrive: Fetched general folder in group drive for {customer.Name}.");
 
-                        returnValue.generalFolder = generalFolder;
+                        returnValue.generalFolderId = generalFolder.Id;
                         returnValue.customer.GeneralFolderID = generalFolder.Id ?? "";
                         returnValue.customer.GeneralFolderCreated = true;
                         UpdateCustomer(returnValue.customer, "general folder info", debug);
@@ -759,14 +767,14 @@ namespace Shared
                         returnValue.orderGroupId = findCustomerGroupResult.groupId;
                         returnValue.orderDriveId = findCustomerGroupResult.groupDriveId;
 
-                        if (findCustomerGroupResult.generalFolder != null)
+                        if (findCustomerGroupResult.generalFolderId != null)
                         {
                             if(debug)
                                 log?.LogInformation($"GetOrderGroupAndFolder: Found general folder for {returnValue.customer.Name} and order {order.ExternalId}.");
 
-                            returnValue.generalFolder = findCustomerGroupResult.generalFolder;
+                            returnValue.generalFolderId = findCustomerGroupResult.generalFolderId;
                             returnValue.customer.GeneralFolderCreated = true;
-                            returnValue.customer.GeneralFolderID = returnValue.generalFolder.Id ?? "";
+                            returnValue.customer.GeneralFolderID = returnValue.generalFolderId ?? "";
                             UpdateCustomer(returnValue.customer, "general folder info", debug);
                         }
 
@@ -815,55 +823,58 @@ namespace Shared
                                     break;
                             }
 
-                            try
+                            if (string.IsNullOrEmpty(order.FolderID))
                             {
-                                DriveItem? foundOrderFolder = await msGraph.FindItem(returnValue.orderDriveId, "General/" + parentName + "/" + order.ExternalId, false);
-
-                                if (foundOrderFolder != null)
+                                try
                                 {
-                                    if(debug)
-                                        log?.LogInformation($"GetOrderGroupAndFolder: Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
+                                    DriveItem? foundOrderFolder = await msGraph.FindItem(returnValue.orderDriveId, "General/" + parentName + "/" + order.ExternalId, false);
 
-                                    returnValue.orderFolder = foundOrderFolder;
-                                    order.CreatedFolder = true;
-                                    order.CustomerID = returnValue.customer.ID;
-                                    order.GroupFound = true;
-                                    order.GeneralFolderFound = true;
-                                    order.FolderID = returnValue.orderFolder.Id ?? "";
-                                    order.OrdersFolderFound = true;
-                                    UpdateOrder(order, "folder info", debug);
-                                }
-                                else
-                                {
-                                    List<DriveItem> rootItems = await msGraph.GetDriveRootItems(returnValue.orderDriveId, debug);
-
-                                    foreach(DriveItem rootItem in rootItems)
+                                    if (foundOrderFolder != null)
                                     {
-                                        if(rootItem.Name == "General")
+                                        if (debug)
+                                            log?.LogInformation($"GetOrderGroupAndFolder: Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
+
+                                        returnValue.orderFolderId = foundOrderFolder.Id;
+                                        order.CreatedFolder = true;
+                                        order.CustomerID = returnValue.customer.ID;
+                                        order.GroupFound = true;
+                                        order.GeneralFolderFound = true;
+                                        order.FolderID = returnValue.orderFolderId ?? "";
+                                        order.OrdersFolderFound = true;
+                                        UpdateOrder(order, "folder info", debug);
+                                    }
+                                    else
+                                    {
+                                        List<DriveItem> rootItems = await msGraph.GetDriveRootItems(returnValue.orderDriveId, debug);
+
+                                        foreach (DriveItem rootItem in rootItems)
                                         {
-                                            List<DriveItem> generalItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, rootItem.Id, false, debug);
-
-                                            foreach (DriveItem generalItem in generalItems)
+                                            if (rootItem.Name == "General")
                                             {
-                                                if (generalItem.Name == parentName)
+                                                List<DriveItem> generalItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, rootItem.Id, false, debug);
+
+                                                foreach (DriveItem generalItem in generalItems)
                                                 {
-                                                    List<DriveItem> folderItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, generalItem.Id, false, debug);
-
-                                                    foreach(DriveItem folderItem in folderItems)
+                                                    if (generalItem.Name == parentName)
                                                     {
-                                                        if(folderItem.Name == order.ExternalId)
-                                                        {
-                                                            if(debug)
-                                                                log?.LogInformation($"GetOrderGroupAndFolder: Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
+                                                        List<DriveItem> folderItems = await msGraph.GetDriveFolderChildren(returnValue.orderDriveId, generalItem.Id, false, debug);
 
-                                                            returnValue.orderFolder = folderItem;
-                                                            order.CreatedFolder = true;
-                                                            order.CustomerID = returnValue.customer.ID;
-                                                            order.GroupFound = true;
-                                                            order.GeneralFolderFound = true;
-                                                            order.FolderID = returnValue.orderFolder.Id ?? "";
-                                                            order.OrdersFolderFound = true;
-                                                            UpdateOrder(order, "folder info", debug);
+                                                        foreach (DriveItem folderItem in folderItems)
+                                                        {
+                                                            if (folderItem.Name == order.ExternalId)
+                                                            {
+                                                                if (debug)
+                                                                    log?.LogInformation($"GetOrderGroupAndFolder: Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
+
+                                                                returnValue.orderFolderId = folderItem.Id;
+                                                                order.CreatedFolder = true;
+                                                                order.CustomerID = returnValue.customer.ID;
+                                                                order.GroupFound = true;
+                                                                order.GeneralFolderFound = true;
+                                                                order.FolderID = returnValue.orderFolderId ?? "";
+                                                                order.OrdersFolderFound = true;
+                                                                UpdateOrder(order, "folder info", debug);
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -871,13 +882,26 @@ namespace Shared
                                         }
                                     }
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                log?.LogError("GetOrderGroupAndFolder: " + ex.ToString());
+                                catch (Exception ex)
+                                {
+                                    log?.LogError("GetOrderGroupAndFolder: " + ex.ToString());
 
-                                if(debug)
-                                    log?.LogInformation($"Failed to get folder for order {order.ExternalId}.");
+                                    if (debug)
+                                        log?.LogInformation($"Failed to get folder for order {order.ExternalId}.");
+                                }
+
+                            }
+                            else
+                            {
+                                if (debug)
+                                    log?.LogInformation($"GetOrderGroupAndFolder: Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
+
+                                order.CreatedFolder = true;
+                                order.CustomerID = returnValue.customer.ID;
+                                order.GroupFound = true;
+                                order.GeneralFolderFound = true;
+                                order.OrdersFolderFound = true;
+                                UpdateOrder(order, "folder info", debug);
                             }
                         }
                     }

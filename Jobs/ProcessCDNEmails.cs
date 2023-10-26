@@ -80,7 +80,7 @@ namespace Jobs
 
                             if (groupAndFolder.Success)
                             {
-                                moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, msGraph, settings, log, debug);
+                                moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, groupAndFolder.orderGroupId, groupAndFolder.orderFolderId, msGraph, settings, log, debug);
                             }
                         }
                         else if (!string.IsNullOrEmpty(customerno))
