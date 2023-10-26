@@ -1,8 +1,11 @@
 ﻿using Azure.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
+using Microsoft.Identity.Client;
 using StackExchange.Redis;
+using static System.Formats.Asn1.AsnWriter;
 using ExecutionContext = Microsoft.Azure.WebJobs.ExecutionContext;
 
 namespace Shared.Models
@@ -30,8 +33,10 @@ namespace Shared.Models
                     this.Admins = config["Admins"];
                     this.SqlConnectionString = config["SqlConnectionString"];
                     this.redisConnectionString = config["redisConnectionString"];
-                    
-                    if(!string.IsNullOrEmpty(config["debugFlags"]))
+
+                    var scopes = new[] { "https://graph.microsoft.com/.default" };
+
+                    if (!string.IsNullOrEmpty(config["debugFlags"]))
                         this.debugFlags = Newtonsoft.Json.JsonConvert.DeserializeObject<DebugFlags>(config["debugFlags"]);
 
                     if (!string.IsNullOrEmpty(this.TenantID) && !string.IsNullOrEmpty(this.ClientID) && !string.IsNullOrEmpty(this.ClientSecret))
@@ -46,7 +51,6 @@ namespace Shared.Models
                             this.ClientID,
                             this.ClientSecret,
                             options);
-                        var scopes = new[] { "https://graph.microsoft.com/.default" };
                         this.GraphClient = new GraphServiceClient(clientSecretCredential, scopes);
                     }
 
@@ -54,6 +58,30 @@ namespace Shared.Models
                     {
                         this.redis = ConnectionMultiplexer.Connect(this.redisConnectionString);
                     }
+
+                    IConfidentialClientApplication app = ConfidentialClientApplicationBuilder.Create(ClientID)
+                        .WithClientSecret(ClientSecret)
+                        .WithAuthority($"https://login.microsoftonline.com/{TenantID}")
+                        .Build();
+
+                    AuthenticationResult result;
+
+                    //try
+                    //{
+                    //    var securePassword = new System.Security.SecureString();
+                    //    foreach (char c in serviceAccountPassword)
+                    //        securePassword.AppendChar(c);
+
+                    //    result = app.
+
+                    //    // Use result.AccessToken to call Microsoft Graph API or any other subsequent action
+
+                    //    return new OkObjectResult($"Access Token: {result.AccessToken}");
+                    //}
+                    //catch (MsalException ex)
+                    //{
+                    //    return new BadRequestObjectResult($"Error acquiring token: {ex.Message}");
+                    //}
                 }
             }
 
@@ -65,6 +93,7 @@ namespace Shared.Models
 
         public DebugFlags? debugFlags { get; set; }
         public GraphServiceClient? GraphClient { get; set; }
+        public GraphServiceClient? DelegatedGraphClient { get; set; }
         public ConnectionMultiplexer? redis { get; set; }
         public string TenantID { get; set; } = "";
         public string ClientID { get; set; } = "";
