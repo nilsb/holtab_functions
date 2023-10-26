@@ -473,8 +473,14 @@ namespace Shared
 
                     if (tabs?.Value?.Count > 0)
                     {
-                        AddCacheList($"Tabids for team: {teamId} and channel: {channelId}", tabs.Value.Select(i => i.Id).ToList());
-                        returnValue = tabs.Value.Any(t => t.Id == tabId);
+                        var tabsList = tabs.Value.ToList();
+                        var tabsSelect = tabsList.Select(i => i.Id).ToList();
+
+                        if(tabsSelect != null)
+                        {
+                            AddCacheList($"Tabids for team: {teamId} and channel: {channelId}", tabsSelect);
+                            returnValue = tabs.Value.Any(t => t.Id == tabId);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -2589,13 +2595,18 @@ namespace Shared
 
             if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
             {
-                List<string>? values = JsonConvert.DeserializeObject<List<string>>(cachedValue);
+                string? cval = cachedValue;
 
-                if (values != null)
+                if(cval != null)
                 {
-                    values.Add(value);
+                    List<string>? values = JsonConvert.DeserializeObject<List<string>>(cval);
 
-                    return true;
+                    if (values != null)
+                    {
+                        values.Add(value);
+
+                        return true;
+                    }
                 }
             } 
             else 
@@ -2611,7 +2622,7 @@ namespace Shared
             return false;
         }
 
-        public bool AddCacheList(string key, List<string?> value)
+        public bool AddCacheList(string key, List<string> value)
         {
             if (redisDB == null)
             {
@@ -2622,13 +2633,18 @@ namespace Shared
 
             if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
             {
-                List<string?> values = JsonConvert.DeserializeObject<List<string?>>(cachedValue);
+                string? cval = cachedValue;
 
-                if (values != null)
+                if(cval != null)
                 {
-                    values.AddRange(value);
+                    List<string>? values = JsonConvert.DeserializeObject<List<string>>(cval);
 
-                    return true;
+                    if (values != null)
+                    {
+                        values.AddRange(value);
+
+                        return true;
+                    }
                 }
             }
             else
@@ -2643,7 +2659,7 @@ namespace Shared
             return false;
         }
 
-        public bool AddCacheList(string key, List<dynamic?> value)
+        public bool AddCacheList(string key, List<dynamic> value)
         {
             if (redisDB == null)
             {
@@ -2654,13 +2670,18 @@ namespace Shared
 
             if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
             {
-                List<dynamic?> values = JsonConvert.DeserializeObject<List<dynamic?>>(cachedValue);
-
-                if (values != null)
+                string? cval = cachedValue;
+                
+                if(cval != null)
                 {
-                    values.AddRange(value);
+                    List<dynamic>? values = JsonConvert.DeserializeObject<List<dynamic>>(cval);
 
-                    return true;
+                    if (values != null)
+                    {
+                        values.AddRange(value);
+
+                        return true;
+                    }
                 }
             }
             else

@@ -141,7 +141,13 @@ namespace Jobs
 
                         if (moved)
                         {
-                            await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[msg.Id].SoftDelete.PostAsync();
+                            try
+                            {
+                                await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[msg.Id].SoftDelete.PostAsync();
+                            }
+                            catch (Exception)
+                            {
+                            }
                         }
                     }
 
