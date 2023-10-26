@@ -12,8 +12,8 @@ namespace Shared.Models
         public string? orderTeamId { get; set; }
         public string? orderGroupId { get; set; }
         public string? orderDriveId { get; set; }
-        public DriveItem? orderFolder { get; set; }
-        public DriveItem? generalFolder { get; set; }
+        public string? orderFolderId { get; set; }
+        public string? generalFolderId { get; set; }
         public Customer? customer { get; set; }
     }
 }

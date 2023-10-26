@@ -17,6 +17,7 @@ using Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
 using Microsoft.Graph.Models;
 using Shared;
 using Shared.Models;
+using YamlDotNet.Serialization.NodeTypeResolvers;
 
 namespace Jobs
 {
@@ -24,6 +25,7 @@ namespace Jobs
     {
         private readonly IConfiguration config;
         private const int ChunkSize = 320 * 1024; // This is 320 KB. Adjust based on your requirement.
+        private const int pagesize = 50;
 
         public ProcessCDNEmails(IConfiguration config)
         {
@@ -31,7 +33,7 @@ namespace Jobs
         }
 
         [FunctionName("ProcessCDNEmails")]
-        public async Task Run([TimerTrigger("0 */10 * * * *")]TimerInfo myTimer,
+        public async Task Run([TimerTrigger("0 */10 * * * *")] TimerInfo myTimer,
             Microsoft.Azure.WebJobs.ExecutionContext context,
             ILogger log)
         {
@@ -53,104 +55,30 @@ namespace Jobs
                 var teamDrive = await msGraph.GetGroupDrive(team, true);
                 var primaryChannel = await settings.GraphClient.Teams[team].PrimaryChannel.GetAsync();
 
-                if(primaryChannel != null)
+                if (primaryChannel != null)
                 {
-                    if(debug)
+                    if (debug)
                         log?.LogInformation("ProcessCDNEmails: Get messages in team");
 
-                    var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
+                    int count = pagesize;
+
+                    var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.Delta.GetAsDeltaGetResponseAsync((requestConfiguration) =>
                     {
-                        requestConfiguration.QueryParameters.Top = 50;
+                        requestConfiguration.QueryParameters.Top = pagesize;
                     });
 
-                    foreach (var message in messages?.Value)
-                    {
-                        bool moved = false;
+                    await ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
 
-                        if(debug)
-                            log?.LogInformation("ProcessCDNEmails: " + team + ": " + message.Subject);
-
-                        var msg = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[message.Id].GetAsync();
-                        string orderno = common.FindOrderNoInString(msg.Subject);
-                        string customerno = common.FindCustomerNoInString(msg.Subject);
-
-                        if (!string.IsNullOrEmpty(orderno))
+                    while (!string.IsNullOrEmpty(messages.OdataNextLink)) {
+                        messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.Delta.GetAsDeltaGetResponseAsync((requestConfiguration) =>
                         {
-                            var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
+                            requestConfiguration.QueryParameters.Top = pagesize;
+                            requestConfiguration.QueryParameters.Skip = count;
+                            count += pagesize;
+                        });
 
-                            if (groupAndFolder.Success)
-                            {
-                                moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, groupAndFolder.orderGroupId, groupAndFolder.orderFolder.Id, msGraph, settings, log, debug);
-                            }
-                        }
-                        else if (!string.IsNullOrEmpty(customerno))
-                        {
-                            FindCustomerResult customerResult = common.GetCustomer(customerno, "Supplier", debug);
-
-                            if (customerResult.Success && customerResult.customers.Count > 0)
-                            {
-                                Customer dbCustomer = customerResult.customers.OrderByDescending(c => c.Created).Take(1).FirstOrDefault();
-
-                                if (dbCustomer != null)
-                                {
-                                    if (debug)
-                                        log?.LogInformation($"ProcessCDNEmails: Found customer {dbCustomer.Name} in CDN");
-
-                                    FindCustomerGroupResult customerGroupResult = common.FindCustomerGroupAndDrive(dbCustomer.Name, dbCustomer.ExternalId, dbCustomer.Type, debug);
-
-                                    if (customerGroupResult.Success && !string.IsNullOrEmpty(customerGroupResult.groupId))
-                                    {
-                                        if (debug)
-                                            log?.LogInformation($"ProcessCDNEmails: Found customer group and drive for {dbCustomer.Name}");
-
-                                        var customerTeam = await msGraph.GetTeamFromGroup(customerGroupResult.groupId, debug);
-
-                                        if(customerTeam != null)
-                                        {
-                                            if (debug)
-                                                log?.LogInformation($"ProcessCDNEmails: Found customer team for {dbCustomer.Name}");
-
-                                            var customerPrimaryChannel = await settings.GraphClient.Teams[customerTeam].PrimaryChannel.GetAsync();
-
-                                            if (customerPrimaryChannel != null)
-                                            {
-                                                var customerPrimaryChannelFolder = await settings.GraphClient.Teams[customerTeam].Channels[customerPrimaryChannel.Id].FilesFolder.GetAsync();
-
-                                                if(customerPrimaryChannelFolder != null)
-                                                {
-                                                    if (debug)
-                                                        log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
-
-                                                    var emailsfolder = await msGraph.FindItem(customerGroupResult.groupDriveId, customerPrimaryChannelFolder.Id, "E-Post", false, debug);
-
-                                                    if (emailsfolder != null)
-                                                    {
-                                                        if (debug)
-                                                            log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
-
-                                                        moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, customerGroupResult.groupId, emailsfolder.Id, msGraph, settings, log, debug);
-                                                    }
-                                                }
-                                            }
-
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (moved)
-                        {
-                            try
-                            {
-                                await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[msg.Id].SoftDelete.PostAsync();
-                            }
-                            catch (Exception)
-                            {
-                            }
-                        }
+                        await ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
                     }
-
                 }
             }
 
@@ -162,9 +90,102 @@ namespace Jobs
             return match.Success ? match.Groups[1].Value : null;
         }
 
+        private async Task ProcessMessages(List<ChatMessage> messages, Channel primaryChannel, string team, string teamDrive, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
+        {
+            foreach (var message in messages)
+            {
+                bool moved = false;
+
+                if (debug)
+                    log?.LogInformation("ProcessCDNEmails: " + team + ": " + message.Subject);
+
+                var msg = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[message.Id].GetAsync();
+                string orderno = common.FindOrderNoInString(msg.Subject);
+                string customerno = common.FindCustomerNoInString(msg.Subject);
+
+                if (!string.IsNullOrEmpty(orderno))
+                {
+                    var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
+
+                    if (groupAndFolder.Success)
+                    {
+                        moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, groupAndFolder.orderGroupId, groupAndFolder.orderFolderId, msGraph, settings, log, debug);
+                    }
+                }
+                else if (!string.IsNullOrEmpty(customerno))
+                {
+                    FindCustomerResult customerResult = common.GetCustomer(customerno, "Supplier", debug);
+
+                    if (customerResult.Success && customerResult.customers.Count > 0)
+                    {
+                        Customer dbCustomer = customerResult.customers.OrderByDescending(c => c.Created).Take(1).FirstOrDefault();
+
+                        if (dbCustomer != null)
+                        {
+                            if (debug)
+                                log?.LogInformation($"ProcessCDNEmails: Found customer {dbCustomer.Name} in CDN");
+
+                            FindCustomerGroupResult customerGroupResult = common.FindCustomerGroupAndDrive(dbCustomer.Name, dbCustomer.ExternalId, dbCustomer.Type, debug);
+
+                            if (customerGroupResult.Success && !string.IsNullOrEmpty(customerGroupResult.groupId))
+                            {
+                                if (debug)
+                                    log?.LogInformation($"ProcessCDNEmails: Found customer group and drive for {dbCustomer.Name}");
+
+                                var customerTeam = await msGraph.GetTeamFromGroup(customerGroupResult.groupId, debug);
+
+                                if (customerTeam != null)
+                                {
+                                    if (debug)
+                                        log?.LogInformation($"ProcessCDNEmails: Found customer team for {dbCustomer.Name}");
+
+                                    var customerPrimaryChannel = await settings.GraphClient.Teams[customerTeam].PrimaryChannel.GetAsync();
+
+                                    if (customerPrimaryChannel != null)
+                                    {
+                                        var customerPrimaryChannelFolder = await settings.GraphClient.Teams[customerTeam].Channels[customerPrimaryChannel.Id].FilesFolder.GetAsync();
+
+                                        if (customerPrimaryChannelFolder != null)
+                                        {
+                                            if (debug)
+                                                log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
+
+                                            var emailsfolder = await msGraph.FindItem(customerGroupResult.groupDriveId, customerPrimaryChannelFolder.Id, "E-Post", false, debug);
+
+                                            if (emailsfolder != null)
+                                            {
+                                                if (debug)
+                                                    log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
+
+                                                moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, customerGroupResult.groupId, emailsfolder.Id, msGraph, settings, log, debug);
+                                            }
+                                        }
+                                    }
+
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (moved)
+                {
+                    try
+                    {
+                        await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[msg.Id].SoftDelete.PostAsync();
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+            }
+
+        }
+
         private async Task<bool> ProcessAttachments(ChatMessage msg, Channel primaryChannel, string team, string teamDrive, string destinationGroup, string destinationFolder, Graph msGraph, Settings settings, ILogger log, bool debug)
         {
             bool returnValue = true;
+
             var attachments = msg.Attachments;
 
             if (debug)

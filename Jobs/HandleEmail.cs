@@ -87,7 +87,7 @@ namespace Jobs
             {
                 FindOrderGroupAndFolder orderFolder = common.GetOrderGroupAndFolder(orderNo, debug);
 
-                if (orderFolder.Success && orderFolder.orderFolder != null)
+                if (orderFolder.Success && orderFolder.orderFolderId != null)
                 {
                     if(debug)
                         log?.LogInformation($"Job HandleEmail: Found order group: {orderFolder.orderTeamId} for order no: {orderNo}");
@@ -129,7 +129,7 @@ namespace Jobs
                         if(debug)
                             log?.LogError($"Job HandleEmail: Unable to find order group for {orderNo}");
                     }
-                    else if (orderFolder.orderFolder == null)
+                    else if (orderFolder.orderFolderId == null)
                     {
                         if (!string.IsNullOrEmpty(data.Sender))
                         {
@@ -177,7 +177,7 @@ namespace Jobs
                             //Destination folder for emails missing, create it
                             if (email_folder == null)
                             {
-                                await msGraph.CreateFolder(customerGroupResult.groupId, customerGroupResult.generalFolder.Id, "E-Post", debug);
+                                await msGraph.CreateFolder(customerGroupResult.groupId, customerGroupResult.generalFolderId, "E-Post", debug);
 
                                 if(debug)
                                     log?.LogInformation($"Job HandleEmail: Created email folder in {dbCustomer.Name}");
@@ -306,7 +306,7 @@ namespace Jobs
                     //move the order file
                     if (await msgraph.MoveFile(
                         new CopyItem(CDNTeamID, emailFolder.Id, foundOrderFiles.file.Name, foundOrderFiles.file.Id),
-                        new CopyItem(orderFolder.orderGroupId, orderFolder.orderFolder.Id, foundOrderFiles.file.Name, ""),
+                        new CopyItem(orderFolder.orderGroupId, orderFolder.orderFolderId, foundOrderFiles.file.Name, ""),
                         debug
                         ))
                     {
@@ -318,7 +318,7 @@ namespace Jobs
 
                             await msgraph.MoveFile(
                                 new CopyItem(CDNTeamID, emailFolder.Id, correspondingFile.Name, correspondingFile.Id),
-                                new CopyItem(orderFolder.orderGroupId, orderFolder.orderFolder.Id, correspondingFile.Name, ""),
+                                new CopyItem(orderFolder.orderGroupId, orderFolder.orderFolderId, correspondingFile.Name, ""),
                                 debug
                             );
                         }

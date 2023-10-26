@@ -64,8 +64,6 @@ namespace Shared.Models
                         .WithAuthority($"https://login.microsoftonline.com/{TenantID}")
                         .Build();
 
-                    AuthenticationResult result;
-
                     //try
                     //{
                     //    var securePassword = new System.Security.SecureString();

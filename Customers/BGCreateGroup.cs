@@ -74,11 +74,11 @@ namespace CreateTeam
                     }
 
                     //check if the general folder was found
-                    if (findCustomerGroup.generalFolder != null && findCustomerGroup.generalFolder != default(DriveItem))
+                    if (findCustomerGroup.generalFolderId != null)
                     {
                         //set the status and if of general folder in the customer object
                         customer.GeneralFolderCreated = true;
-                        customer.GeneralFolderID = findCustomerGroup.generalFolder.Id;
+                        customer.GeneralFolderID = findCustomerGroup.generalFolderId;
 
                         //update the database with the new customer information
                         common.UpdateCustomer(customer, "group and drive info", debug);
