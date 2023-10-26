@@ -70,11 +70,12 @@ namespace Jobs
                     await ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
 
                     while (!string.IsNullOrEmpty(messages.OdataNextLink)) {
+                        count += pagesize;
+
                         messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.Delta.GetAsDeltaGetResponseAsync((requestConfiguration) =>
                         {
                             requestConfiguration.QueryParameters.Top = pagesize;
                             requestConfiguration.QueryParameters.Skip = count;
-                            count += pagesize;
                         });
 
                         await ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
