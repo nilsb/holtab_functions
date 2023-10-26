@@ -1470,9 +1470,36 @@ namespace Shared
             return returnValue;
         }
 
-        public async Task<List<DriveItem>> GetDriveFolderChildren(string? groupDriveId, string? parentId, bool recursive = false, bool debug = false)
+        public async Task<List<DriveItem>> GetDriveFolderChildren(string? groupDriveId, string? parentId, bool recursive = false, bool debug = false, bool cache = false)
         {
             List<DriveItem> returnValue = new List<DriveItem>();
+
+            if (cache)
+            {
+                if (redisDB == null)
+                    return returnValue;
+
+                var cachedValue = redisDB.StringGet($"Children for folder {parentId} in {groupDriveId} using recursive {recursive.ToString()}");
+
+                if (!cachedValue.IsNullOrEmpty && cachedValue.HasValue)
+                {
+                    string? cval = cachedValue;
+
+                    if (!string.IsNullOrEmpty(cval))
+                    {
+                        if (debug)
+                            log?.LogInformation($"Found children for folder {parentId} in {groupDriveId} using recursive {recursive.ToString()} in cache.");
+
+                        var clist = JsonConvert.DeserializeObject<List<DriveItem>>(cval);
+
+                        if (clist != null)
+                        {
+                            returnValue = clist;
+                            return returnValue;
+                        }
+                    }
+                }
+            }
 
             if (!string.IsNullOrEmpty(groupDriveId) && graphClient != null && !string.IsNullOrEmpty(parentId))
             {
@@ -1494,6 +1521,17 @@ namespace Shared
                     }
 
                     returnValue = folderChildren.Value;
+
+                    if(cache && redisDB != null)
+                    {
+                        try
+                        {
+                            redisDB.StringSet($"Children for folder {parentId} in {groupDriveId} using recursive {recursive.ToString()}", JsonConvert.SerializeObject(returnValue));
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
                 }
             }
 
