@@ -62,7 +62,7 @@ namespace Jobs
 
                     int count = pagesize;
 
-                    var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.Delta.GetAsDeltaGetResponseAsync((requestConfiguration) =>
+                    var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
                     {
                         requestConfiguration.QueryParameters.Top = pagesize;
                     });
@@ -72,7 +72,7 @@ namespace Jobs
                     while (!string.IsNullOrEmpty(messages.OdataNextLink)) {
                         count += pagesize;
 
-                        messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.Delta.GetAsDeltaGetResponseAsync((requestConfiguration) =>
+                        messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
                         {
                             requestConfiguration.QueryParameters.Top = pagesize;
                             requestConfiguration.QueryParameters.Skip = count;
