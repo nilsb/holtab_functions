@@ -212,47 +212,58 @@ namespace Jobs
                         if (debug)
                             log?.LogInformation($"ProcessCDNEmails: Trying to find folder {primaryChannelFolder.Name}/{subfolder}");
 
-                        var folder = await msGraph.FindItem(teamDrive, primaryChannelFolder.Id, subfolder, false, true);
-
-                        if (folder != null)
+                        try
                         {
-                            if (debug)
-                                log?.LogInformation($"ProcessCDNEmails: Trying to download item {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
+                            var folder = await msGraph.FindItem(teamDrive, primaryChannelFolder.Id, subfolder, false, debug);
 
-                            var file = await msGraph.DownloadFile(team, folder.Id, attachment.Name, debug);
-
-                            if (file != null && file.Contents != Stream.Null && file.Contents.Length > 0)
+                            if (folder != null)
                             {
-                                bool uploadResult = await msGraph.UploadFile(destinationGroup, destinationFolder, attachment.Name, file.Contents, debug);
+                                var searchFile = await msGraph.FindItem(teamDrive, folder.Id, attachment.Name, false, debug);
 
-                                if (uploadResult)
+                                if (searchFile != null)
                                 {
                                     if (debug)
-                                        log?.LogInformation($"ProcessCDNEmails: Uploaded file {attachment.Name} to destination");
+                                        log?.LogInformation($"ProcessCDNEmails: Trying to download item {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
 
-                                    returnValue &= true;
-                                }
-                                else
-                                {
-                                    if (debug)
-                                        log?.LogError($"ProcessCDNEmails: Failed to upload {attachment.Name}");
+                                    var file = await msGraph.DownloadFile(team, folder.Id, attachment.Name, debug);
 
-                                    returnValue &= false;
+                                    if (file != null && file.Contents != Stream.Null && file.Contents.Length > 0)
+                                    {
+                                        bool uploadResult = await msGraph.UploadFile(destinationGroup, destinationFolder, attachment.Name, file.Contents, debug);
+
+                                        if (uploadResult)
+                                        {
+                                            if (debug)
+                                                log?.LogInformation($"ProcessCDNEmails: Uploaded file {attachment.Name} to destination");
+
+                                            returnValue &= true;
+                                        }
+                                        else
+                                        {
+                                            if (debug)
+                                                log?.LogError($"ProcessCDNEmails: Failed to upload {attachment.Name}");
+
+                                            returnValue &= false;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (debug)
+                                            log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
+
+                                        returnValue &= false;
+                                    }
                                 }
                             }
                             else
                             {
-                                if (debug)
-                                    log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
-
                                 returnValue &= false;
                             }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            returnValue &= false;
+                            log?.LogError($"ProcessCDNEmail: Failed to copy file {attachment.Name} to team {team} ");
                         }
-
                     }
                     else
                     {
