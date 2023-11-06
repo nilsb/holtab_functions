@@ -1870,6 +1870,21 @@ namespace Shared
 
             if (graphClient == null || FileContents == null || FileContents == Stream.Null || string.IsNullOrEmpty(GroupID) || string.IsNullOrEmpty(FolderID) || string.IsNullOrEmpty(FileName) || FileContents.Length <= 0)
             {
+                if (debug)
+                {
+                    if (graphClient == null)
+                        log?.LogInformation("UploadFile: GraphClient was null");
+                    if (FileContents == null || FileContents == Stream.Null)
+                        log?.LogInformation("UploadFile: FileContents was null");
+                    if (string.IsNullOrEmpty(GroupID))
+                        log?.LogInformation("UploadFile: GroupID was null");
+                    if (string.IsNullOrEmpty(FolderID))
+                        log?.LogInformation("UploadFile: FolderID was null");
+                    if (string.IsNullOrEmpty(FileName))
+                        log?.LogInformation("UploadFile: FileName was null");
+                    if (FileContents.Length <= 0)
+                        log?.LogInformation("UploadFile: FileContents had zero length");
+                }
                 return returnValue;
             }
 
