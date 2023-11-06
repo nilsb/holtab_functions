@@ -1885,6 +1885,7 @@ namespace Shared
                     if (FileContents.Length <= 0)
                         log?.LogInformation("UploadFile: FileContents had zero length");
                 }
+
                 return returnValue;
             }
 

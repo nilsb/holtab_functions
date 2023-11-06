@@ -193,7 +193,10 @@ namespace Jobs
             var attachments = msg.Attachments;
 
             if (debug)
+            {
                 log?.LogInformation($"ProcessCDNEmails: Processing attachments");
+                log?.LogInformation($"DestinationFolderId: {destinationFolder}");
+            }
 
             foreach (var attachment in attachments)
             {
