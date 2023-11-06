@@ -108,7 +108,7 @@ namespace Jobs
 
                     if (dbmsg != null)
                     {
-                        if (dbmsg.Status == "completed")
+                        if (dbmsg.Status)
                         {
                             if (debug)
                                 log?.LogInformation($"ProcessCDNEmails: MessageId {message.Id} found as completed in database so skipping.");
@@ -203,7 +203,7 @@ namespace Jobs
                     {
                         try
                         {
-                            common?.CreateMessageInDB(msg.Id, "completed", debug);
+                            common?.CreateMessageInDB(msg.Id, true, debug);
                         }
                         catch (Exception)
                         {
@@ -213,7 +213,7 @@ namespace Jobs
                     {
                         try
                         {
-                            common?.CreateMessageInDB(msg.Id, "error", debug);
+                            common?.CreateMessageInDB(msg.Id, false, debug);
                         }
                         catch (Exception)
                         {
