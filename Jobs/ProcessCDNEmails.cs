@@ -108,8 +108,13 @@ namespace Jobs
 
                     if (dbmsg != null)
                     {
-                        if(dbmsg.Status == "completed")
+                        if (dbmsg.Status == "completed")
+                        {
+                            if (debug)
+                                log?.LogInformation($"ProcessCDNEmails: MessageId {message.Id} found as completed in database so skipping.");
+
                             continue;
+                        }
                     }
                 }
                 catch (Exception)
