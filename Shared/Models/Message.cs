@@ -9,6 +9,6 @@ namespace Shared.Models
     public class Message
     {
         public string MessageID { get; set; }
-        public string Status { get; set; }
+        public bool Status { get; set; }
     }
 }

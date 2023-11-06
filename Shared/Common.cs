@@ -80,7 +80,7 @@ namespace Shared
             return returnValue;
         }
 
-        public bool CreateMessageInDB(string messageId, string Status, bool debug)
+        public bool CreateMessageInDB(string messageId, bool Status, bool debug)
         {
             bool returnValue = false;
 
