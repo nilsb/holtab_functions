@@ -108,12 +108,18 @@ namespace Jobs
 
                     if (!string.IsNullOrEmpty(orderno))
                     {
-                        var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
+                        var order = common.GetOrderFromCDN(orderno, debug);
+                        var orderGroup = order.Customer.GroupID;
+                        var orderFolder = order.FolderID;
 
-                        if (groupAndFolder.Success)
-                        {
-                            moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, groupAndFolder.orderGroupId, groupAndFolder.orderFolderId, msGraph, settings, log, debug);
-                        }
+                        moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, orderGroup, orderFolder, msGraph, settings, log, debug);
+
+                        //var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
+
+                        //if (groupAndFolder.Success)
+                        //{
+                        //    moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, groupAndFolder.orderGroupId, groupAndFolder.orderFolderId, msGraph, settings, log, debug);
+                        //}
                     }
                     else if (!string.IsNullOrEmpty(customerno))
                     {
