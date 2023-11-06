@@ -839,7 +839,7 @@ namespace Shared
                                         order.CustomerID = returnValue.customer.ID;
                                         order.GroupFound = true;
                                         order.GeneralFolderFound = true;
-                                        order.FolderID = returnValue.orderFolderId ?? "";
+                                        order.FolderID = !string.IsNullOrEmpty(foundOrderFolder.Id) ? foundOrderFolder.Id : "";
                                         order.OrdersFolderFound = true;
                                         UpdateOrder(order, "folder info", debug);
                                     }
