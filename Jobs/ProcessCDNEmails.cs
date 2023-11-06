@@ -82,7 +82,6 @@ namespace Jobs
                     }
                 }
             }
-
         }
 
         private string ExtractSubFolderNameFromContentUrl(string contentUrl)
@@ -224,6 +223,12 @@ namespace Jobs
                             if (folder != null)
                             {
                                 var searchFile = await msGraph.FindItem(teamDrive, folder.Id, attachment.Name, false, debug);
+
+                                if(searchFile == null)
+                                {
+                                    folder = await msGraph.FindItem(teamDrive, primaryChannelFolder.Id, "", false, debug);
+                                    searchFile = await msGraph.FindItem(teamDrive, folder.Id, attachment.Name, false, debug);
+                                }
 
                                 if (searchFile != null)
                                 {
