@@ -52,6 +52,58 @@ namespace Shared
             }
         }
 
+        public Models.Message? GetMessageFromDB(string messageId, bool debug)
+        {
+            Models.Message? returnValue = null;
+
+            try
+            {
+                if (debug)
+                    log?.LogInformation($"GetMessageFromDB: Trying to find message with id {messageId}.");
+
+                returnValue = services?.GetMessageFromDB(messageId, debug);
+
+                if (returnValue != null)
+                {
+                    if (debug)
+                        log?.LogInformation($"GetMessageFromDB: Found message with id {messageId}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                log?.LogError(ex.ToString());
+
+                if (debug)
+                    log?.LogInformation($"GetMessageFromDB: Failed to get message {messageId} from CDN with error: " + ex.ToString());
+            }
+
+            return returnValue;
+        }
+
+        public bool CreateMessageInDB(string messageId, string Status, bool debug)
+        {
+            bool returnValue = false;
+
+            if (services == null)
+                return returnValue;
+
+            Models.Message msg = new Models.Message() { MessageID = messageId, Status = Status };
+
+            try
+            {
+                returnValue = services.AddMessageInDB(msg, debug);
+            }
+            catch (Exception ex)
+            {
+                log?.LogError("CreateMessageInDB: " + ex.ToString());
+
+                if (debug)
+                    log?.LogInformation("CreateMessageInDB: Error creating message in database with error: " + ex.ToString());
+            }
+
+            return returnValue;
+        }
+
         public Order? GetOrderFromCDN(string orderNo, bool debug)
         {
             Order? returnValue = null;

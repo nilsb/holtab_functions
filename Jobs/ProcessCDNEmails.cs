@@ -23,9 +23,12 @@ namespace Jobs
 {
     public class ProcessCDNEmails
     {
+        private readonly string inkopid = "da469009-c460-4369-92fc-3c3da320c7fe";
         private readonly IConfiguration config;
         private const int ChunkSize = 320 * 1024; // This is 320 KB. Adjust based on your requirement.
         private const int pagesize = 50;
+        private string inkopDriveId = "b!Mtdmyl658UqrleOgpLyHOOkJJoILMYlAqRvB302xJFf6fnQUOvH3TK_tuPTNyV4E";
+        private string inkopFolderId = "01TTN2ZDN3PPBVAPKDIVGLEED4YGHPSOIN";
 
         public ProcessCDNEmails(IConfiguration config)
         {
@@ -98,6 +101,20 @@ namespace Jobs
 
                 if (debug)
                     log?.LogInformation("ProcessCDNEmails: " + team + ": " + message.Subject);
+
+                try
+                {
+                    Shared.Models.Message dbmsg = common?.GetMessageFromDB(message.Id, debug);
+
+                    if (dbmsg != null)
+                    {
+                        if(dbmsg.Status == "completed")
+                            continue;
+                    }
+                }
+                catch (Exception)
+                {
+                }
 
                 var msg = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[message.Id].GetAsync();
 
@@ -181,7 +198,17 @@ namespace Jobs
                     {
                         try
                         {
-                            await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[msg.Id].SoftDelete.PostAsync();
+                            common?.CreateMessageInDB(msg.Id, "completed", debug);
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            common?.CreateMessageInDB(msg.Id, "error", debug);
                         }
                         catch (Exception)
                         {
@@ -195,7 +222,7 @@ namespace Jobs
         private async Task<bool> ProcessAttachments(ChatMessage msg, Channel primaryChannel, string team, string teamDrive, string destinationGroup, string destinationFolder, Graph msGraph, Settings settings, ILogger log, bool debug)
         {
             bool returnValue = true;
-
+            string groupId = team;
             var attachments = msg.Attachments;
 
             if (debug)
@@ -235,8 +262,17 @@ namespace Jobs
 
                                 if(searchFile == null)
                                 {
-                                    folder = await msGraph.FindItem(teamDrive, primaryChannelFolder.Id, "", false, debug);
-                                    searchFile = await msGraph.FindItem(teamDrive, folder.Id, attachment.Name, false, debug);
+                                    groupId = inkopid;
+                                    folder = await msGraph.FindItem(inkopDriveId, inkopFolderId, "", false, debug);
+
+                                    if(folder != null)
+                                    {
+                                        searchFile = await msGraph.FindItem(inkopDriveId, folder.Id, attachment.Name, false, debug);
+                                    }
+                                }
+                                else
+                                {
+                                    groupId = team;
                                 }
 
                                 if (searchFile != null)
@@ -244,7 +280,7 @@ namespace Jobs
                                     if (debug)
                                         log?.LogInformation($"ProcessCDNEmails: Trying to download item {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
 
-                                    var file = await msGraph.DownloadFile(team, folder.Id, attachment.Name, debug);
+                                    var file = await msGraph.DownloadFile(groupId, folder.Id, attachment.Name, debug);
 
                                     if (file != null && file.Contents != Stream.Null && file.Contents.Length > 0)
                                     {
