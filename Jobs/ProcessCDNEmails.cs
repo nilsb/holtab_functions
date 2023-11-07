@@ -131,10 +131,14 @@ namespace Jobs
                     if (!string.IsNullOrEmpty(orderno))
                     {
                         var order = common.GetOrderFromCDN(orderno, debug);
-                        var orderGroup = order.Customer.GroupID;
-                        var orderFolder = order.FolderID;
 
-                        moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, orderGroup, orderFolder, msGraph, settings, log, debug);
+                        if(order != null)
+                        {
+                            var orderGroup = order.Customer.GroupID;
+                            var orderFolder = order.FolderID;
+
+                            moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, orderGroup, orderFolder, msGraph, settings, log, debug);
+                        }
 
                         //var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
 
