@@ -98,13 +98,14 @@ namespace Jobs
             foreach (var message in messages)
             {
                 bool moved = false;
+                Shared.Models.Message dbmsg = null;
 
                 if (debug)
                     log?.LogInformation("ProcessCDNEmails: " + team + ": " + message.Subject);
 
                 try
                 {
-                    Shared.Models.Message dbmsg = common?.GetMessageFromDB(message.Id, debug);
+                    dbmsg = common?.GetMessageFromDB(message.Id, debug);
 
                     if (dbmsg != null)
                     {
@@ -131,10 +132,14 @@ namespace Jobs
                     if (!string.IsNullOrEmpty(orderno))
                     {
                         var order = common.GetOrderFromCDN(orderno, debug);
-                        var orderGroup = order.Customer.GroupID;
-                        var orderFolder = order.FolderID;
 
-                        moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, orderGroup, orderFolder, msGraph, settings, log, debug);
+                        if(order != null)
+                        {
+                            var orderGroup = order.Customer.GroupID;
+                            var orderFolder = order.FolderID;
+
+                            moved = await ProcessAttachments(msg, primaryChannel, team, teamDrive, orderGroup, orderFolder, msGraph, settings, log, debug);
+                        }
 
                         //var groupAndFolder = common.GetOrderGroupAndFolder(orderno, true);
 
@@ -213,7 +218,8 @@ namespace Jobs
                     {
                         try
                         {
-                            common?.CreateMessageInDB(msg.Id, false, debug);
+                            if(dbmsg == null)
+                                common?.CreateMessageInDB(msg.Id, false, debug);
                         }
                         catch (Exception)
                         {
