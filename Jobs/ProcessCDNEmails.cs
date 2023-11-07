@@ -98,13 +98,14 @@ namespace Jobs
             foreach (var message in messages)
             {
                 bool moved = false;
+                Shared.Models.Message dbmsg = null;
 
                 if (debug)
                     log?.LogInformation("ProcessCDNEmails: " + team + ": " + message.Subject);
 
                 try
                 {
-                    Shared.Models.Message dbmsg = common?.GetMessageFromDB(message.Id, debug);
+                    dbmsg = common?.GetMessageFromDB(message.Id, debug);
 
                     if (dbmsg != null)
                     {
@@ -217,7 +218,8 @@ namespace Jobs
                     {
                         try
                         {
-                            common?.CreateMessageInDB(msg.Id, false, debug);
+                            if(dbmsg == null)
+                                common?.CreateMessageInDB(msg.Id, false, debug);
                         }
                         catch (Exception)
                         {
