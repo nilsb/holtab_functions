@@ -27,7 +27,7 @@ namespace Jobs
             ILogger log)
         {
             Settings settings = new Settings(config, context, log);
-            bool debug = true;
+            bool debug = false;
             Graph msGraph = new Graph(settings);
             Common common = new Common(settings, msGraph, debug);
 
