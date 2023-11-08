@@ -81,6 +81,35 @@ namespace Shared
             return returnValue;
         }
 
+        public bool CreateOrUpdateSettingInDB(string key, string value, bool debug)
+        {
+            bool? returnValue = false;
+
+            try
+            {
+                var dbSetting = services?.GetSettingFromDB(key, debug);
+
+                if(dbSetting != null)
+                {
+                    dbSetting.Value = value;
+                    returnValue = services?.UpdateSettingInDB(dbSetting);
+                }
+                else
+                {
+                    DBSetting newSetting = new DBSetting() { Key = key, Value = value };
+                    returnValue = services?.AddSettingInDB(newSetting, debug);
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            if (returnValue == null)
+                return false;
+            else
+                return returnValue.Value;
+        }
+
         public bool CreateSettingInDB(string key, string value, bool debug)
         {
             bool returnValue = false;

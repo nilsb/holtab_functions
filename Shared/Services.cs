@@ -234,7 +234,7 @@ namespace Shared
         }
         #endregion
 
-        #region MessageTrack
+        #region Settings
         public DBSetting? GetSettingFromDB(string key, bool debug)
         {
             DBSetting? returnValue = null;
@@ -248,6 +248,22 @@ namespace Shared
             }
 
             return returnValue;
+        }
+
+        public bool UpdateSettingInDB(DBSetting obj)
+        {
+            Dictionary<string, object> keys = new Dictionary<string, object>();
+
+            if (!string.IsNullOrEmpty(obj.Key))
+            {
+                keys.Add("Key", obj.Key);
+            }
+            else
+            {
+                return false;
+            }
+
+            return UpdateSQLQuery(obj, "Settings", keys);
         }
 
         public bool AddSettingInDB(DBSetting obj, bool debug)
