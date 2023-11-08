@@ -311,7 +311,7 @@ namespace Shared
             {
                 if(prop.GetValue(src) != null)
                 {
-                    query += prop.Name + "=@" + prop.Name + ", ";
+                    query += "[" + prop.Name + "]=@" + prop.Name + ", ";
                 }
             }
 
@@ -329,7 +329,7 @@ namespace Shared
                     {
                         if (kvp.Value is int)
                         {
-                            query += kvp.Key + " = " + kvp.Value.ToString();
+                            query += "[" + kvp.Key + "] = " + kvp.Value.ToString();
                         }
                         else if (kvp.Value is bool)
                         {
