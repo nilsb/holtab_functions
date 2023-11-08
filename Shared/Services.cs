@@ -335,20 +335,20 @@ namespace Shared
                         {
                             if ((bool)kvp.Value == true)
                             {
-                                query += kvp.Key + " = 1";
+                                query += "[" + kvp.Key + "] = 1";
                             }
                             else
                             {
-                                query += kvp.Key + " = 0";
+                                query += "[" + kvp.Key + "] = 0";
                             }
                         }
                         else if (kvp.Value is DateTime)
                         {
-                            query += "'" + ((DateTime)kvp.Value).ToString("yyyy-MM-dd HH:mm:ss") + "'";
+                            query += "[" + kvp.Key + "] = '" + ((DateTime)kvp.Value).ToString("yyyy-MM-dd HH:mm:ss") + "'";
                         }
                         else
                         {
-                            query += kvp.Key + " = '" + kvp.Value.ToString() + "'";
+                            query += "[" + kvp.Key + "] = '" + kvp.Value.ToString() + "'";
                         }
                     }
                     else
