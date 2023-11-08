@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Specialized;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
@@ -48,11 +49,11 @@ namespace Jobs
                     if (debug)
                         log?.LogInformation("ProcessCDNEmails: Get messages in team");
 
-                    int count = 0;
+                    int count = 400;
 
                     try
                     {
-                        var dbSetting = common.GetSettingFromDB("MessageSkip", debug);
+                        var dbSetting = common.GetSettingFromDB("MessageHistory", debug);
                         
                         if(dbSetting != null && !string.IsNullOrEmpty(dbSetting.Value))
                         {
@@ -82,6 +83,14 @@ namespace Jobs
                         });
 
                         await common.ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
+
+                        try
+                        {
+                            common.CreateOrUpdateSettingInDB("MessageHistory", count.ToString(), debug);
+                        }
+                        catch (Exception)
+                        {
+                        }
                     }
                 }
             }
