@@ -97,12 +97,19 @@ namespace Shared.Models
         public string ClientID { get; set; } = "";
         public string ClientSecret { get; set; } = "";
         public string CDNTeamID { get; set; } = "";
+        public string CDN2SiteId { get; set; } = "d5f6e456-8705-47ca-ab47-668ff4de20ff";
+        public string CDN2LibraryId { get; set; } = "ba1fe0ef-2003-479f-88cc-d3dfaf95463e";
         public string cdnSiteId { get; set; } = "";
         public string OrderListID { get; set; } = "";
         public string CustomerListID { get; set; } = "";
         public string SqlConnectionString { get; set; } = "";
         public string Admins { get; set; } = "";
         public string ProductionChoicesListID { get; set; } = "";
+        public string InkopGroupId { get; set; } = "da469009-c460-4369-92fc-3c3da320c7fe";
+        public string InkopSiteId { get; set; } = "ca66d732-b95e-4af1-ab95-e3a0a4bc8738";
+        public string InkopLibraryId { get; set; } = "14747efa-f13a-4cf7-afed-b8f4cdc95e04";
+        public string InkopDriveId { get; set; } = "b!Mtdmyl658UqrleOgpLyHOOkJJoILMYlAqRvB302xJFf6fnQUOvH3TK_tuPTNyV4E";
+        public string InkopFolderId { get; set; } = "01TTN2ZDN3PPBVAPKDIVGLEED4YGHPSOIN";
         public string redisConnectionString { get; set; } = "";
         public IConfiguration config { get; set; }
         public ExecutionContext? context { get; set; }

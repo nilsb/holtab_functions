@@ -1,42 +1,27 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Mail;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Azure.Storage.Blobs;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph;
-using Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
-using Microsoft.Graph.Models;
 using Shared;
 using Shared.Models;
-using YamlDotNet.Serialization.NodeTypeResolvers;
 
 namespace Jobs
 {
-    public class ProcessCDNEmails
+    public class ProcessCDNHistory
     {
-        private readonly string inkopid = "da469009-c460-4369-92fc-3c3da320c7fe";
         private readonly IConfiguration config;
         private const int ChunkSize = 320 * 1024; // This is 320 KB. Adjust based on your requirement.
         private const int pagesize = 50;
-        private string inkopDriveId = "b!Mtdmyl658UqrleOgpLyHOOkJJoILMYlAqRvB302xJFf6fnQUOvH3TK_tuPTNyV4E";
-        private string inkopFolderId = "01TTN2ZDN3PPBVAPKDIVGLEED4YGHPSOIN";
 
-        public ProcessCDNEmails(IConfiguration config)
+        public ProcessCDNHistory(IConfiguration config)
         {
             this.config = config;
         }
 
-        [FunctionName("ProcessCDNEmails")]
-        public async Task Run([TimerTrigger("0 */10 * * * *")] TimerInfo myTimer,
+        [FunctionName("ProcessCDNHistory")]
+        public async Task RunAsync([TimerTrigger("0 */30 * * * *")]TimerInfo myTimer,
             Microsoft.Azure.WebJobs.ExecutionContext context,
             ILogger log)
         {
@@ -47,8 +32,8 @@ namespace Jobs
 
             if (debug)
             {
-                log?.LogInformation($"ProcessCDNEmails: trigger function executed at: {DateTime.Now}");
-                log?.LogInformation("ProcessCDNEmails: GetCDNTeam");
+                log?.LogInformation($"ProcessCDNHistory: trigger function executed at: {DateTime.Now}");
+                log?.LogInformation("ProcessCDNHistory: GetCDNTeam");
             }
 
             string team = await msGraph.GetTeamFromGroup(settings.CDNTeamID, true);
@@ -63,16 +48,31 @@ namespace Jobs
                     if (debug)
                         log?.LogInformation("ProcessCDNEmails: Get messages in team");
 
-                    int count = pagesize;
+                    int count = 0;
+
+                    try
+                    {
+                        var dbSetting = common.GetSettingFromDB("MessageSkip", debug);
+                        
+                        if(dbSetting != null && !string.IsNullOrEmpty(dbSetting.Value))
+                        {
+                            int.TryParse(dbSetting.Value, out count);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                    }
 
                     var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
                     {
                         requestConfiguration.QueryParameters.Top = pagesize;
+                        requestConfiguration.QueryParameters.Skip = count;
                     });
 
                     await common.ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
 
-                    while (!string.IsNullOrEmpty(messages.OdataNextLink) && count <= 400) {
+                    while (!string.IsNullOrEmpty(messages.OdataNextLink))
+                    {
                         count += pagesize;
 
                         messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
@@ -85,7 +85,7 @@ namespace Jobs
                     }
                 }
             }
-        }
 
+        }
     }
 }
