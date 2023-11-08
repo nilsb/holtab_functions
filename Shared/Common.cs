@@ -5,6 +5,7 @@ using Microsoft.Graph.Models;
 using System.Threading.Channels;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 
 namespace Shared
 {
@@ -50,6 +51,58 @@ namespace Shared
                     }
                 }
             }
+        }
+
+        public Models.DBSetting? GetSettingFromDB(string key, bool debug)
+        {
+            Models.DBSetting? returnValue = null;
+
+            try
+            {
+                if (debug)
+                    log?.LogInformation($"GetSettingFromDB: Trying to find setting with id {key}.");
+
+                returnValue = services?.GetSettingFromDB(key, debug);
+
+                if (returnValue != null)
+                {
+                    if (debug)
+                        log?.LogInformation($"GetSettingFromDB: Found setting with id {key}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                log?.LogError(ex.ToString());
+
+                if (debug)
+                    log?.LogInformation($"GetSettingFromDB: Failed to get setting {key} from CDN with error: " + ex.ToString());
+            }
+
+            return returnValue;
+        }
+
+        public bool CreateSettingInDB(string key, string value, bool debug)
+        {
+            bool returnValue = false;
+
+            if (services == null)
+                return returnValue;
+
+            Models.DBSetting setting = new Models.DBSetting() { Key = key, Value = value };
+
+            try
+            {
+                returnValue = services.AddSettingInDB(setting, debug);
+            }
+            catch (Exception ex)
+            {
+                log?.LogError("CreateSettingInDB: " + ex.ToString());
+
+                if (debug)
+                    log?.LogInformation("CreateSettingInDB: Error creating setting in database with error: " + ex.ToString());
+            }
+
+            return returnValue;
         }
 
         public Models.Message? GetMessageFromDB(string messageId, bool debug)
@@ -1685,5 +1738,337 @@ namespace Shared
 
             return type.GetProperty(propertyName) != null;
         }
+
+        public string? ExtractSubFolderNameFromContentUrl(string contentUrl)
+        {
+            var match = Regex.Match(contentUrl, "/General/([^/]+)/");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+        public async Task ProcessMessages(List<ChatMessage> messages, Microsoft.Graph.Models.Channel primaryChannel, string team, string teamDrive, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
+        {
+            if(settings == null || settings.GraphClient == null)
+            {
+                return;
+            }
+
+            foreach (var message in messages)
+            {
+                bool moved = false;
+                Shared.Models.Message? dbmsg = null;
+
+                if (debug)
+                    log?.LogInformation("ProcessCDNEmails: " + team + ": " + message.Subject);
+
+                try
+                {
+                    if(message.Id != null)
+                    {
+                        dbmsg = common?.GetMessageFromDB(message.Id, debug);
+
+                        if (dbmsg != null)
+                        {
+                            if (dbmsg.Status)
+                            {
+                                if (debug)
+                                    log?.LogInformation($"ProcessCDNEmails: MessageId {message.Id} found as completed in database so skipping.");
+
+                                continue;
+                            }
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                }
+
+                var msg = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[message.Id].GetAsync();
+
+                if (msg != null && !string.IsNullOrEmpty(msg.Subject) && !string.IsNullOrEmpty(msg.Id) && common != null && log != null)
+                {
+                    string orderno = common.FindOrderNoInString(msg.Subject);
+                    string customerno = common.FindCustomerNoInString(msg.Subject);
+
+                    if (!string.IsNullOrEmpty(orderno))
+                    {
+                        var order = common.GetOrderFromCDN(orderno, debug);
+
+                        if (order != null && order.Customer != null)
+                        {
+                            var orderGroup = order.Customer.GroupID;
+                            var orderFolder = order.FolderID;
+
+                            moved = await common.ProcessAttachments(msg, primaryChannel, team, teamDrive, orderGroup, orderFolder, msGraph, settings, common, log, debug);
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(customerno))
+                    {
+                        FindCustomerResult customerResult = common.GetCustomer(customerno, "Supplier", debug);
+
+                        if (customerResult.Success && customerResult.customers.Count > 0)
+                        {
+                            Customer? dbCustomer = customerResult.customers.OrderByDescending(c => c.Created).Take(1).FirstOrDefault();
+
+                            if (dbCustomer != null)
+                            {
+                                if (debug)
+                                    log?.LogInformation($"ProcessCDNEmails: Found customer {dbCustomer.Name} in CDN");
+
+                                FindCustomerGroupResult customerGroupResult = common.FindCustomerGroupAndDrive(dbCustomer.Name, dbCustomer.ExternalId, dbCustomer.Type, debug);
+
+                                if (customerGroupResult.Success && !string.IsNullOrEmpty(customerGroupResult.groupId))
+                                {
+                                    if (debug)
+                                        log?.LogInformation($"ProcessCDNEmails: Found customer group and drive for {dbCustomer.Name}");
+
+                                    var customerTeam = await msGraph.GetTeamFromGroup(customerGroupResult.groupId, debug);
+
+                                    if (customerTeam != null)
+                                    {
+                                        if (debug)
+                                            log?.LogInformation($"ProcessCDNEmails: Found customer team for {dbCustomer.Name}");
+
+                                        var customerPrimaryChannel = await settings.GraphClient.Teams[customerTeam].PrimaryChannel.GetAsync();
+
+                                        if (customerPrimaryChannel != null)
+                                        {
+                                            var customerPrimaryChannelFolder = await settings.GraphClient.Teams[customerTeam].Channels[customerPrimaryChannel.Id].FilesFolder.GetAsync();
+
+                                            if (customerPrimaryChannelFolder != null)
+                                            {
+                                                if (debug)
+                                                    log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
+
+                                                var emailsfolder = await msGraph.FindItem(customerGroupResult.groupDriveId, customerPrimaryChannelFolder.Id, "E-Post", false, debug);
+
+                                                if (emailsfolder != null && !string.IsNullOrEmpty(emailsfolder.Id))
+                                                {
+                                                    if (debug)
+                                                        log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
+
+                                                    moved = await common.ProcessAttachments(msg, primaryChannel, team, teamDrive, customerGroupResult.groupId, emailsfolder.Id, msGraph, settings, common, log, debug);
+                                                }
+                                            }
+                                        }
+
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (moved)
+                    {
+                        try
+                        {
+                            common?.CreateMessageInDB(msg.Id, true, debug);
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            if (dbmsg == null)
+                                common?.CreateMessageInDB(msg.Id, false, debug);
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                }
+            }
+
+        }
+
+        public async Task<bool> ProcessAttachments(ChatMessage msg, Microsoft.Graph.Models.Channel primaryChannel, string team, string teamDrive, string destinationGroup, string destinationFolder, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
+        {
+            bool returnValue = true;
+            string groupId = team;
+            var attachments = msg.Attachments;
+
+            if (debug)
+            {
+                log?.LogInformation($"ProcessCDNEmails: Processing attachments");
+                log?.LogInformation($"DestinationFolderId: {destinationFolder}");
+            }
+
+            if(attachments == null)
+            {
+                return true;
+            }
+
+            foreach (var attachment in attachments)
+            {
+                var contentUrl = attachment.ContentUrl;
+
+                if (debug)
+                    log?.LogInformation($"ProcessCDNEmails: Attachment content URL {contentUrl}");
+
+
+                if (!string.IsNullOrEmpty(contentUrl))
+                {
+                    var subfolder = common.ExtractSubFolderNameFromContentUrl(contentUrl);
+
+                    if (debug)
+                        log?.LogInformation($"ProcessCDNEmails: Extracted subfolder name {subfolder}");
+
+                    if (!string.IsNullOrEmpty(subfolder) && settings.GraphClient != null)
+                    {
+                        var primaryChannelFolder = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].FilesFolder.GetAsync();
+
+                        if (primaryChannelFolder != null)
+                        {
+                            if (debug)
+                                log?.LogInformation($"ProcessCDNEmails: Trying to find folder {primaryChannelFolder.Name}/{subfolder}");
+
+                            try
+                            {
+                                var folder = await msGraph.FindItem(teamDrive, primaryChannelFolder.Id, subfolder, false, debug);
+
+                                if (folder != null)
+                                {
+                                    var searchFile = await msGraph.FindItem(teamDrive, folder.Id, attachment.Name, false, debug);
+
+                                    if (searchFile == null)
+                                    {
+                                        groupId = settings.InkopGroupId;
+                                        folder = await msGraph.FindItem(settings.InkopDriveId, settings.InkopFolderId, "", false, debug);
+
+                                        if (folder != null)
+                                        {
+                                            searchFile = await msGraph.FindItem(settings.InkopDriveId, folder.Id, attachment.Name, false, debug);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        groupId = team;
+                                    }
+
+                                    if (searchFile != null && folder != null)
+                                    {
+                                        if (debug)
+                                            log?.LogInformation($"ProcessCDNEmails: Trying to download item {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
+
+                                        var file = await msGraph.DownloadFile(groupId, folder.Id, attachment.Name, debug);
+
+                                        if (file != null && file.Contents != Stream.Null && file.Contents.Length > 0)
+                                        {
+                                            bool uploadResult = await msGraph.UploadFile(destinationGroup, destinationFolder, attachment.Name, file.Contents, debug);
+
+                                            if (uploadResult)
+                                            {
+                                                if (debug)
+                                                    log?.LogInformation($"ProcessCDNEmails: Uploaded file {attachment.Name} to destination");
+
+                                                var requestBody = new FieldValueSet
+                                                {
+                                                    AdditionalData = new Dictionary<string, object>
+                                                    {
+                                                        {
+                                                            "Hanterad", "Ja"
+                                                        }
+                                                    }
+                                                };
+
+                                                try
+                                                {
+                                                    if(searchFile.ListItem != null && groupId != settings.InkopGroupId)
+                                                        _ = await settings.GraphClient.Sites[settings.CDN2SiteId].Lists[settings.CDN2LibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
+                                                    else if(searchFile.ListItem != null)
+                                                        _ = await settings.GraphClient.Sites[settings.InkopSiteId].Lists[settings.InkopLibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
+                                                }
+                                                catch (Exception)
+                                                {
+                                                }
+
+                                                returnValue &= true;
+                                            }
+                                            else
+                                            {
+                                                if (debug)
+                                                    log?.LogError($"ProcessCDNEmails: Failed to upload {attachment.Name}");
+
+                                                var requestBody = new FieldValueSet
+                                                {
+                                                    AdditionalData = new Dictionary<string, object>
+                                                    {
+                                                        {
+                                                            "Hanterad", "Nej"
+                                                        }
+                                                    }
+                                                };
+
+                                                try
+                                                {
+                                                    if (searchFile.ListItem != null && groupId != settings.InkopGroupId)
+                                                        _ = await settings.GraphClient.Sites[settings.CDN2SiteId].Lists[settings.CDN2LibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
+                                                    else if (searchFile.ListItem != null)
+                                                        _ = await settings.GraphClient.Sites[settings.InkopSiteId].Lists[settings.InkopLibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
+                                                }
+                                                catch (Exception)
+                                                {
+                                                }
+
+                                                returnValue &= false;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (debug)
+                                                log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
+
+                                            var requestBody = new FieldValueSet
+                                            {
+                                                AdditionalData = new Dictionary<string, object>
+                                                {
+                                                    {
+                                                        "Hanterad", "Nej"
+                                                    }
+                                                }
+                                            };
+
+                                            try
+                                            {
+                                                if (searchFile.ListItem != null && groupId != settings.InkopGroupId)
+                                                    _ = await settings.GraphClient.Sites[settings.CDN2SiteId].Lists[settings.CDN2LibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
+                                                else if (searchFile.ListItem != null)
+                                                    _ = await settings.GraphClient.Sites[settings.InkopSiteId].Lists[settings.InkopLibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
+                                            }
+                                            catch (Exception)
+                                            {
+                                            }
+
+                                            returnValue &= false;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    returnValue &= false;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                log?.LogError($"ProcessCDNEmail: Failed to copy file {attachment.Name} to team {team} with error " + ex.ToString());
+                            }
+                        }
+                        else
+                        {
+                            returnValue &= false;
+                        }
+                    }
+                }
+                else
+                {
+                    returnValue &= false;
+                }
+            }
+
+            return returnValue;
+        }
+
     }
 }

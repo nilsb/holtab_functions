@@ -36,6 +36,7 @@ namespace Shared
         private readonly string SelectCustomerByIDCommand = "SELECT * FROM Customers WHERE ID = @CustomerID";
         private readonly string SelectCustomerByExternalIDCommand = "SELECT * FROM Customers WHERE ExternalId = @ExternalId AND [Type] = @Type";
         private readonly string SelectMessageByIDCommand = "SELECT * FROM MessageTrack WHERE MessageID = @MessageID";
+        private readonly string SelectSettingByKeyCommand = "SELECT * FROM Settings WHERE [Key] = @Key";
 
         #region SelectOrder
         public Order? GetOrderFromDB(string orderNo, bool debug)
@@ -230,6 +231,28 @@ namespace Shared
         public bool AddMessageInDB(Message obj, bool debug)
         {
             return InsertSQLQuery(obj, "MessageTrack", debug);
+        }
+        #endregion
+
+        #region MessageTrack
+        public DBSetting? GetSettingFromDB(string key, bool debug)
+        {
+            DBSetting? returnValue = null;
+            Dictionary<string, object> keys = new Dictionary<string, object>();
+            keys.Add("Key", key);
+            List<DBSetting> result = ExecSQLQuery<DBSetting>(SelectSettingByKeyCommand, keys, debug);
+
+            if (result.Count > 0)
+            {
+                returnValue = result[0];
+            }
+
+            return returnValue;
+        }
+
+        public bool AddSettingInDB(DBSetting obj, bool debug)
+        {
+            return InsertSQLQuery(obj, "Settings", debug);
         }
         #endregion
 
