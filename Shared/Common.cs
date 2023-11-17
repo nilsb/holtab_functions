@@ -1774,7 +1774,7 @@ namespace Shared
             return match.Success ? match.Groups[1].Value : null;
         }
 
-        public async Task ProcessMessages(List<ChatMessage> messages, Microsoft.Graph.Models.Channel primaryChannel, string team, string teamDrive, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
+        public async Task ProcessMessages(List<ChatMessage> messages, string primaryChannelId, string team, string teamDrive, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
         {
             if(settings == null || settings.GraphClient == null)
             {
@@ -1811,7 +1811,7 @@ namespace Shared
                 {
                 }
 
-                var msg = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages[message.Id].GetAsync();
+                var msg = await settings.GraphClient.Teams[team].Channels[primaryChannelId].Messages[message.Id].GetAsync();
 
                 if (msg != null && !string.IsNullOrEmpty(msg.Subject) && !string.IsNullOrEmpty(msg.Id) && common != null && log != null)
                 {
@@ -1827,7 +1827,7 @@ namespace Shared
                             var orderGroup = order.Customer.GroupID;
                             var orderFolder = order.FolderID;
 
-                            moved = await common.ProcessAttachments(msg, primaryChannel, team, teamDrive, orderGroup, orderFolder, msGraph, settings, common, log, debug);
+                            moved = await common.ProcessAttachments(msg, primaryChannelId, team, teamDrive, orderGroup, orderFolder, msGraph, settings, common, log, debug);
                         }
                     }
                     else if (!string.IsNullOrEmpty(customerno))
@@ -1875,7 +1875,7 @@ namespace Shared
                                                     if (debug)
                                                         log?.LogInformation($"ProcessCDNEmails: Found primary channel in team for {dbCustomer.Name}");
 
-                                                    moved = await common.ProcessAttachments(msg, primaryChannel, team, teamDrive, customerGroupResult.groupId, emailsfolder.Id, msGraph, settings, common, log, debug);
+                                                    moved = await common.ProcessAttachments(msg, primaryChannelId, team, teamDrive, customerGroupResult.groupId, emailsfolder.Id, msGraph, settings, common, log, debug);
                                                 }
                                             }
                                         }
@@ -1912,7 +1912,7 @@ namespace Shared
 
         }
 
-        public async Task<bool> ProcessAttachments(ChatMessage msg, Microsoft.Graph.Models.Channel primaryChannel, string team, string teamDrive, string destinationGroup, string destinationFolder, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
+        public async Task<bool> ProcessAttachments(ChatMessage msg, string primaryChannelId, string team, string teamDrive, string destinationGroup, string destinationFolder, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
         {
             bool returnValue = true;
             string groupId = team;
@@ -1946,7 +1946,7 @@ namespace Shared
 
                     if (!string.IsNullOrEmpty(subfolder) && settings.GraphClient != null)
                     {
-                        var primaryChannelFolder = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].FilesFolder.GetAsync();
+                        var primaryChannelFolder = await settings.GraphClient.Teams[team].Channels[primaryChannelId].FilesFolder.GetAsync();
 
                         if (primaryChannelFolder != null)
                         {
