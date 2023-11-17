@@ -106,7 +106,7 @@ namespace Jobs
 
                     try
                     {
-                        var dbSetting = common.GetSettingFromDB("MessageHistory", debug);
+                        var dbSetting = common.GetSettingFromDB("MessageHistorySales", debug);
 
                         if (dbSetting != null && !string.IsNullOrEmpty(dbSetting.Value))
                         {
@@ -139,7 +139,7 @@ namespace Jobs
 
                         try
                         {
-                            common.CreateOrUpdateSettingInDB("MessageHistory", count.ToString(), debug);
+                            common.CreateOrUpdateSettingInDB("MessageHistorySales", count.ToString(), debug);
                         }
                         catch (Exception)
                         {
