@@ -49,7 +49,7 @@ namespace Jobs
                     if (debug)
                         log?.LogInformation("ProcessCDNEmails: Get messages in team");
 
-                    int count = 400;
+                    int count = 4000;
 
                     try
                     {
@@ -70,7 +70,7 @@ namespace Jobs
                         requestConfiguration.QueryParameters.Skip = count;
                     });
 
-                    await common.ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
+                    await common.ProcessMessages(messages.Value, primaryChannel.Id, team, teamDrive, msGraph, settings, common, log, debug);
 
                     while (!string.IsNullOrEmpty(messages.OdataNextLink))
                     {
@@ -82,7 +82,60 @@ namespace Jobs
                             requestConfiguration.QueryParameters.Skip = count;
                         });
 
-                        await common.ProcessMessages(messages.Value, primaryChannel, team, teamDrive, msGraph, settings, common, log, debug);
+                        await common.ProcessMessages(messages.Value, primaryChannel.Id, team, teamDrive, msGraph, settings, common, log, debug);
+
+                        try
+                        {
+                            common.CreateOrUpdateSettingInDB("MessageHistory", count.ToString(), debug);
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                }
+
+
+                string salesChannel = await msGraph.FindChannel(team, "Salesemails", debug);
+
+                if (!string.IsNullOrEmpty(salesChannel))
+                {
+                    if (debug)
+                        log?.LogInformation("ProcessCDNEmails: Get messages in team");
+
+                    int count = 4000;
+
+                    try
+                    {
+                        var dbSetting = common.GetSettingFromDB("MessageHistory", debug);
+
+                        if (dbSetting != null && !string.IsNullOrEmpty(dbSetting.Value))
+                        {
+                            int.TryParse(dbSetting.Value, out count);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                    }
+
+                    var messages = await settings.GraphClient.Teams[team].Channels[salesChannel].Messages.GetAsync((requestConfiguration) =>
+                    {
+                        requestConfiguration.QueryParameters.Top = pagesize;
+                        requestConfiguration.QueryParameters.Skip = count;
+                    });
+
+                    await common.ProcessMessages(messages.Value, salesChannel, team, teamDrive, msGraph, settings, common, log, debug);
+
+                    while (!string.IsNullOrEmpty(messages.OdataNextLink))
+                    {
+                        count += pagesize;
+
+                        messages = await settings.GraphClient.Teams[team].Channels[salesChannel].Messages.GetAsync((requestConfiguration) =>
+                        {
+                            requestConfiguration.QueryParameters.Top = pagesize;
+                            requestConfiguration.QueryParameters.Skip = count;
+                        });
+
+                        await common.ProcessMessages(messages.Value, salesChannel, team, teamDrive, msGraph, settings, common, log, debug);
 
                         try
                         {
