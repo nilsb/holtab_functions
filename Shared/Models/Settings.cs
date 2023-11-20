@@ -105,11 +105,12 @@ namespace Shared.Models
         public string SqlConnectionString { get; set; } = "";
         public string Admins { get; set; } = "";
         public string ProductionChoicesListID { get; set; } = "";
-        public string InkopGroupId { get; set; } = "da469009-c460-4369-92fc-3c3da320c7fe";
-        public string InkopSiteId { get; set; } = "ca66d732-b95e-4af1-ab95-e3a0a4bc8738";
+        public string InkopGroupId { get; set; } = "23ee624d-53ed-425e-bd75-a7c6d340ef3f";
+        public string InkopSiteId { get; set; } = "holtab.sharepoint.com,d5f6e456-8705-47ca-ab47-668ff4de20ff,2e52127d-db02-45ad-97f4-c052092104e8";
         public string InkopLibraryId { get; set; } = "14747efa-f13a-4cf7-afed-b8f4cdc95e04";
-        public string InkopDriveId { get; set; } = "b!Mtdmyl658UqrleOgpLyHOOkJJoILMYlAqRvB302xJFf6fnQUOvH3TK_tuPTNyV4E";
-        public string InkopFolderId { get; set; } = "01TTN2ZDN3PPBVAPKDIVGLEED4YGHPSOIN";
+        public string InkopDriveId { get; set; } = "b!VuT21QWHykerR2aP9N4g_30SUi4C261Fl_TAUgkhBOjBEO22eSTxQI9HeXbOaIqG";
+        public string InkopFolderId { get; set; } = "01RLQNMH5H3WODIGSDMFC3J5ZPUDHVV2XI";
+        public string InkopParentId { get; set; } = "01RLQNMH56Y2GOVW7725BZO354PWSELRRZ";
         public string redisConnectionString { get; set; } = "";
         public IConfiguration config { get; set; }
         public ExecutionContext? context { get; set; }
