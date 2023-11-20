@@ -1964,7 +1964,7 @@ namespace Shared
                                     if (searchFile == null)
                                     {
                                         groupId = settings.InkopGroupId;
-                                        folder = await msGraph.FindItem(settings.InkopDriveId, settings.InkopFolderId, "", false, debug);
+                                        folder = await msGraph.FindItem(settings.InkopDriveId, settings.InkopParentId, "Inköp", false, debug);
 
                                         if (folder != null)
                                         {
@@ -1992,54 +1992,12 @@ namespace Shared
                                                 if (debug)
                                                     log?.LogInformation($"ProcessCDNEmails: Uploaded file {attachment.Name} to destination");
 
-                                                var requestBody = new FieldValueSet
-                                                {
-                                                    AdditionalData = new Dictionary<string, object>
-                                                    {
-                                                        {
-                                                            "Hanterad", "Ja"
-                                                        }
-                                                    }
-                                                };
-
-                                                try
-                                                {
-                                                    if(searchFile.ListItem != null && groupId != settings.InkopGroupId)
-                                                        _ = await settings.GraphClient.Sites[settings.CDN2SiteId].Lists[settings.CDN2LibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
-                                                    else if(searchFile.ListItem != null)
-                                                        _ = await settings.GraphClient.Sites[settings.InkopSiteId].Lists[settings.InkopLibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
-                                                }
-                                                catch (Exception)
-                                                {
-                                                }
-
                                                 returnValue &= true;
                                             }
                                             else
                                             {
                                                 if (debug)
                                                     log?.LogError($"ProcessCDNEmails: Failed to upload {attachment.Name}");
-
-                                                var requestBody = new FieldValueSet
-                                                {
-                                                    AdditionalData = new Dictionary<string, object>
-                                                    {
-                                                        {
-                                                            "Hanterad", "Nej"
-                                                        }
-                                                    }
-                                                };
-
-                                                try
-                                                {
-                                                    if (searchFile.ListItem != null && groupId != settings.InkopGroupId)
-                                                        _ = await settings.GraphClient.Sites[settings.CDN2SiteId].Lists[settings.CDN2LibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
-                                                    else if (searchFile.ListItem != null)
-                                                        _ = await settings.GraphClient.Sites[settings.InkopSiteId].Lists[settings.InkopLibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
-                                                }
-                                                catch (Exception)
-                                                {
-                                                }
 
                                                 returnValue &= false;
                                             }
@@ -2048,27 +2006,6 @@ namespace Shared
                                         {
                                             if (debug)
                                                 log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
-
-                                            var requestBody = new FieldValueSet
-                                            {
-                                                AdditionalData = new Dictionary<string, object>
-                                                {
-                                                    {
-                                                        "Hanterad", "Nej"
-                                                    }
-                                                }
-                                            };
-
-                                            try
-                                            {
-                                                if (searchFile.ListItem != null && groupId != settings.InkopGroupId)
-                                                    _ = await settings.GraphClient.Sites[settings.CDN2SiteId].Lists[settings.CDN2LibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
-                                                else if (searchFile.ListItem != null)
-                                                    _ = await settings.GraphClient.Sites[settings.InkopSiteId].Lists[settings.InkopLibraryId].Items[searchFile.ListItem.Id].Fields.PatchAsync(requestBody);
-                                            }
-                                            catch (Exception)
-                                            {
-                                            }
 
                                             returnValue &= false;
                                         }
