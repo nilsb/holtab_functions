@@ -28,5 +28,14 @@ namespace Shared
         public const string AzureAppConfigConnection = "AzureAppConfigConnection";
         public const string CustomerCardAppId = "CustomerCardAppId";
         public const string debugFlags = "debugFlags";
+        public const string CDN2SiteId = "CDN2SiteId";
+        public const string CDN2LibraryId = "CDN2LibraryId";
+        public const string InkopGroupId = "InkopGroupId";
+        public const string InkopSiteId = "InkopSiteId";
+        public const string InkopLibraryId = "InkopLibraryId";
+        public const string InkopDriveId = "InkopDriveId";
+        public const string InkopFolderId = "InkopFolderId";
+        public const string InkopParentId = "InkopParentId";
+
     }
 }

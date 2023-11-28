@@ -162,14 +162,14 @@ namespace Shared
             return returnValue;
         }
 
-        public bool CreateMessageInDB(string messageId, bool Status, bool debug)
+        public bool CreateMessageInDB(string messageId, bool Status, List<string> Files, bool debug)
         {
             bool returnValue = false;
 
             if (services == null)
                 return returnValue;
 
-            Models.Message msg = new Models.Message() { MessageID = messageId, Status = Status };
+            Models.Message msg = new Models.Message() { MessageID = messageId, Status = Status, Processed = DateTime.Now.ToString(), Files = Newtonsoft.Json.JsonConvert.SerializeObject(Files) };
 
             try
             {
@@ -1783,7 +1783,7 @@ namespace Shared
 
             foreach (var message in messages)
             {
-                bool moved = false;
+                MessageMoveResult moved = new MessageMoveResult();
                 Shared.Models.Message? dbmsg = null;
 
                 if (debug)
@@ -1805,6 +1805,8 @@ namespace Shared
                                 continue;
                             }
                         }
+
+                        moved.MessageID = message.Id;
                     }
                 }
                 catch (Exception)
@@ -1886,11 +1888,11 @@ namespace Shared
                         }
                     }
 
-                    if (moved)
+                    if (moved.Success)
                     {
                         try
                         {
-                            common?.CreateMessageInDB(msg.Id, true, debug);
+                            common?.CreateMessageInDB(msg.Id, true, moved.Files, debug);
                         }
                         catch (Exception)
                         {
@@ -1901,7 +1903,7 @@ namespace Shared
                         try
                         {
                             if (dbmsg == null)
-                                common?.CreateMessageInDB(msg.Id, false, debug);
+                                common?.CreateMessageInDB(msg.Id, false, moved.Files, debug);
                         }
                         catch (Exception)
                         {
@@ -1912,9 +1914,14 @@ namespace Shared
 
         }
 
-        public async Task<bool> ProcessAttachments(ChatMessage msg, string primaryChannelId, string team, string teamDrive, string destinationGroup, string destinationFolder, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
+        public async Task<MessageMoveResult> ProcessAttachments(ChatMessage msg, string primaryChannelId, string team, string teamDrive, string destinationGroup, string destinationFolder, Graph msGraph, Settings settings, Common common, ILogger log, bool debug)
         {
-            bool returnValue = true;
+            MessageMoveResult returnValue = new MessageMoveResult();
+            returnValue.Success = true;
+
+            if(!string.IsNullOrEmpty(msg.Id))
+                returnValue.MessageID = msg.Id;
+
             string groupId = team;
             var attachments = msg.Attachments;
 
@@ -1926,7 +1933,7 @@ namespace Shared
 
             if(attachments == null)
             {
-                return true;
+                return returnValue;
             }
 
             foreach (var attachment in attachments)
@@ -1981,6 +1988,8 @@ namespace Shared
                                         if (debug)
                                             log?.LogInformation($"ProcessCDNEmails: Trying to download item {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
 
+                                        returnValue.Files.Add($"{primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
+
                                         var file = await msGraph.DownloadFile(groupId, folder.Id, attachment.Name, debug);
 
                                         if (file != null && file.Contents != Stream.Null && file.Contents.Length > 0)
@@ -1992,28 +2001,24 @@ namespace Shared
                                                 if (debug)
                                                     log?.LogInformation($"ProcessCDNEmails: Uploaded file {attachment.Name} to destination");
 
-                                                returnValue &= true;
+                                                returnValue.Success &= true;
                                             }
                                             else
                                             {
-                                                if (debug)
-                                                    log?.LogError($"ProcessCDNEmails: Failed to upload {attachment.Name}");
-
-                                                returnValue &= false;
+                                                log?.LogError($"ProcessCDNEmails: Failed to upload {attachment.Name}");
+                                                returnValue.Success &= false;
                                             }
                                         }
                                         else
                                         {
-                                            if (debug)
-                                                log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
-
-                                            returnValue &= false;
+                                            log?.LogError($"ProcessCDNEmails: Failed to download {primaryChannelFolder.Name}/{subfolder}/{attachment.Name}");
+                                            returnValue.Success &= false;
                                         }
                                     }
                                 }
                                 else
                                 {
-                                    returnValue &= false;
+                                    returnValue.Success &= false;
                                 }
                             }
                             catch (Exception ex)
@@ -2023,13 +2028,13 @@ namespace Shared
                         }
                         else
                         {
-                            returnValue &= false;
+                            returnValue.Success &= false;
                         }
                     }
                 }
                 else
                 {
-                    returnValue &= false;
+                    returnValue.Success &= false;
                 }
             }
 
