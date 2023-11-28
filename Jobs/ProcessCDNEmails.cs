@@ -51,11 +51,11 @@ namespace Jobs
                 log?.LogInformation("ProcessCDNEmails: GetCDNTeam");
             }
 
-            string team = await msGraph.GetTeamFromGroup(settings.CDNTeamID, true);
+            string team = await msGraph.GetTeamFromGroup(settings.CDNTeamID, debug);
 
             if (!string.IsNullOrEmpty(team))
             {
-                var teamDrive = await msGraph.GetGroupDrive(team, true);
+                var teamDrive = await msGraph.GetGroupDrive(team, debug);
                 var primaryChannel = await settings.GraphClient.Teams[team].PrimaryChannel.GetAsync();
 
                 if (primaryChannel != null)

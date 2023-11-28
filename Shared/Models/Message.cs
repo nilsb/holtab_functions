@@ -10,5 +10,7 @@ namespace Shared.Models
     {
         public string MessageID { get; set; }
         public bool Status { get; set; }
+        public string Processed { get; set; }
+        public string Files { get; set; }
     }
 }
