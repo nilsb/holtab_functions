@@ -73,8 +73,6 @@ namespace Jobs
                     await common.ProcessMessages(messages.Value, primaryChannel.Id, team, teamDrive, msGraph, settings, common, log, debug);
 
                     while (!string.IsNullOrEmpty(messages.OdataNextLink) && count <= 4000) {
-                        count += pagesize;
-
                         messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
                         {
                             requestConfiguration.QueryParameters.Top = pagesize;
@@ -82,6 +80,7 @@ namespace Jobs
                         });
 
                         await common.ProcessMessages(messages.Value, primaryChannel.Id, team, teamDrive, msGraph, settings, common, log, debug);
+                        count += pagesize;
                     }
                 }
 
@@ -103,8 +102,6 @@ namespace Jobs
 
                     while (!string.IsNullOrEmpty(messages.OdataNextLink) && count <= 4000)
                     {
-                        count += pagesize;
-
                         messages = await settings.GraphClient.Teams[team].Channels[salesChannel].Messages.GetAsync((requestConfiguration) =>
                         {
                             requestConfiguration.QueryParameters.Top = pagesize;
@@ -112,6 +109,7 @@ namespace Jobs
                         });
 
                         await common.ProcessMessages(messages.Value, salesChannel, team, teamDrive, msGraph, settings, common, log, debug);
+                        count += pagesize;
                     }
                 }
 
