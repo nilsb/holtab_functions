@@ -47,18 +47,28 @@ namespace CreateTeam
             if (findCustomer.Success && findCustomer.customer != null && findCustomer.customer != default(Customer))
             {
                 Customer customer = findCustomer.customer;
+                FindCustomerGroupResult findCustomerGroup = await common.FindCustomerGroupAndDrive(customer, debug);
 
-                //try to copy the root structure based on type of customer
-                if (await common.CopyRootStructure(customer, debug))
+                //if the group was found
+                if (findCustomerGroup.Success && !string.IsNullOrEmpty(findCustomerGroup.groupId))
                 {
-                    if(debug)
-                        log.LogInformation($"Customer BGCopyRootStructure: Created template folders");
+                    //try to copy the root structure based on type of customer
+                    if (await common.CopyRootStructure(customer, debug))
+                    {
+                        if (debug)
+                            log.LogInformation($"Customer BGCopyRootStructure: Created template folders");
 
-                    customer.GeneralFolderCreated = true;
-                    customer.CopiedRootStructure = true;
-                    common.UpdateCustomer(customer, "root structure", debug);
+                        customer.GeneralFolderCreated = true;
+                        customer.CopiedRootStructure = true;
+                        common.UpdateCustomer(customer, "root structure", debug);
 
-                    return new OkObjectResult(JsonConvert.SerializeObject(Message));
+                        return new OkObjectResult(JsonConvert.SerializeObject(Message));
+                    }
+                    else
+                    {
+                        //copying the structure didn't work so try again
+                        return new UnprocessableEntityObjectResult(JsonConvert.SerializeObject(Message));
+                    }
                 }
                 else
                 {
