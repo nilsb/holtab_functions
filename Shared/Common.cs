@@ -1358,6 +1358,7 @@ namespace Shared
                 returnValue.group = group;
                 returnValue.customer = customer;
                 returnValue.Success = true;
+                UpdateCustomer(customer, "Group and drive info", debug);
             }
             else
             {
