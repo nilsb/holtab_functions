@@ -703,6 +703,40 @@ namespace Shared
             return returnValue;
         }
 
+        public async Task<string?> FindDefaultChannel(string teamId, bool debug)
+        {
+            string? returnValue = null;
+
+            if (graphClient == null)
+            {
+                return returnValue;
+            }
+
+            try
+            {
+                if (debug)
+                    log?.LogInformation("FindChannel: Find default channel in team " + teamId);
+
+                var channel = await graphClient.Teams[teamId].PrimaryChannel.GetAsync();
+
+                if (channel != null)
+                {
+                    returnValue = channel.Id;
+
+                    if (returnValue != null && debug)
+                    {
+                        log?.LogInformation("FindChannel: Channel " + channel.DisplayName + " found in team " + teamId);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log?.LogError("FindChannel: " + ex.Message);
+            }
+
+            return returnValue;
+        }
+
         public async Task<string?> AddChannel(string teamId, string channelName, string channelDescription, ChannelMembershipType type, bool debug)
         {
             string? returnValue = "";

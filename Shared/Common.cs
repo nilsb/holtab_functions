@@ -755,7 +755,7 @@ namespace Shared
 
                 if(!string.IsNullOrEmpty(returnValue.groupId))
                 {
-                    returnValue.customer.GroupID = returnValue.groupId ?? "";
+                    returnValue.customer.GroupID = returnValue.groupId;
                     returnValue.customer.GroupCreated = true;
                     UpdateCustomer(returnValue.customer, "group info", debug);
                 }
@@ -767,7 +767,7 @@ namespace Shared
 
                     returnValue.Success = true;
                     returnValue.groupDriveId = groupDriveId;
-                    returnValue.customer.DriveID = groupDriveId ?? "";
+                    returnValue.customer.DriveID = groupDriveId;
                     UpdateCustomer(returnValue.customer, "drive info", debug);
 
                     if (string.IsNullOrEmpty(returnValue.customer.GeneralFolderID))
@@ -798,7 +798,7 @@ namespace Shared
                             log?.LogInformation($"FindCustomerGroupAndDrive: Fetched general folder in group drive for {customer.Name}.");
 
                         returnValue.generalFolderId = generalFolder.Id;
-                        returnValue.customer.GeneralFolderID = generalFolder.Id ?? "";
+                        returnValue.customer.GeneralFolderID = generalFolder.Id;
                         returnValue.customer.GeneralFolderCreated = true;
                         UpdateCustomer(returnValue.customer, "general folder info", debug);
                     }
@@ -866,8 +866,8 @@ namespace Shared
                         findCustomerGroupResult?.groupId != null && 
                         findCustomerGroupResult?.groupDriveId != null)
                     {
-                        returnValue.customer.GroupID = findCustomerGroupResult.groupId ?? "";
-                        returnValue.customer.DriveID = findCustomerGroupResult.groupDriveId ?? "";
+                        returnValue.customer.GroupID = findCustomerGroupResult.groupId;
+                        returnValue.customer.DriveID = findCustomerGroupResult.groupDriveId;
                         returnValue.customer.GroupCreated = true;
                         UpdateCustomer(returnValue.customer, "group and drive info", debug);
                         
@@ -881,7 +881,7 @@ namespace Shared
                             if (returnValue.orderTeamId != null)
                             {
                                 returnValue.customer.TeamCreated = true;
-                                returnValue.customer.TeamID = returnValue.orderTeamId ?? "";
+                                returnValue.customer.TeamID = returnValue.orderTeamId;
                             }
 
                             UpdateCustomer(returnValue.customer, "team info", debug);
@@ -908,7 +908,7 @@ namespace Shared
 
                             returnValue.generalFolderId = findCustomerGroupResult.generalFolderId;
                             returnValue.customer.GeneralFolderCreated = true;
-                            returnValue.customer.GeneralFolderID = returnValue.generalFolderId ?? "";
+                            returnValue.customer.GeneralFolderID = returnValue.generalFolderId;
                             UpdateCustomer(returnValue.customer, "general folder info", debug);
                         }
 
@@ -995,7 +995,7 @@ namespace Shared
 
                                                         foreach (DriveItem folderItem in folderItems)
                                                         {
-                                                            if (folderItem.Name == order.ExternalId)
+                                                            if (folderItem.Name == order.ExternalId && !string.IsNullOrEmpty(folderItem.Id))
                                                             {
                                                                 if (debug)
                                                                     log?.LogInformation($"GetOrderGroupAndFolder: Found order folder for {order.ExternalId} in customer/supplier {returnValue.customer.Name}.");
@@ -1005,7 +1005,7 @@ namespace Shared
                                                                 order.CustomerID = returnValue.customer.ID;
                                                                 order.GroupFound = true;
                                                                 order.GeneralFolderFound = true;
-                                                                order.FolderID = returnValue.orderFolderId ?? "";
+                                                                order.FolderID = folderItem.Id;
                                                                 order.OrdersFolderFound = true;
                                                                 UpdateOrder(order, "folder info", debug);
                                                             }
@@ -1338,7 +1338,7 @@ namespace Shared
             //if the group was created
             if(group != null)
             {
-                customer.GroupID = group ?? "";
+                customer.GroupID = group;
 
                 //get the group drive (will probably fail since thr group takes a while to create)
                 try
@@ -1347,7 +1347,7 @@ namespace Shared
 
                     if (groupDriveId != null)
                     {
-                        customer.DriveID = groupDriveId ?? "";
+                        customer.DriveID = groupDriveId;
                     }
                 }
                 catch (Exception ex)
@@ -1385,11 +1385,11 @@ namespace Shared
             if(debug)
                 log?.LogInformation($"CreateCustomerTeam: Created team for {customer.Name} ({customer.ExternalId})");
 
-            if (team != null)
+            if (team != null && !string.IsNullOrEmpty(team.Id) && !string.IsNullOrEmpty(team.WebUrl))
             {
                 customer.TeamCreated = true;
-                customer.TeamID = team.Id ?? "";
-                customer.TeamUrl = team.WebUrl ?? "";
+                customer.TeamID = team.Id;
+                customer.TeamUrl = team.WebUrl;
                 UpdateCustomer(customer, "team info", debug);
 
                 try
@@ -1404,9 +1404,7 @@ namespace Shared
 
                         if (!string.IsNullOrEmpty(rootUrl) && !string.IsNullOrEmpty(teamId))
                         {
-                            var channelSwedish = await msGraph.FindChannel(teamId, "Allmänt", debug);
-                            var channelEnglish = await msGraph.FindChannel(teamId, "General", debug);
-                            string? channel = channelSwedish ?? channelEnglish;
+                            string? channel = await msGraph.FindDefaultChannel(teamId, debug);
 
                             if (!string.IsNullOrEmpty(channel) && !string.IsNullOrEmpty(rootUrl))
                             {
@@ -1515,15 +1513,15 @@ namespace Shared
 
             if (group != null)
             {
-                customer.GroupID = group ?? "";
+                customer.GroupID = group;
 
                 try
                 {
                     string? groupDriveId = await msGraph.GetGroupDrive(group, debug);
 
-                    if (groupDriveId != null)
+                    if (!string.IsNullOrEmpty(groupDriveId))
                     {
-                        customer.DriveID = groupDriveId ?? "";
+                        customer.DriveID = groupDriveId;
                     }
                 }
                 catch (Exception ex)
@@ -1539,11 +1537,11 @@ namespace Shared
                 if(debug)
                     log?.LogInformation($"CreateCustomerOrSupplier: Created team for {customer.Name} ({customer.ExternalId})");
 
-                if (team != null)
+                if (team != null && !string.IsNullOrEmpty(team.Id) && !string.IsNullOrEmpty(team.WebUrl))
                 {
                     customer.TeamCreated = true;
-                    customer.TeamID = team.Id ?? "";
-                    customer.TeamUrl = team.WebUrl ?? "";
+                    customer.TeamID = team.Id;
+                    customer.TeamUrl = team.WebUrl;
                     UpdateCustomer(customer, "team info", debug);
 
                     try
@@ -1557,9 +1555,7 @@ namespace Shared
 
                             if (!string.IsNullOrEmpty(groupDriveId) && !string.IsNullOrEmpty(rootUrl))
                             {
-                                var generalChannelSwedish = await msGraph.FindChannel(customer.TeamID, "Allmänt", debug);
-                                var generalChannelEnglish = await msGraph.FindChannel(customer.TeamID, "General", debug);
-                                string? generalChannel = generalChannelSwedish ?? generalChannelEnglish;
+                                string? generalChannel = await msGraph.FindDefaultChannel(customer.TeamID, debug);
 
                                 if (!string.IsNullOrEmpty(generalChannel))
                                 {
@@ -1661,9 +1657,9 @@ namespace Shared
                         {
                             generalFolder = await this.GetGeneralFolder(customer.GroupID, debug);
 
-                            if (generalFolder != null)
+                            if (generalFolder != null && !string.IsNullOrEmpty(generalFolder.Id))
                             {
-                                customer.GeneralFolderID = generalFolder.Id ?? "";
+                                customer.GeneralFolderID = generalFolder.Id;
 
                                 if(debug)
                                     log?.LogInformation($"CopyRootStructure: Found general folder for {customer.Name} ({customer.ExternalId})");
