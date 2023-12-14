@@ -755,7 +755,7 @@ namespace Shared
 
                 if(!string.IsNullOrEmpty(returnValue.groupId))
                 {
-                    returnValue.customer.GroupID = returnValue.groupId ?? "";
+                    returnValue.customer.GroupID = returnValue.groupId;
                     returnValue.customer.GroupCreated = true;
                     UpdateCustomer(returnValue.customer, "group info", debug);
                 }
@@ -767,7 +767,7 @@ namespace Shared
 
                     returnValue.Success = true;
                     returnValue.groupDriveId = groupDriveId;
-                    returnValue.customer.DriveID = groupDriveId ?? "";
+                    returnValue.customer.DriveID = groupDriveId;
                     UpdateCustomer(returnValue.customer, "drive info", debug);
 
                     if (string.IsNullOrEmpty(returnValue.customer.GeneralFolderID))
@@ -798,7 +798,7 @@ namespace Shared
                             log?.LogInformation($"FindCustomerGroupAndDrive: Fetched general folder in group drive for {customer.Name}.");
 
                         returnValue.generalFolderId = generalFolder.Id;
-                        returnValue.customer.GeneralFolderID = generalFolder.Id ?? "";
+                        returnValue.customer.GeneralFolderID = generalFolder.Id;
                         returnValue.customer.GeneralFolderCreated = true;
                         UpdateCustomer(returnValue.customer, "general folder info", debug);
                     }
