@@ -61,7 +61,7 @@ namespace Jobs
                 if (primaryChannel != null)
                 {
                     if (debug)
-                        log?.LogInformation("ProcessCDNEmails: Get messages in team");
+                        log?.LogInformation("ProcessCDNEmails: Get messages in inköp");
 
                     int count = pagesize;
 
@@ -89,7 +89,7 @@ namespace Jobs
                 if (!string.IsNullOrEmpty(salesChannel))
                 {
                     if (debug)
-                        log?.LogInformation("ProcessCDNEmails: Get messages in team");
+                        log?.LogInformation("ProcessCDNEmails: Get messages in salesemails");
 
                     int count = pagesize;
 
@@ -112,7 +112,6 @@ namespace Jobs
                         count += pagesize;
                     }
                 }
-
             }
         }
 
