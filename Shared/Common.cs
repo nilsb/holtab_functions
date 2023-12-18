@@ -21,7 +21,7 @@ namespace Shared
         public readonly string? CDNGroup;
         public readonly string quoteRegex = @"^([A-Z]?\d+)";
         public readonly string customerRegex = @"(\d+)(\s?|-?)";
-        public readonly string orderRegex = @"B\d{6}|T\d{5}|A\d{5}|Z\d{5}|G\d{4}|R\d{2}|E\d{5,7}|F\d{5}|H\d{5,6}|K\d{5,6}|\d{5}-\d{2}|Q\d{5}-\d{2}";
+        public readonly string orderRegex = @"B\d{6}|T\d{5}|A\d{5}|D\d{5}|Z\d{5}|G\d{4}|R\d{2}|E\d{5,7}|F\d{5}|H\d{5,6}|K\d{5,6}|\d{5}-\d{2}|Q\d{5}-\d{2}|Q\d{5}";
         public List<char> illegalChars = new List<char>() { '~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '=', '{', '}', '|', '[', ']', '\\', ':', '\"', ';', '\'', '<', '>', ',', '.', '?', '/', 'å', 'ä', 'ö', 'Å', 'Ä', 'Ö', ' ', 'Ø', 'Æ', 'æ', 'ø', 'ü', 'Ü', 'µ', 'ẞ', 'ß' };
 
         public Common(Settings _settings, Graph _msGraph, bool debug)
@@ -1116,16 +1116,16 @@ namespace Shared
             return returnValue;
         }
 
-        public List<Order> GetUnhandledOrderItems(bool debug)
+        public List<Order>? GetUnhandledOrderItems(bool debug)
         {
-            List<Order> returnValue = new List<Order>();
+            List<Order>? returnValue = new List<Order>();
 
             if (services == null)
             {
                 return returnValue;
             }
 
-            returnValue = services.ExecSQLQuery<Order>("SELECT * FROM Orders WHERE Handled = 0", new Dictionary<string, object>(), debug);
+            returnValue = services.GetOrdersFromDB(debug)?.Where(o => o.Handled == false).ToList();
             return returnValue;
         }
 

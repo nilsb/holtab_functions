@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Shared.Models;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data;
 using System.Reflection;
 
 namespace Shared
@@ -31,6 +32,7 @@ namespace Shared
         }
 
         //SELECT commands
+        private readonly string SelectOrders = "SELECT * FROM Orders WHERE Handled = 0";
         private readonly string SelectOrderByIDCommand = "SELECT * FROM Orders WHERE ID = @ID";
         private readonly string SelectOrderByExternalIDCommand = "SELECT * FROM Orders WHERE ExternalId = @ExternalId";
         private readonly string SelectCustomerByIDCommand = "SELECT * FROM Customers WHERE ID = @CustomerID";
@@ -39,6 +41,37 @@ namespace Shared
         private readonly string SelectSettingByKeyCommand = "SELECT * FROM Settings WHERE [Key] = @Key";
 
         #region SelectOrder
+        public List<Order>? GetOrdersFromDB(bool debug)
+        {
+            List<Order>? returnValue = new List<Order>();
+            Dictionary<string, object> keys = new Dictionary<string, object>();
+            List<Order> result = ExecSQLQuery<Order>(SelectOrders, keys, debug);
+
+            if (result.Count > 0)
+            {
+                result.ForEach(or =>
+                {
+                    if (or.Customer != null)
+                    {
+                        or.CustomerID = or.Customer.ID;
+                    }
+                    else
+                    {
+                        Customer? dbCustomer = GetCustomerFromDB(or.CustomerID, debug);
+
+                        if (dbCustomer != null)
+                        {
+                            or.Customer = dbCustomer;
+                        }
+                    }
+                });
+
+                returnValue = result;
+            }
+
+            return returnValue;
+        }
+
         public Order? GetOrderFromDB(string orderNo, bool debug)
         {
             Order? returnValue = null;
@@ -447,7 +480,7 @@ namespace Shared
         /// <param name="tablename"></param>
         /// <param name="keys"></param>
         /// <returns></returns>
-        public string GetSQLInsertQuery<T>(T? src, string tablename)
+        public string GetSQLInsertQuery<T>(T? src, string tablename, SqlCommand command)
         {
             string query = "INSERT INTO " + tablename + " (";
 
@@ -470,6 +503,15 @@ namespace Shared
             query = query.TrimEnd(',');
             query += ") VALUES (";
 
+            foreach (PropertyInfo prop in mappedProperties.Where(prop => !Attribute.IsDefined(prop, typeof(NotMappedAttribute))))
+            {
+                query += "@" + prop.Name +", ";
+            }
+
+            query = query.TrimEnd(' ');
+            query = query.TrimEnd(',');
+            query += ")";
+
             //Add values for insert
             foreach (PropertyInfo prop in mappedProperties.Where(prop => !Attribute.IsDefined(prop, typeof(NotMappedAttribute))))
             {
@@ -477,52 +519,39 @@ namespace Shared
 
                 if (value != null)
                 {
-                    if (value is int || value is long || value is double)
+                    if (value is int || value is long || value is double || value is float)
                     {
                         if(value is int)
                         {
-                            query += ((int)value).ToString().Replace(",", ".");
+                            command.Parameters.Add(prop.Name, SqlDbType.Int).Value = (int)value;
                         }
                         if(value is long)
                         {
-                            query += ((long)value).ToString().Replace(",", ".");
+                            command.Parameters.Add(prop.Name, SqlDbType.BigInt).Value = (long)value;
                         }
-                        if(value is double)
+                        if (value is double || value is float)
                         {
-                            query += ((double)value).ToString().Replace(",", ".");
+                            command.Parameters.Add(prop.Name, SqlDbType.Float).Value = (float)value;
                         }
                     }
                     else if (value is bool)
                     {
-                        if ((bool)value == true)
-                        {
-                            query += "1";
-                        }
-                        else
-                        {
-                            query += "0";
-                        }
+                        command.Parameters.Add(prop.Name, SqlDbType.Bit).Value = (bool)value;
                     }
                     else if (value is DateTime time)
                     {
-                        query += "'" + time.ToString("yyyy-MM-dd HH:mm:ss") + "'";
+                        command.Parameters.Add(prop.Name, SqlDbType.DateTime).Value = time;
                     }
                     else
                     {
-                        query += "'" + value.ToString() + "'";
+                        command.Parameters.Add(prop.Name, SqlDbType.NVarChar).Value = value.ToString();
                     }
                 }
                 else
                 {
-                    query += "NULL";
+                    command.Parameters.Add(prop.Name, SqlDbType.NVarChar).Value = DBNull.Value;
                 }
-
-                query += ", ";
             }
-
-            query = query.TrimEnd(' ');
-            query = query.TrimEnd(',');
-            query += ")";
 
             return query;
         }
@@ -539,10 +568,6 @@ namespace Shared
         {
             bool returnValue = false;
             int affectedRows = 0;
-            string query = GetSQLInsertQuery(src, tablename);
-
-            if (debug)
-                log?.LogInformation($"InsertSQLQuery<{typeof(T).GetType().Name}>: Built query {query} for insert");
 
             try
             {
@@ -551,9 +576,14 @@ namespace Shared
                     using (SqlCommand command = new SqlCommand())
                     {
                         conn.Open();
+                        string query = GetSQLInsertQuery(src, tablename, command);
                         command.CommandText = query;
                         command.CommandType = System.Data.CommandType.Text;
                         command.Connection = conn;
+
+                        if (debug)
+                            log?.LogInformation($"InsertSQLQuery<{typeof(T).GetType().Name}>: Built query {command.CommandText} for insert");
+
                         affectedRows = command.ExecuteNonQuery();
                         conn.Close();
 
@@ -565,7 +595,7 @@ namespace Shared
             catch (Exception ex)
             {
                 if(debug)
-                    log?.LogError($"InsertSQLQuery<{typeof(T).GetType().Name}>: Insert query {query} failed with error {ex.ToString()}");
+                    log?.LogError($"InsertSQLQuery<{typeof(T).GetType().Name}>: Insert query failed with error {ex.ToString()}");
             }
 
             return returnValue;
@@ -613,7 +643,7 @@ namespace Shared
         /// <param name="keys"></param>
         /// <param name="_config"></param>
         /// <returns></returns>
-        public List<T> ExecSQLQuery<T>(string query, Dictionary<string, object> keys, bool debug)
+        private List<T> ExecSQLQuery<T>(string query, Dictionary<string, object> keys, bool debug)
         {
             List<T> list = new List<T>();
 
@@ -688,7 +718,7 @@ namespace Shared
         /// <param name="keys"></param>
         /// <param name="_config"></param>
         /// <returns></returns>
-        public bool ExecSQLNonQuery(string query, Dictionary<string, object> keys, bool debug)
+        private bool ExecSQLNonQuery(string query, Dictionary<string, object> keys, bool debug)
         {
             bool returnValue = false;
             int affectedRows = 0;
