@@ -7,17 +7,31 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Shared.Models;
+using Shared;
+using Microsoft.Extensions.Configuration;
 
 namespace Customers
 {
-    public static class BGGetMailNickname
+    public class BGGetMailNickname
     {
+        private readonly IConfiguration config;
+
+        public BGGetMailNickname(IConfiguration _config)
+        {
+            config = _config;
+        }
+
         [FunctionName("BGGetMailNickname")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
+            Microsoft.Azure.WebJobs.ExecutionContext context,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            Settings settings = new Settings(config, context, log);
+            bool debug = true;
+            Graph msGraph = new Graph(settings);
+            Common common = new Common(settings, msGraph, debug);
 
             string customername = req.Query["customername"];
             string customerno = req.Query["customerno"];
@@ -29,9 +43,7 @@ namespace Customers
             customerno = customerno ?? data?.customerno;
             customertype = customertype ?? data?.customertype;
 
-            string responseMessage = string.IsNullOrEmpty(name)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
+            string responseMessage = common.GetMailNickname(customername, customerno, customertype, true);
 
             return new OkObjectResult(responseMessage);
         }
