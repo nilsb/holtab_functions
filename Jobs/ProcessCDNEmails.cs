@@ -58,32 +58,6 @@ namespace Jobs
                 var teamDrive = await msGraph.GetGroupDrive(team, debug);
                 var primaryChannel = await settings.GraphClient.Teams[team].PrimaryChannel.GetAsync();
 
-                if (primaryChannel != null)
-                {
-                    if (debug)
-                        log?.LogInformation("ProcessCDNEmails: Get messages in inköp");
-
-                    int count = pagesize;
-
-                    var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
-                    {
-                        requestConfiguration.QueryParameters.Top = pagesize;
-                    });
-
-                    await common.ProcessMessages(messages.Value, primaryChannel.Id, team, teamDrive, msGraph, settings, common, log, debug);
-
-                    while (!string.IsNullOrEmpty(messages.OdataNextLink) && count <= 4000) {
-                        messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
-                        {
-                            requestConfiguration.QueryParameters.Top = pagesize;
-                            requestConfiguration.QueryParameters.Skip = count;
-                        });
-
-                        await common.ProcessMessages(messages.Value, primaryChannel.Id, team, teamDrive, msGraph, settings, common, log, debug);
-                        count += pagesize;
-                    }
-                }
-
                 string salesChannel = await msGraph.FindChannel(team, "Salesemails", debug);
 
                 if (!string.IsNullOrEmpty(salesChannel))
@@ -112,6 +86,33 @@ namespace Jobs
                         count += pagesize;
                     }
                 }
+
+                if (primaryChannel != null)
+                {
+                    if (debug)
+                        log?.LogInformation("ProcessCDNEmails: Get messages in inköp");
+
+                    int count = pagesize;
+
+                    var messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
+                    {
+                        requestConfiguration.QueryParameters.Top = pagesize;
+                    });
+
+                    await common.ProcessMessages(messages.Value, primaryChannel.Id, team, teamDrive, msGraph, settings, common, log, debug);
+
+                    while (!string.IsNullOrEmpty(messages.OdataNextLink) && count <= 4000) {
+                        messages = await settings.GraphClient.Teams[team].Channels[primaryChannel.Id].Messages.GetAsync((requestConfiguration) =>
+                        {
+                            requestConfiguration.QueryParameters.Top = pagesize;
+                            requestConfiguration.QueryParameters.Skip = count;
+                        });
+
+                        await common.ProcessMessages(messages.Value, primaryChannel.Id, team, teamDrive, msGraph, settings, common, log, debug);
+                        count += pagesize;
+                    }
+                }
+
             }
         }
 
